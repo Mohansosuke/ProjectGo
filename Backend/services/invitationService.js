@@ -56,7 +56,14 @@ const createInvitation = async (workspaceId, email, inviterUser, role = 'Member'
     role
   });
 
-  await sendWorkspaceInvitationEmail(email, invite.token, workspace.name, inviterUser.fullName);
+  sendWorkspaceInvitationEmail(
+  email,
+  invite.token,
+  workspace.name,
+  inviterUser.fullName
+).catch(err => {
+  console.error("Invitation email failed:", err);
+});
 
   return invite;
 };
