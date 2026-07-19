@@ -6,7 +6,8 @@
     "jsx": "react-jsx",
     "checkJs": true,
     "forceConsistentCasingInFileNames": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "types": ["vite/client"]
   },
   "include": ["src/**/*"]
 }

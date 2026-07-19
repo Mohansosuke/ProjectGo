@@ -65,10 +65,9 @@ export const AuthProvider = ({ children }) => {
   }
 };
 
-  const googleLogin = () => {
-    window.location.href = 'http://localhost:5000/api/auth/google';
-  };
-
+ const googleLogin = () => {
+  window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google`;
+};
   const logout = async () => {
     try {
       await apiClient.post('/auth/logout');
