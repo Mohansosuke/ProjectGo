@@ -12,12 +12,17 @@ const sendEmail = async ({ email, subject, html }) => {
 
   try {
     const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
-      }
-    });
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+  connectionTimeout: 30000,
+  greetingTimeout: 30000, 
+  socketTimeout: 30000,
+});
 
     const mailOptions = {
       from: `"ProjectGo" <${process.env.EMAIL_USER}>`,
