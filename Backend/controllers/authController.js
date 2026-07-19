@@ -5,6 +5,7 @@ const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 
 const generateToken = require('../utils/generateToken');
+const isProduction = process.env.NODE_ENV === 'production';
 
 const getAbsoluteUrl = (pathStr) => {
   if (!pathStr) return '';
@@ -131,8 +132,6 @@ const googleCallback = asyncHandler(async (req, res) => {
   }
 
   const token = generateToken(req.user._id);
-
-  const isProduction = process.env.NODE_ENV === 'production';
 
   res.cookie('token', token, {
     httpOnly: true,
