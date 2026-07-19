@@ -11,7 +11,7 @@ const getAbsoluteUrl = (pathStr) => {
   if (pathStr.startsWith('http://') || pathStr.startsWith('https://') || pathStr.startsWith('data:')) {
     return pathStr;
   }
-  return `http://localhost:5000${pathStr}`;
+  return `${process.env.SERVER_URL}${pathStr}`;
 };
 
 const signup = asyncHandler(async (req, res) => {
@@ -52,14 +52,12 @@ const login = asyncHandler(async (req, res) => {
     console.error("Failed to auto-accept invitations during login:", err);
   }
 
-  const isProduction = process.env.NODE_ENV === 'production';
-
-res.cookie('token', token, {
-  httpOnly: true,
-  secure: isProduction,
-  sameSite: isProduction ? 'none' : 'lax',
-  maxAge: 7 * 24 * 60 * 60 * 1000
-});
+  res.cookie('token', token, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  });
 
   return res.json(new ApiResponse(200, {
     uid: user._id,
@@ -77,7 +75,11 @@ res.cookie('token', token, {
 });
 
 const logout = asyncHandler(async (req, res) => {
-  res.clearCookie('token');
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax'
+  });
   return res.json(new ApiResponse(200, null, "Logged out successfully"));
 });
 
@@ -130,14 +132,14 @@ const googleCallback = asyncHandler(async (req, res) => {
 
   const token = generateToken(req.user._id);
 
- const isProduction = process.env.NODE_ENV === 'production';
+  const isProduction = process.env.NODE_ENV === 'production';
 
-res.cookie('token', token, {
-  httpOnly: true,
-  secure: isProduction,
-  sameSite: isProduction ? 'none' : 'lax',
-  maxAge: 7 * 24 * 60 * 60 * 1000
-});
+  res.cookie('token', token, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000
+  });
 
   res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/workspaces`);
 });
