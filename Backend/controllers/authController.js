@@ -52,12 +52,14 @@ const login = asyncHandler(async (req, res) => {
     console.error("Failed to auto-accept invitations during login:", err);
   }
 
-  res.cookie('token', token, {
-    httpOnly: true,
-    secure: false,
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    sameSite: 'lax'
-  });
+  const isProduction = process.env.NODE_ENV === 'production';
+
+res.cookie('token', token, {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? 'none' : 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000
+});
 
   return res.json(new ApiResponse(200, {
     uid: user._id,
@@ -128,12 +130,14 @@ const googleCallback = asyncHandler(async (req, res) => {
 
   const token = generateToken(req.user._id);
 
-  res.cookie('token', token, {
-    httpOnly: true,
-    secure: false,
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    sameSite: 'lax'
-  });
+ const isProduction = process.env.NODE_ENV === 'production';
+
+res.cookie('token', token, {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? 'none' : 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000
+});
 
   res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/workspaces`);
 });
