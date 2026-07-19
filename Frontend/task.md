@@ -1,0 +1,32 @@
+- `[x]` 1. Redesign Team Members Page (ProTrack layout)
+  - `[x]` Breadcrumbs, heading, CSV export, Invite Members button
+  - `[x]` Data table with Name, Email, Status, Role, Last Active columns
+  - `[x]` Pagination controls and Workspace Permissions card
+- `[x]` 2. Redesign Invite Members Page
+  - `[x]` Centered card layout with tag-style email inputs, role dropdowns, personal message input, suggested users
+- `[x]` 3. Redesign Workspace Settings Page
+  - `[x]` Left side menu list, workspace info forms, default configuration toggles, Danger Zone delete block
+- `[x]` 4. Redesign Profile Page
+  - `[x]` Settings items list, personal identity header, customizable form sections, right timeline activity log
+- `[x]` 5. Redesign Login & Sign Up Pages
+  - `[x]` Square checkmark logo branding, clean credentials fields, continue with Google/Slack buttons
+- `[x]` 6. Redesign Create Workspace Page (TaskApp layout)
+  - `[x]` Top navigation header, stepper progress tracker, custom logo upload, Cancel and blue Create button
+  - `[x]` Bottom highlights section: Secure by design, Instant Sync, Unlimited Teams
+- `[x]` 7. Redesign Workspace Select Page (TaskFlow layout)
+  - `[x]` Top navigation bar, dynamic search, create task option, grid cards for active workspaces
+- `[x]` 8. Redesign Kanban Board Page (ProjectX Active Sprint layout)
+  - `[x]` Top navigation header, Active Sprint breadcrumbs, filter bar with assignee avatars
+  - `[x]` Columns with draggable cards, drag-and-drop indicator, support floating buttons
+- `[x]` 9. Redesign Task View Details Page (PROJ-123 detail layout)
+  - `[x]` Breadcrumb keys, action control buttons, list details, description body, attachments preview cards
+  - `[x]` Tabbed panel for comments, formatted text fields, side details options
+- `[x]` 10. Sequential Navigation Flow Redirects
+  - `[x]` Wired up: Landing page -> Login or Signup page
+  - `[x]` Login & Signup page -> Create Workspace page
+  - `[x]` Create Workspace page -> Workspace View page (Select workspace)
+- `[x]` 11. Persistent Global Dark Theme Switch
+  - `[x]` Dark/Light theme toggles on all views (AuthLayout, header bars, Navbars)
+  - `[x]` Global state managed via ThemeContext and cached inside LocalStorage
+- `[x]` 12. Verification
+  - `[x]` Confirmed successful clean compilation build in Vite

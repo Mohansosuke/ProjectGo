@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
+    .btn { background-color: #5f35f5; color: #fff; padding: 12px 25px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; }
+  </style>
+</head>
+<body>
+  <h2>Workspace Invitation</h2>
+  <p>Hello,</p>
+  <p><strong>{{inviterName}}</strong> has invited you to join their workspace <strong>"{{workspaceName}}"</strong> on ProjectGo.</p>
+  <p>Please click the button below to accept the invitation and gain immediate access:</p>
+  <div style="margin: 25px 0;">
+    <a href="{{inviteUrl}}" class="btn" style="color: #fff;">Accept Invitation</a>
+  </div>
+  <p>Or copy and paste this link in your browser:</p>
+  <p><a href="{{inviteUrl}}">{{inviteUrl}}</a></p>
+</body>
+</html>

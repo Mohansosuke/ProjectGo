@@ -1,0 +1,35 @@
+[
+  {
+    "id": "u1",
+    "name": "Mohan",
+    "email": "Mohan@mail.com",
+    "password": "1234567",
+    "avatar": "https://i.pravatar.cc/150?u=mohan",
+    "role": "Admin",
+    "status": "Online",
+    "phone": "+1 234 567 8900",
+    "bio": "Lead Developer & Project Manager"
+  },
+  {
+    "id": "u2",
+    "name": "Badri",
+    "email": "badri@company.com",
+    "password": "password123",
+    "avatar": "https://i.pravatar.cc/150?u=badri",
+    "role": "Member",
+    "status": "Offline",
+    "phone": "+1 234 567 8901",
+    "bio": "Frontend Engineer"
+  },
+  {
+    "id": "u3",
+    "name": "Pranesh",
+    "email": "pranesh@company.com",
+    "password": "password123",
+    "avatar": "https://i.pravatar.cc/150?u=pranesh",
+    "role": "Member",
+    "status": "Busy",
+    "phone": "+1 234 567 8902",
+    "bio": "UI/UX Designer"
+  }
+]
