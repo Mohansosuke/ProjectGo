@@ -30,9 +30,15 @@ const registerUser = async (fullName, email, password) => {
     verificationTokenExpiry
   });
 
-  await sendVerificationEmail(email, verificationToken, fullName);
+  sendVerificationEmail(email, verificationToken, fullName)
+  .then(() => {
+    console.log("✅ Verification email sent");
+  })
+  .catch((err) => {
+    console.error("❌ Failed to send verification email:", err);
+  });
 
-  return user;
+return user;
 };
 
 const verifyEmail = async (token) => {
