@@ -1,34 +1,49 @@
-const brevo = require('@getbrevo/brevo');
-
 const sendEmail = async ({ email, subject, html }) => {
+  // Local development fallback
+  if (!process.env.BREVO_API_KEY) {
+    console.log("=== EMAIL SERVICE LOG (LOCAL DEVELOPMENT) ===");
+    console.log(`To: ${email}`);
+    console.log(`Subject: ${subject}`);
+    console.log(`Body (HTML length): ${html.length} chars`);
+    console.log("=============================================");
+    return true;
+  }
+
   try {
-    const apiInstance = new brevo.TransactionalEmailsApi();
-
-    apiInstance.setApiKey(
-      brevo.TransactionalEmailsApiApiKeys.apiKey,
-      process.env.BREVO_API_KEY
-    );
-
-    await apiInstance.sendTransacEmail({
-      sender: {
-        name: "ProjectGo",
-        email: "mohanrox647@gmail.com", // Your verified sender
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        "accept": "application/json",
+        "api-key": process.env.BREVO_API_KEY,
+        "content-type": "application/json",
       },
-      to: [
-        {
-          email,
+      body: JSON.stringify({
+        sender: {
+          name: "ProjectGo",
+          email: "mohanrox647@gmail.com", // Your verified sender
         },
-      ],
-      subject,
-      htmlContent: html,
+        to: [
+          {
+            email,
+          },
+        ],
+        subject,
+        htmlContent: html,
+      }),
     });
 
-    console.log(`✅ Email sent successfully to ${email}`);
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("❌ Brevo API Error:", data);
+      return false;
+    }
+
+    console.log("✅ Email sent successfully:", data);
     return true;
 
   } catch (error) {
-    console.error("❌ Brevo API Error");
-    console.error(error.response?.body || error.message || error);
+    console.error("❌ Fetch Error:", error);
     return false;
   }
 };
