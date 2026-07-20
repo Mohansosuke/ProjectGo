@@ -36,6 +36,9 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
+console.log("CLIENT_URL:", process.env.CLIENT_URL);
+console.log("NODE_ENV:", process.env.NODE_ENV);
+
 // CORS configuration supporting credentials (cookies)
 app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:5173',
