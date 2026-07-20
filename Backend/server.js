@@ -20,6 +20,8 @@ connectDB();
 
 const app = express();
 
+app.set('trust proxy', 1);
+
 // Security Middlewares
 app.use(helmet({
   crossOriginResourcePolicy: false // Allows loading images from unsplash or external URLs easily
