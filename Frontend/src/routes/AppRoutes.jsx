@@ -18,16 +18,18 @@ import InviteMembers from '../pages/InviteMembers';
 import WorkspaceSettings from '../pages/WorkspaceSettings';
 import Profile from '../pages/Profile';
 import ForgotPassword from '../pages/ForgotPassword';
+import VerifyEmail from '../pages/VerifyEmail';
 
 const AppRoutes = () => {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
-      
+
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/verify/:token" element={<VerifyEmail />} />
       </Route>
 
       <Route element={<DashboardLayout />}>
@@ -40,7 +42,7 @@ const AppRoutes = () => {
         <Route path="/workspace/:workspaceId/settings" element={<WorkspaceSettings />} />
         <Route path="/profile" element={<Profile />} />
       </Route>
-      
+
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
