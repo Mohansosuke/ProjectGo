@@ -19,7 +19,7 @@ const getHtmlTemplate = (templateName, replacements) => {
 };
 
 const sendVerificationEmail = async (email, token, name) => {
-  const verifyUrl = `${process.env.SERVER_URL || 'http://localhost:5000'}/api/auth/verify/${token}`;
+  const verifyUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/verify/${token}`;
   const html = getHtmlTemplate('verifyEmail.html', { name, verifyUrl });
   return await sendEmail({
     email,
