@@ -39,7 +39,13 @@ const verifyEmailController = asyncHandler(async (req, res) => {
     console.error("Failed to auto-accept invitations during verification:", err);
   }
 
-  res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/login?verified=true`);
+  return res.json(
+  new ApiResponse(
+    200,
+    null,
+    "Email verified successfully!"
+  )
+);
 });
 
 const login = asyncHandler(async (req, res) => {
