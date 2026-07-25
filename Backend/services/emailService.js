@@ -39,9 +39,16 @@ const sendResetPasswordEmail = async (email, token) => {
 };
 
 const sendWorkspaceInvitationEmail = async (email, token, workspaceName, inviterName) => {
-  const serverUrl = process.env.SERVER_URL || 'http://localhost:5000';
-  const inviteUrl = `${serverUrl}/api/invitations/accept/${token}`;
-  const html = getHtmlTemplate('inviteWorkspace.html', { inviterName, workspaceName, inviteUrl });
+  const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+
+  const inviteUrl = `${clientUrl}/login?inviteToken=${token}`;
+
+  const html = getHtmlTemplate("inviteWorkspace.html", {
+    inviterName,
+    workspaceName,
+    inviteUrl
+  });
+
   return await sendEmail({
     email,
     subject: `Invitation to join workspace "${workspaceName}" - ProjectGo`,
