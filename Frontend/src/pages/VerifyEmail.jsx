@@ -21,10 +21,13 @@ const VerifyEmail = () => {
                     navigate("/login");
                 }, 3000);
             } catch (err) {
-                setMessage(
-                    err.response?.data?.message || "Verification failed."
-                );
-            }
+    console.log(err.response);
+    console.log(err.response?.data);
+
+    setMessage(
+        err.response?.data?.message || "Verification failed."
+    );
+}
         };
 
         verify();
