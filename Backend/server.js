@@ -40,11 +40,29 @@ console.log("CLIENT_URL:", process.env.CLIENT_URL);
 console.log("NODE_ENV:", process.env.NODE_ENV);
 
 // CORS configuration supporting credentials (cookies)
+// CORS configuration supporting multiple frontend URLs
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://project-go-lilac.vercel.app",
+  "https://project-go-mohan-jp-projects.vercel.app"
+];
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    // Allow requests with no origin (Postman, server-to-server)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error("Not allowed by CORS"));
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
 app.use(express.json());
