@@ -211,7 +211,16 @@ const Login = () => {
       {/* Footer */}
       <p className="mt-6 text-center text-sm text-gray-500">
         Don't have an account?{' '}
-        <Link to={`/signup${searchParams.get('inviteToken') || sessionStorage.getItem('pendingInviteToken') ? `?inviteToken=${searchParams.get('inviteToken') || sessionStorage.getItem('pendingInviteToken')}` : ''}`} className="text-indigo-600 font-semibold hover:text-indigo-700 hover:underline transition-colors">
+        <Link
+  to={`/signup${
+    searchParams.get('inviteToken') || localStorage.getItem('pendingInviteToken')
+      ? `?inviteToken=${
+          searchParams.get('inviteToken') ||
+          localStorage.getItem('pendingInviteToken')
+        }`
+      : ''
+  }`}
+>
           Create one free
         </Link>
       </p>

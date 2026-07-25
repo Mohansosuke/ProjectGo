@@ -1,5 +1,5 @@
 import React from 'react';
-import { Outlet, Link, Navigate } from 'react-router-dom';
+import { Outlet, Link, Navigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CheckSquare, Zap, Shield, Users } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,10 +13,13 @@ const features = [
 
 const AuthLayout = () => {
   const { currentUser } = useAuth();
+  const location = useLocation();
 
-  if (currentUser) {
-    return <Navigate to="/workspaces" replace />;
-  }
+const inviteToken = new URLSearchParams(location.search).get("inviteToken");
+
+  if (currentUser && !inviteToken) {
+  return <Navigate to="/workspaces" replace />;
+}
 
   return (
     <div className="min-h-screen flex overflow-hidden">
