@@ -19,14 +19,22 @@ const { verifyJWT } = require('../middleware/authMiddleware');
 const validate = require('../middleware/validateMiddleware');
 const { signupValidator, loginValidator, forgotPasswordValidator, resetPasswordValidator } = require('../validators/authValidator');
 
-// Google OAuth
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
 router.get(
   '/google',
   passport.authenticate('google', {
     scope: ['profile', 'email'],
     prompt: 'select_account'
   })
+);
+
+router.get(
+  '/google/callback',
+  passport.authenticate('google', {
+    session: false,
+    failureRedirect: `${process.env.CLIENT_URL}/login?error=Google auth failed`
+  }),
+  googleCallback
 );
 
 router.post('/signup', signupValidator, validate, signup);
