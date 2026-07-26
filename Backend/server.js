@@ -6,6 +6,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const connectDB = require('./config/db');
 const passport = require('passport');
+require('./config/passport');
 const path = require('path');
 
 // Route imports
