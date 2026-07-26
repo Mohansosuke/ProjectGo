@@ -21,7 +21,9 @@ export const WorkspaceProvider = ({ children }) => {
     setWorkspacesLoading(true);
     try {
       const response = await apiClient.get('/workspaces');
-      const list = response.data;
+      console.log("Workspaces response:", response.data);
+console.log("Is Array:", Array.isArray(response.data));
+const list = response.data.data || [];
       setWorkspaces(list);
 
       const storedWorkspace = localStorage.getItem('projectgo_active_workspace');
