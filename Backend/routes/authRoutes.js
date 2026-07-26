@@ -22,9 +22,11 @@ const { signupValidator, loginValidator, forgotPasswordValidator, resetPasswordV
 // Google OAuth
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 router.get(
-  '/google/callback',
-  passport.authenticate('google', { session: false, failureRedirect: `${process.env.CLIENT_URL || 'http://localhost:5173'}/login?error=Google auth failed` }),
-  googleCallback
+  '/google',
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    prompt: 'select_account'
+  })
 );
 
 router.post('/signup', signupValidator, validate, signup);
