@@ -81,7 +81,10 @@ app.use('/api/invitations', invitationRoutes);
 
 // Root test endpoint
 app.get('/', (req, res) => {
-  res.json({ message: 'ProjectGo Backend API is active' });
+  res.json({ 
+    message: 'ProjectGo Backend API is active',
+    nodeEnv: process.env.NODE_ENV
+  });
 });
 
 // Global Error Handler Middleware
