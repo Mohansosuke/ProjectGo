@@ -20,6 +20,17 @@ export const WorkspaceProvider = ({ children }) => {
     }
     setWorkspacesLoading(true);
     try {
+      const pendingInviteToken = localStorage.getItem('pendingInviteToken');
+      if (pendingInviteToken) {
+        try {
+          await apiClient.post('/invitations/accept', { token: pendingInviteToken });
+        } catch (inviteErr) {
+          console.error("Error auto-accepting pending invite token:", inviteErr);
+        } finally {
+          localStorage.removeItem('pendingInviteToken');
+        }
+      }
+
       const response = await apiClient.get('/workspaces');
       console.log("Workspaces response:", response.data);
 console.log("Is Array:", Array.isArray(response.data));
