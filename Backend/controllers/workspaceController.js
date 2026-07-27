@@ -4,20 +4,22 @@ const asyncHandler = require('../utils/asyncHandler');
 
 const getWorkspaces = asyncHandler(async (req, res) => {
   const workspaces = await getUserWorkspaces(req.user._id);
-  const formatted = workspaces.map(w => {
-    const isOwner = w.owner._id.toString() === req.user._id.toString();
-    const memberRoleObj = w.memberRoles?.find(mr => mr.user.toString() === req.user._id.toString());
-    const userRole = isOwner ? 'Admin' : (memberRoleObj ? memberRoleObj.role : 'Member');
-    return {
-      id: w._id,
-      name: w.name,
-      subdomain: w.subdomain,
-      ownerId: w.owner._id,
-      members: w.members,
-      memberRoles: w.memberRoles || [],
-      userRole: userRole
-    };
-  });
+  const formatted = workspaces
+    .filter(w => w.owner)
+    .map(w => {
+      const isOwner = w.owner._id.toString() === req.user._id.toString();
+      const memberRoleObj = w.memberRoles?.find(mr => mr.user.toString() === req.user._id.toString());
+      const userRole = isOwner ? 'Admin' : (memberRoleObj ? memberRoleObj.role : 'Member');
+      return {
+        id: w._id,
+        name: w.name,
+        subdomain: w.subdomain,
+        ownerId: w.owner._id,
+        members: w.members,
+        memberRoles: w.memberRoles || [],
+        userRole: userRole
+      };
+    });
 
   return res.json(new ApiResponse(200, formatted));
 });

@@ -232,7 +232,7 @@ const InviteMembers = () => {
               <div className="relative">
                 <input
                   type="text"
-                  value={linkCopied ? "Link Copied!" : "http://localhost:5174/invite/link"}
+                  value={linkCopied ? "Link Copied!" : `${window.location.origin}/login`}
                   readOnly
                   className="w-full p-3 pl-4 pr-10 bg-slate-50/50 border border-slate-200 border-dashed rounded-md text-xs font-bold text-slate-400 cursor-pointer focus:outline-none"
                   onClick={handleCopyLink}

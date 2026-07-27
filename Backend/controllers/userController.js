@@ -42,7 +42,7 @@ const getAbsoluteUrl = (pathStr) => {
   if (pathStr.startsWith('http://') || pathStr.startsWith('https://') || pathStr.startsWith('data:')) {
     return pathStr;
   }
-  return `http://localhost:5000${pathStr}`;
+  return `${process.env.SERVER_URL || 'http://localhost:5000'}${pathStr}`;
 };
 
 const updateProfile = asyncHandler(async (req, res) => {

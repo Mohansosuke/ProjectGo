@@ -23,7 +23,7 @@ export const WorkspaceProvider = ({ children }) => {
       const response = await apiClient.get('/workspaces');
       console.log("Workspaces response:", response.data);
 console.log("Is Array:", Array.isArray(response.data));
-const list = response.data.data || [];
+const list = response.data || [];
       setWorkspaces(list);
 
       const storedWorkspace = localStorage.getItem('projectgo_active_workspace');
