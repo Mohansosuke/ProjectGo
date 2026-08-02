@@ -11,7 +11,8 @@ import {
   Briefcase,
   Edit2,
   Activity,
-  Phone
+  Phone,
+  Camera
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useWorkspace } from '../contexts/WorkspaceContext';
@@ -51,25 +52,40 @@ const Profile = () => {
 
   const handleAvatarUpload = (e) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setAvatarUrl(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result;
+      setAvatarUrl(base64);
+      try {
+        await updateProfile({ avatar: base64 });
+      } catch (err) {
+        console.error('Failed to save profile photo:', err);
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
+
 
   const handleCoverUpload = (e) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setCoverUrl(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result;
+      setCoverUrl(base64);
+      try {
+        await updateProfile({ cover: base64 });
+      } catch (err) {
+        console.error('Failed to save cover photo:', err);
+      }
+    };
+    reader.readAsDataURL(file);
+    // reset so the same file can be picked again
+    e.target.value = '';
   };
+
 
   const handleBack = () => {
     if (activeWorkspace) {
@@ -145,23 +161,27 @@ const Profile = () => {
         {/* Profile Card Header with Cover Banner */}
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm transition-colors relative">
           {/* Cover Banner */}
-          <div className="h-32 w-full relative overflow-hidden bg-slate-100">
-            {coverUrl ? (
-              <img src={coverUrl} alt="Cover Banner" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-r from-blue-500 via-blue-400 to-indigo-500" />
-            )}
-            {isEditing && (
-              <label className="absolute inset-0 bg-black/40 hover:bg-black/55 flex items-center justify-center text-white text-xs font-bold cursor-pointer transition-all">
-                Change Cover Photo
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleCoverUpload}
-                />
-              </label>
-            )}
+          <div className="h-32 w-full relative bg-slate-100" style={{overflow: 'visible'}}>
+            <div className="h-32 w-full overflow-hidden relative">
+              {coverUrl ? (
+                <img src={coverUrl} alt="Cover Banner" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-r from-blue-500 via-blue-400 to-indigo-500" />
+              )}
+            </div>
+            {/* Always-visible camera button — no edit mode required */}
+            <label
+              title="Change cover photo"
+              className="absolute bottom-2 right-3 z-10 w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center cursor-pointer transition-all shadow-lg border-2 border-white"
+            >
+              <Camera className="w-4 h-4" />
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleCoverUpload}
+              />
+            </label>
           </div>
           
           <div className="p-6 pt-0 flex flex-col sm:flex-row items-center sm:items-start justify-between gap-5 relative">
