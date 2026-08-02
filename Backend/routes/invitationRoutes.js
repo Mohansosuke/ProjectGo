@@ -6,7 +6,8 @@ const {
   acceptInvitationPost,
   acceptInvitationGet,
   getWorkspaceMembers,
-  cancelInvitation
+  cancelInvitation,
+  removeWorkspaceMember
 } = require('../controllers/invitationController');
 const { verifyJWT } = require('../middleware/authMiddleware');
 const validate = require('../middleware/validateMiddleware');
@@ -18,5 +19,10 @@ router.get('/accept/:token', acceptInvitationGet);
 router.post('/accept', verifyJWT, acceptInviteValidator, validate, acceptInvitationPost);
 router.get('/workspace/:workspaceId', verifyJWT, getWorkspaceMembers);
 router.delete('/:id', verifyJWT, cancelInvitation);
+router.delete(
+  '/workspace/:workspaceId/member/:userId',
+  verifyJWT,
+  removeWorkspaceMember
+);
 
 module.exports = router;

@@ -91,6 +91,24 @@ const TeamMembers = () => {
       toast.error(err.response?.data?.message || err.message || 'Failed to cancel invitation.');
     }
   };
+  const handleRemoveMember = async (userId) => {
+  if (!window.confirm("Remove this member from the workspace?")) return;
+
+  try {
+    await apiClient.delete(
+      `/invitations/workspace/${workspaceId}/member/${userId}`
+    );
+
+    toast.success("Member removed successfully.");
+
+    fetchMembers();
+  } catch (err) {
+    toast.error(
+      err.response?.data?.message ||
+      "Failed to remove member."
+    );
+  }
+};
 
   const filteredUsers = members.filter(user => {
     const matchesSearch = (user.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -273,10 +291,20 @@ const TeamMembers = () => {
 
                   {/* Actions ellipsis */}
                   <td className="py-4 px-6 text-right">
-                    <button className="text-gray-400 hover:text-gray-600 p-1.5 rounded-md hover:bg-gray-100 transition-colors">
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
-                  </td>
+
+  {currentUser?.email === members[0]?.email &&
+ user.role !== "Owner" && (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="text-red-600 hover:bg-red-50"
+      onClick={() => handleRemoveMember(user.id)}
+    >
+      Remove
+    </Button>
+  )}
+
+</td>
                 </tr>
               ))}
             </tbody>

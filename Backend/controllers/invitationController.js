@@ -191,6 +191,40 @@
     return res.json(new ApiResponse(200, invitations));
   });
 
+  const removeWorkspaceMember = asyncHandler(async (req, res) => {
+  const { workspaceId, userId } = req.params;
+
+  const workspace = await Workspace.findById(workspaceId);
+
+  if (!workspace) {
+    throw new ApiError(404, "Workspace not found");
+  }
+
+  // Only owner can remove members
+  if (workspace.owner.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, "Only workspace owner can remove members");
+  }
+
+  // Don't allow removing the owner
+  if (workspace.owner.toString() === userId) {
+    throw new ApiError(400, "Owner cannot be removed");
+  }
+
+  // Remove only the selected member
+  workspace.members.pull(userId);
+
+  // Remove the member role
+  workspace.memberRoles = workspace.memberRoles.filter(
+    mr => mr.user.toString() !== userId
+  );
+
+  await workspace.save();
+
+  return res.json(
+    new ApiResponse(200, null, "Member removed successfully")
+  );
+});
+
   module.exports = {
     sendInvitation,
     getInvitations,
@@ -198,5 +232,6 @@
     acceptInvitationGet,
     getWorkspaceMembers,
     cancelInvitation,
-    getWorkspaceInvitations
+    getWorkspaceInvitations,
+    removeWorkspaceMember
   };
