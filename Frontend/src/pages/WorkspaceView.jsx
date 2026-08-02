@@ -8,18 +8,13 @@ import {
   Sparkles, FileText, Mail, AlertTriangle, ArrowRight, TrendingUp,
   BarChart3, Target, Zap, Code, Megaphone, Lightbulb, Palette,
   Check, Circle, AlertCircle, BookOpen, Hash, ExternalLink,
-  MoreHorizontal, Layers, Globe, Lock
+  MoreHorizontal, Layers, Globe, Lock, UserPlus
 } from 'lucide-react';
 import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useTask } from '../contexts/TaskContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Button, Input, Avatar, Badge, Dropdown, EmptyState } from '../components/ui';
-
-const memberAvatars = {
-  u1: "https://i.pravatar.cc/80?img=12",
-  u2: "https://i.pravatar.cc/80?img=47",
-  u3: "https://i.pravatar.cc/80?img=15",
-};
+import apiClient from '../services/apiClient';
 
 const PRIORITY_CONFIG = {
   URGENT: { label: 'Urgent', dot: 'bg-red-500', chip: 'bg-red-50 text-red-600 border-red-100' },
@@ -49,6 +44,11 @@ const WorkspaceView = () => {
   const [priorityFilter, setPriorityFilter] = useState('All');
   const [now, setNow] = useState(new Date());
 
+  // Real team members state
+  const [teamMembers, setTeamMembers] = useState([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [pendingInvitesCount, setPendingInvitesCount] = useState(0);
+
   useEffect(() => {
     if (location.state?.initialTab) setActiveTab(location.state.initialTab);
   }, [location.state]);
@@ -58,6 +58,39 @@ const WorkspaceView = () => {
     const t = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(t);
   }, []);
+
+  // Fetch real team members when Teams tab is active
+  useEffect(() => {
+    if (activeTab !== 'Teams') return;
+    const wsId = activeWorkspace?.id || activeWorkspace?._id;
+    if (!wsId) return;
+    const load = async () => {
+      setTeamLoading(true);
+      try {
+        const [membersRes, invitesRes] = await Promise.allSettled([
+          apiClient.get(`/invitations/workspace/${wsId}`),
+          apiClient.get(`/workspaces/${wsId}/invitations`),
+        ]);
+        if (membersRes.status === 'fulfilled') {
+          const list = Array.isArray(membersRes.value.data)
+            ? membersRes.value.data
+            : (membersRes.value.data?.data || []);
+          setTeamMembers(list);
+        }
+        if (invitesRes.status === 'fulfilled') {
+          const inv = Array.isArray(invitesRes.value.data)
+            ? invitesRes.value.data
+            : (invitesRes.value.data?.data || []);
+          setPendingInvitesCount(inv.length);
+        }
+      } catch (err) {
+        console.error('Failed to load team members:', err);
+      } finally {
+        setTeamLoading(false);
+      }
+    };
+    load();
+  }, [activeTab, activeWorkspace]);
 
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
@@ -614,19 +647,19 @@ const WorkspaceView = () => {
                 </Button>
               </div>
 
-              {/* Team stats */}
+              {/* Team stats — real data */}
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { label: 'Total Members', value: 3, icon: Users, color: 'text-violet-600 bg-violet-50' },
-                  { label: 'Active Now', value: 2, icon: Activity, color: 'text-emerald-600 bg-emerald-50' },
-                  { label: 'Pending Invites', value: 0, icon: Mail, color: 'text-amber-600 bg-amber-50' },
+                  { label: 'Total Members', value: teamMembers.length, icon: Users, color: 'text-violet-600 bg-violet-50' },
+                  { label: 'Active Now', value: teamMembers.filter(m => (m.status || '').toLowerCase() === 'active').length, icon: Activity, color: 'text-emerald-600 bg-emerald-50' },
+                  { label: 'Pending Invites', value: pendingInvitesCount, icon: Mail, color: 'text-amber-600 bg-amber-50' },
                 ].map(s => (
                   <div key={s.label} className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3 shadow-xs">
                     <div className={`w-8 h-8 rounded-lg ${s.color} flex items-center justify-center shrink-0`}>
                       <s.icon className="w-4 h-4" />
                     </div>
                     <div>
-                      <div className="text-lg font-black text-slate-900">{s.value}</div>
+                      <div className="text-lg font-black text-slate-900">{teamLoading ? '—' : s.value}</div>
                       <div className="text-[10px] font-semibold text-slate-400">{s.label}</div>
                     </div>
                   </div>
@@ -642,37 +675,67 @@ const WorkspaceView = () => {
                   <div className="col-span-1">Tasks</div>
                 </div>
                 <div className="divide-y divide-slate-50">
-                  {[
-                    { name: 'Mohan Kumar', email: 'mohan@company.com', role: 'Owner', status: 'Active', id: 'u1' },
-                    { name: 'Sarah Connor', email: 'sarah@company.com', role: 'Admin', status: 'Active', id: 'u2' },
-                    { name: 'David Park', email: 'david@company.com', role: 'Member', status: 'Idle', id: 'u3' },
-                  ].map(m => {
-                    const memberTasks = tasks.filter(t => t.assigneeId === m.id).length;
-                    return (
-                      <div key={m.id} className="grid grid-cols-12 gap-0 px-5 py-3 hover:bg-slate-50/50 transition-colors items-center group">
+                  {teamLoading ? (
+                    // Skeleton loading
+                    Array.from({ length: 3 }).map((_, i) => (
+                      <div key={`sk-${i}`} className="grid grid-cols-12 gap-0 px-5 py-3 items-center animate-pulse">
                         <div className="col-span-4 flex items-center gap-2.5">
-                          <div className="relative">
-                            <img src={memberAvatars[m.id]} alt="" className="w-7 h-7 rounded-full object-cover border border-slate-200" />
-                            <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${m.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                          </div>
-                          <span className="text-xs font-bold text-slate-800 truncate">{m.name}</span>
+                          <div className="w-7 h-7 rounded-full bg-slate-200" />
+                          <div className="h-2.5 w-24 rounded bg-slate-200" />
                         </div>
-                        <div className="col-span-3 text-[11px] text-slate-500 font-medium truncate">{m.email}</div>
-                        <div className="col-span-2">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${m.role === 'Owner' ? 'bg-violet-50 text-[#5f35f5]' :
-                            m.role === 'Admin' ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'
-                            }`}>{m.role}</span>
-                        </div>
-                        <div className="col-span-2 text-[11px] font-bold">
-                          <span className={`flex items-center gap-1 ${m.status === 'Active' ? 'text-emerald-600' : 'text-slate-400'}`}>
-                            <span className={`w-1.5 h-1.5 rounded-full ${m.status === 'Active' ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
-                            {m.status}
-                          </span>
-                        </div>
-                        <div className="col-span-1 text-xs font-bold text-slate-500">{memberTasks}</div>
+                        <div className="col-span-3"><div className="h-2.5 w-32 rounded bg-slate-200" /></div>
+                        <div className="col-span-2"><div className="h-4 w-12 rounded bg-slate-200" /></div>
+                        <div className="col-span-2"><div className="h-2.5 w-10 rounded bg-slate-200" /></div>
+                        <div className="col-span-1"><div className="h-2.5 w-4 rounded bg-slate-200" /></div>
                       </div>
-                    );
-                  })}
+                    ))
+                  ) : teamMembers.length === 0 ? (
+                    <div className="py-14 flex flex-col items-center justify-center gap-2">
+                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
+                        <UserPlus className="w-5 h-5 text-slate-400" />
+                      </div>
+                      <p className="text-xs font-semibold text-slate-500">No members yet</p>
+                      <p className="text-[11px] text-slate-400">Invite teammates to get started.</p>
+                    </div>
+                  ) : (
+                    teamMembers.map(m => {
+                      const memberId = m.id || m._id;
+                      const memberTasks = tasks.filter(t => String(t.assigneeId) === String(memberId)).length;
+                      const isActive = (m.status || 'Active').toLowerCase() === 'active';
+                      const initials = (m.name || m.email || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+                      return (
+                        <div key={memberId} className="grid grid-cols-12 gap-0 px-5 py-3 hover:bg-slate-50/50 transition-colors items-center group">
+                          <div className="col-span-4 flex items-center gap-2.5">
+                            <div className="relative shrink-0">
+                              {m.avatar ? (
+                                <img src={m.avatar} alt={m.name} className="w-7 h-7 rounded-full object-cover border border-slate-200" />
+                              ) : (
+                                <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-bold flex items-center justify-center border border-slate-200">
+                                  {initials}
+                                </div>
+                              )}
+                              <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${isActive ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                            </div>
+                            <span className="text-xs font-bold text-slate-800 truncate">{m.name || m.email}</span>
+                          </div>
+                          <div className="col-span-3 text-[11px] text-slate-500 font-medium truncate">{m.email}</div>
+                          <div className="col-span-2">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              m.role === 'Owner' ? 'bg-violet-50 text-[#5f35f5]' :
+                              m.role === 'Admin' ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'
+                            }`}>{m.role || 'Member'}</span>
+                          </div>
+                          <div className="col-span-2 text-[11px] font-bold">
+                            <span className={`flex items-center gap-1 ${isActive ? 'text-emerald-600' : 'text-slate-400'}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                              {m.status || 'Active'}
+                            </span>
+                          </div>
+                          <div className="col-span-1 text-xs font-bold text-slate-500">{memberTasks}</div>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
               </div>
             </div>
