@@ -40,9 +40,12 @@ const TeamMembers = () => {
   const fetchMembers = async () => {
     try {
       const res = await apiClient.get(`/invitations/workspace/${workspaceId}`);
-      setMembers(res.data);
+      // apiClient interceptor unwraps response.data.data; ensure it's an array
+      const list = Array.isArray(res.data) ? res.data : (res.data?.data ? res.data.data : []);
+      setMembers(list);
     } catch (err) {
       console.error("Error loading workspace members:", err);
+      setMembers([]);
     }
   };
 
@@ -251,69 +254,105 @@ const TeamMembers = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50 transition-colors group">
-                  {/* Name column */}
-                  <td className="py-4 px-6">
-                    <div className="flex items-center space-x-3">
-                      <Avatar name={user.name} src={user.avatar} size="sm" status={user.status} />
-                      <span className="font-semibold text-gray-800 text-sm">
-                        {user.name}
-                      </span>
+              {loading ? (
+                // Skeleton loading rows
+                Array.from({ length: 3 }).map((_, i) => (
+                  <tr key={`skel-${i}`} className="animate-pulse">
+                    <td className="py-4 px-6">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-8 h-8 rounded-full bg-gray-200" />
+                        <div className="h-3 w-28 rounded bg-gray-200" />
+                      </div>
+                    </td>
+                    <td className="py-4 px-6"><div className="h-3 w-36 rounded bg-gray-200" /></td>
+                    <td className="py-4 px-6"><div className="h-5 w-16 rounded-full bg-gray-200" /></td>
+                    <td className="py-4 px-6"><div className="h-5 w-16 rounded-full bg-gray-200" /></td>
+                    <td className="py-4 px-6"><div className="h-3 w-20 rounded bg-gray-200" /></td>
+                    <td className="py-4 px-6" />
+                  </tr>
+                ))
+              ) : filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-16 text-center">
+                    <div className="flex flex-col items-center space-y-2">
+                      <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
+                        <UserPlus className="w-6 h-6 text-gray-400" />
+                      </div>
+                      <p className="text-sm font-medium text-gray-500">
+                        {members.length === 0 ? 'No members in this workspace yet.' : 'No members match your filters.'}
+                      </p>
+                      {members.length === 0 && (
+                        <p className="text-xs text-gray-400">Invite people using the form above to get started.</p>
+                      )}
                     </div>
                   </td>
-
-                  {/* Email column */}
-                  <td className="py-4 px-6 text-sm text-gray-500">
-                    {user.email}
-                  </td>
-
-                  {/* Status pill */}
-                  <td className="py-4 px-6">
-                    <Badge
-                      variant={
-                        user.status === 'Online' || user.status === 'Busy'
-                          ? 'success'
-                          : 'default'
-                      }
-                      size="sm"
-                    >
-                      {user.status || 'Offline'}
-                    </Badge>
-                  </td>
-
-                  {/* Role */}
-                  <td className="py-4 px-6">
-                    <Badge
-                      variant={user.role === 'Admin' ? 'indigo' : user.role === 'Owner' ? 'violet' : 'default'}
-                      size="sm"
-                    >
-                      {user.role}
-                    </Badge>
-                  </td>
-
-                  {/* Last active time */}
-                  <td className="py-4 px-6 text-sm text-gray-400">
-                    {user.status === 'Online' ? 'Active now' : '—'}
-                  </td>
-
-                  {/* Actions ellipsis */}
-                  <td className="py-4 px-6 text-right">
-
-  {isCurrentOwnerOrAdmin && workspace && user.id !== workspace.ownerId && (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="text-red-600 hover:bg-red-50"
-      onClick={() => handleRemoveMember(user.id)}
-    >
-      Remove
-    </Button>
-  )}
-
-</td>
                 </tr>
-              ))}
+              ) : (
+                filteredUsers.map((user) => (
+                  <tr key={user.id || user._id} className="hover:bg-gray-50 transition-colors group">
+                    {/* Name column */}
+                    <td className="py-4 px-6">
+                      <div className="flex items-center space-x-3">
+                        <Avatar name={user.name} src={user.avatar} size="sm" status={user.status} />
+                        <span className="font-semibold text-gray-800 text-sm">
+                          {user.name}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Email column */}
+                    <td className="py-4 px-6 text-sm text-gray-500">
+                      {user.email}
+                    </td>
+
+                    {/* Status pill */}
+                    <td className="py-4 px-6">
+                      <Badge
+                        variant={
+                          user.status === 'Online' || user.status === 'Busy'
+                            ? 'success'
+                            : 'default'
+                        }
+                        size="sm"
+                      >
+                        {user.status || 'Active'}
+                      </Badge>
+                    </td>
+
+                    {/* Role */}
+                    <td className="py-4 px-6">
+                      <Badge
+                        variant={user.role === 'Admin' ? 'indigo' : user.role === 'Owner' ? 'violet' : 'default'}
+                        size="sm"
+                      >
+                        {user.role || 'Member'}
+                      </Badge>
+                    </td>
+
+                    {/* Joined / Last active */}
+                    <td className="py-4 px-6 text-sm text-gray-400">
+                      {user.joinedAt
+                        ? new Date(user.joinedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+                        : '—'}
+                    </td>
+
+                    {/* Actions */}
+                    <td className="py-4 px-6 text-right">
+                      {isCurrentOwnerOrAdmin && workspace &&
+                        String(user.id || user._id) !== String(workspace.ownerId) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:bg-red-50"
+                          onClick={() => handleRemoveMember(user.id || user._id)}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
