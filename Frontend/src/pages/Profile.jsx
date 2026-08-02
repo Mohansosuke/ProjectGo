@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -32,6 +32,7 @@ const Profile = () => {
   const [phone, setPhone] = useState(currentUser?.phone || '+1 (555) 000-1234');
   const [avatarUrl, setAvatarUrl] = useState(currentUser?.photoURL || currentUser?.avatar || 'https://i.pravatar.cc/80?img=12');
   const [coverUrl, setCoverUrl] = useState(currentUser?.cover || '');
+  const coverInputRef = useRef(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteError, setDeleteError] = useState('');
@@ -82,8 +83,12 @@ const Profile = () => {
       }
     };
     reader.readAsDataURL(file);
-    // reset so the same file can be picked again
+    // reset so the same file can be selected again
     e.target.value = '';
+  };
+
+  const openCoverPicker = () => {
+    coverInputRef.current?.click();
   };
 
 
@@ -160,28 +165,48 @@ const Profile = () => {
       <div className="flex-1 space-y-6">
         {/* Profile Card Header with Cover Banner */}
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm transition-colors relative">
+          {/* Hidden file input for cover — outside all overflow-clipped containers */}
+          <input
+            ref={coverInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleCoverUpload}
+          />
+
           {/* Cover Banner */}
-          <div className="h-32 w-full relative bg-slate-100" style={{overflow: 'visible'}}>
-            <div className="h-32 w-full overflow-hidden relative">
-              {coverUrl ? (
-                <img src={coverUrl} alt="Cover Banner" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full bg-gradient-to-r from-blue-500 via-blue-400 to-indigo-500" />
-              )}
-            </div>
-            {/* Always-visible camera button — no edit mode required */}
-            <label
+          <div className="h-36 w-full relative overflow-hidden group">
+            {/* Background image or gradient */}
+            {coverUrl ? (
+              <img src={coverUrl} alt="Cover Banner" className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-r from-blue-500 via-blue-400 to-indigo-500" />
+            )}
+
+            {/* Full-banner hover overlay — click anywhere on cover to change it */}
+            <button
+              type="button"
+              onClick={openCoverPicker}
               title="Change cover photo"
-              className="absolute bottom-2 right-3 z-10 w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center cursor-pointer transition-all shadow-lg border-2 border-white"
+              className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-1 bg-black/0 group-hover:bg-black/35 transition-all duration-200 cursor-pointer"
             >
-              <Camera className="w-4 h-4" />
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleCoverUpload}
-              />
-            </label>
+              <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center gap-1 pointer-events-none">
+                <Camera className="w-6 h-6 text-white drop-shadow" />
+                <span className="text-white text-xs font-semibold drop-shadow">Change Cover Photo</span>
+              </span>
+            </button>
+
+            {/* Always-visible camera pill button — bottom right corner */}
+            <button
+              type="button"
+              onClick={openCoverPicker}
+              title="Change cover photo"
+              className="absolute bottom-2 right-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/60 hover:bg-black/85 text-white text-xs font-semibold cursor-pointer transition-all shadow-lg border border-white/30 backdrop-blur-sm"
+              style={{ zIndex: 20 }}
+            >
+              <Camera className="w-3.5 h-3.5" />
+              <span>Edit Cover</span>
+            </button>
           </div>
           
           <div className="p-6 pt-0 flex flex-col sm:flex-row items-center sm:items-start justify-between gap-5 relative">
