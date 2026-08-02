@@ -18,7 +18,7 @@ const CreateWorkspace = () => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [url, setUrl] = useState('');
-  const [emails, setEmails] = useState(['sarah@company.com', 'mike@studio.design']);
+  const [emails, setEmails] = useState([]);
   const [emailInput, setEmailInput] = useState('');
   const [assignRole, setAssignRole] = useState('Member');
   const [loading, setLoading] = useState(false);
@@ -225,6 +225,7 @@ const CreateWorkspace = () => {
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
                   onKeyDown={handleAddEmail}
+                  autoComplete="off"
                   className="flex-1 min-w-32 px-2 bg-transparent border-none focus:outline-none text-xs font-semibold placeholder:text-slate-400"
                 />
               </div>

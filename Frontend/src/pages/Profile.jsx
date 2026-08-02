@@ -33,8 +33,8 @@ const Profile = () => {
   const [coverUrl, setCoverUrl] = useState(currentUser?.cover || '');
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleteError, setDeleteError] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -92,13 +92,14 @@ const Profile = () => {
   };
 
   const handleDeleteAccount = async () => {
-    if (deleteConfirmText !== 'DELETE') return;
     try {
       setDeleteError('');
+      setDeletingAccount(true);
       await apiClient.delete('/auth/delete-account');
       logout();
       navigate('/login');
     } catch (err) {
+      setDeletingAccount(false);
       setDeleteError(err?.response?.data?.message || err?.message || 'Failed to delete account.');
     }
   };
@@ -360,7 +361,7 @@ const Profile = () => {
               onClick={() => setShowDeleteModal(true)}
               className="bg-red-650 text-white hover:bg-red-700 font-bold text-xs px-4 py-2 rounded-lg"
             >
-              Delete Account
+              Delete My Account
             </Button>
           </div>
         </div>
@@ -473,16 +474,10 @@ const Profile = () => {
           <div className="bg-white rounded-xl max-w-md w-full p-6 space-y-4 shadow-xl border border-slate-200">
             <h3 className="text-lg font-bold text-slate-900">Delete Account Permanently?</h3>
             <p className="text-sm text-slate-600 leading-relaxed">
-              This action cannot be undone. Please type <span className="font-extrabold text-red-600">DELETE</span> in the box below to confirm that you wish to delete your account, all your workspaces, tasks, and data permanently.
+              This action <strong>cannot be undone</strong>. Your account, all your workspaces, tasks, and data will be permanently deleted. You will be signed out immediately.
             </p>
-            <Input
-              value={deleteConfirmText}
-              onChange={(e) => setDeleteConfirmText(e.target.value)}
-              placeholder="Type DELETE to confirm"
-              className="w-full"
-            />
             {deleteError && (
-              <p className="text-xs font-semibold text-red-650 mt-1">
+              <p className="text-xs font-semibold text-red-600 mt-1">
                 {deleteError}
               </p>
             )}
@@ -491,18 +486,18 @@ const Profile = () => {
                 variant="outline"
                 onClick={() => {
                   setShowDeleteModal(false);
-                  setDeleteConfirmText('');
                   setDeleteError('');
                 }}
+                disabled={deletingAccount}
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleDeleteAccount}
                 className="bg-red-600 hover:bg-red-700 text-white font-bold"
-                disabled={deleteConfirmText !== 'DELETE'}
+                isLoading={deletingAccount}
               >
-                Permanently Delete
+                Yes, Delete My Account
               </Button>
             </div>
           </div>

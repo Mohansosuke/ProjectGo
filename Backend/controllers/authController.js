@@ -171,10 +171,15 @@ const deleteAccount = asyncHandler(async (req, res) => {
     await Workspace.deleteMany({ _id: { $in: ownedWorkspaceIds } });
   }
 
-  // Remove user from workspace members
+  // Remove user from workspace members and memberRoles
   await Workspace.updateMany(
-    { members: userId },
-    { $pull: { members: userId } }
+    { $or: [{ members: userId }, { 'memberRoles.user': userId }] },
+    {
+      $pull: {
+        members: userId,
+        memberRoles: { user: userId }
+      }
+    }
   );
 
   // Unassign user from tasks in other workspaces
@@ -184,13 +189,17 @@ const deleteAccount = asyncHandler(async (req, res) => {
   // Delete comments authored by this user
   await Comment.deleteMany({ userId: userId });
 
-  // Remove invitations assigned to the user
-  await Invitation.deleteMany({ email: userEmail });
+  // Remove pending invitations addressed to the user
+  await Invitation.deleteMany({ email: userEmail, status: 'pending' });
 
   // Delete the user record
   await User.findByIdAndDelete(userId);
 
-  res.clearCookie('token');
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax'
+  });
 
   return res.json(new ApiResponse(200, null, "Account deleted successfully"));
 });

@@ -11,6 +11,7 @@ import {
   Filter
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useWorkspace } from '../contexts/WorkspaceContext';
 import { Button, Input, Avatar, Badge, Breadcrumb, useToast } from '../components/ui';
 import apiClient from '../services/apiClient';
 
@@ -18,7 +19,13 @@ const TeamMembers = () => {
   const { workspaceId } = useParams();
   const navigate = useNavigate();
   const { currentUser } = useAuth();
+  const { workspaces } = useWorkspace();
   const toast = useToast();
+
+  const workspace = workspaces.find(w => w.id === workspaceId);
+  const isCurrentOwner = workspace && currentUser && currentUser.id === workspace.ownerId;
+  const isCurrentAdmin = workspace && workspace.userRole === 'Admin';
+  const isCurrentOwnerOrAdmin = isCurrentOwner || isCurrentAdmin;
 
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -177,6 +184,7 @@ const TeamMembers = () => {
               value={inviteEmail}
               onChange={(e) => setInviteEmail(e.target.value)}
               required
+              autoComplete="off"
             />
           </div>
           <Button type="submit" isLoading={inviting} className="h-10 px-5 text-sm shrink-0">
@@ -292,8 +300,7 @@ const TeamMembers = () => {
                   {/* Actions ellipsis */}
                   <td className="py-4 px-6 text-right">
 
-  {currentUser?.email === members[0]?.email &&
- user.role !== "Owner" && (
+  {isCurrentOwnerOrAdmin && workspace && user.id !== workspace.ownerId && (
     <Button
       variant="ghost"
       size="sm"

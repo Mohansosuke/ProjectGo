@@ -200,9 +200,13 @@
     throw new ApiError(404, "Workspace not found");
   }
 
-  // Only owner can remove members
-  if (workspace.owner.toString() !== req.user._id.toString()) {
-    throw new ApiError(403, "Only workspace owner can remove members");
+  // Only owner or admin can remove members
+  const memberRoleObj = workspace.memberRoles?.find(mr => mr.user.toString() === req.user._id.toString());
+  const isOwner = workspace.owner.toString() === req.user._id.toString();
+  const isAdmin = isOwner || (memberRoleObj && memberRoleObj.role === 'Admin');
+
+  if (!isAdmin) {
+    throw new ApiError(403, "Only workspace owner or admin can remove members");
   }
 
   // Don't allow removing the owner

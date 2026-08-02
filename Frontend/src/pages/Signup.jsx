@@ -68,7 +68,6 @@ setSuccess(
     setSuccess('');
     try {
       await googleLogin();
-      navigate('/workspaces');
     } catch (err) {
       let friendlyMessage = err.message;
       if (err.code === 'auth/popup-closed-by-user') {

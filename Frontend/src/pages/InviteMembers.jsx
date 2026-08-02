@@ -199,6 +199,7 @@ const InviteMembers = () => {
                 onChange={(e) => setEmailInput(e.target.value)}
                 onKeyDown={handleAddEmail}
                 className="flex-1 min-w-[200px] px-2 bg-transparent border-none focus:outline-none text-sm placeholder:text-slate-400 font-semibold"
+                autoComplete="off"
               />
             </div>
             <p className="text-[10px] text-slate-400 font-bold">

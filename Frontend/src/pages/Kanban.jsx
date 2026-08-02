@@ -758,6 +758,7 @@ export default function Kanban() {
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   required
+                  autoComplete="off"
                 />
               </div>
 
