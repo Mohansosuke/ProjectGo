@@ -163,16 +163,18 @@ const Profile = () => {
       
       {/* Center Settings Column */}
       <div className="flex-1 space-y-6">
+
+        {/* Hidden cover file input — outside ALL overflow-clipped containers */}
+        <input
+          ref={coverInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleCoverUpload}
+        />
+
         {/* Profile Card Header with Cover Banner */}
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm transition-colors relative">
-          {/* Hidden file input for cover — outside all overflow-clipped containers */}
-          <input
-            ref={coverInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleCoverUpload}
-          />
 
           {/* Cover Banner */}
           <div className="h-36 w-full relative overflow-hidden group">

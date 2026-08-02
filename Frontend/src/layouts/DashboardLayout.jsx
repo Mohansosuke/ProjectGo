@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Navigate, useLocation, useNavigate, useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -63,6 +63,8 @@ const DashboardLayout = () => {
   const [coverUrl, setCoverUrl] = useState(
     currentUser?.cover || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=800&auto=format&fit=crop&q=80'
   );
+  const coverFileInputRef = useRef(null);
+  const openCoverFilePicker = () => { coverFileInputRef.current?.click(); };
 
   useEffect(() => {
     if (currentUser) {
@@ -577,6 +579,16 @@ const DashboardLayout = () => {
       {/* ═══════════════════════════════════════════════════════
           PROFILE SLIDE-OVER PANEL
       ═══════════════════════════════════════════════════════ */}
+
+      {/* Hidden cover file input — outside ALL overflow containers */}
+      <input
+        ref={coverFileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={e => handleImageUpload(e, 'cover')}
+      />
+
       {isProfilePanelOpen && (
         <div
           onClick={() => { setIsProfilePanelOpen(false); setIsEditingProfile(false); }}
@@ -611,12 +623,31 @@ const DashboardLayout = () => {
             <X className="w-3.5 h-3.5" />
           </button>
 
-          {/* Change cover (edit mode) */}
+          {/* Change cover — always visible hover overlay + corner button in edit mode */}
           {isEditingProfile && (
-            <label className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/30 hover:bg-black/50 text-white text-[10px] font-semibold cursor-pointer backdrop-blur-sm transition-all border border-white/10">
-              <Camera className="w-3 h-3" /> Change Cover
-              <input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, 'cover')} />
-            </label>
+            <>
+              {/* Full-banner clickable overlay on hover */}
+              <button
+                type="button"
+                onClick={openCoverFilePicker}
+                className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-1 bg-black/0 group-hover:bg-black/35 transition-all duration-200 cursor-pointer"
+              >
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center gap-1 pointer-events-none">
+                  <Camera className="w-5 h-5 text-white drop-shadow" />
+                  <span className="text-white text-[10px] font-semibold drop-shadow">Change Cover</span>
+                </span>
+              </button>
+
+              {/* Corner pill button — always visible in edit mode */}
+              <button
+                type="button"
+                onClick={openCoverFilePicker}
+                className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/50 hover:bg-black/70 text-white text-[10px] font-semibold cursor-pointer backdrop-blur-sm transition-all border border-white/20"
+                style={{ zIndex: 10 }}
+              >
+                <Camera className="w-3 h-3" /> Change Cover
+              </button>
+            </>
           )}
         </div>
 
