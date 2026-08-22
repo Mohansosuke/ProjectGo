@@ -34,11 +34,11 @@ const formatLastSeen = (lastSeen) => {
   if (!lastSeen) return 'Never';
   const diffMs = Date.now() - new Date(lastSeen).getTime();
   const diffMin = Math.floor(diffMs / 60000);
-  const diffHr  = Math.floor(diffMs / 3600000);
+  const diffHr = Math.floor(diffMs / 3600000);
   const diffDay = Math.floor(diffMs / 86400000);
-  if (diffMin < 1)   return 'Just now';
-  if (diffMin < 60)  return `${diffMin} min ago`;
-  if (diffHr  < 24)  return `${diffHr} hr ago`;
+  if (diffMin < 1) return 'Just now';
+  if (diffMin < 60) return `${diffMin} min ago`;
+  if (diffHr < 24) return `${diffHr} hr ago`;
   if (diffDay === 1) return 'Yesterday';
   return `${diffDay} days ago`;
 };
@@ -202,15 +202,15 @@ const WorkspaceView = () => {
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
-        <AnimatePresence mode="sync">
-          <motion.div
-            key={activeTab + homeActiveTab}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15, ease: 'easeOut' }}
-            className="flex-1 overflow-y-auto"
-          >
+      <AnimatePresence mode="sync">
+        <motion.div
+          key={activeTab + homeActiveTab}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
+          className="flex-1 overflow-y-auto"
+        >
 
           {/* ── HOME ── */}
           {activeTab === 'Home' && (
@@ -750,10 +750,9 @@ const WorkspaceView = () => {
                           </div>
                           <div className="col-span-3 text-[11px] text-slate-500 font-medium truncate">{m.email}</div>
                           <div className="col-span-2">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              m.role === 'Owner' ? 'bg-violet-50 text-[#5f35f5]' :
-                              m.role === 'Admin' ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'
-                            }`}>{m.role || 'Member'}</span>
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${m.role === 'Owner' ? 'bg-violet-50 text-[#5f35f5]' :
+                                m.role === 'Admin' ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'
+                              }`}>{m.role || 'Member'}</span>
                           </div>
                           <div className="col-span-2 text-[11px] font-bold">
                             <span className={`flex items-center gap-1 ${isOnline ? 'text-emerald-600' : 'text-slate-400'}`}>
@@ -761,7 +760,7 @@ const WorkspaceView = () => {
                               {isOnline ? 'Online' : 'Offline'}
                             </span>
                             {!isOnline && m.lastSeen && (
-                              <span className="text-[9px] text-slate-300 font-medium mt-0.5 block leading-tight">
+                              <span className="text-[13px] text-slate-300 font-medium mt-0.5 block leading-tight">
                                 {formatLastSeen(m.lastSeen)}
                               </span>
                             )}
