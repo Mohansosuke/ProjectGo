@@ -81,15 +81,22 @@ const updateProfile = asyncHandler(async (req, res) => {
 });
 
 const getAllUsers = asyncHandler(async (req, res) => {
-  const users = await User.find({}).select('fullName email photoURL bio');
-  const formatted = users.map(u => ({
-    id: u._id,
-    name: u.fullName,
-    email: u.email,
-    avatar: getAbsoluteUrl(u.photoURL),
-    status: 'Online',
-    bio: u.bio || ''
-  }));
+  const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+  const users = await User.find({}).select('fullName email photoURL bio lastSeen');
+  const now = Date.now();
+  const formatted = users.map(u => {
+    const isOnline = u.lastSeen && (now - new Date(u.lastSeen).getTime()) < ONLINE_THRESHOLD_MS;
+    return {
+      id: u._id,
+      name: u.fullName,
+      email: u.email,
+      avatar: getAbsoluteUrl(u.photoURL),
+      isOnline: !!isOnline,
+      status: isOnline ? 'Online' : 'Offline',
+      lastSeen: u.lastSeen,
+      bio: u.bio || ''
+    };
+  });
 
   return res.json(new ApiResponse(200, formatted));
 });

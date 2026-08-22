@@ -81,6 +81,11 @@ const login = asyncHandler(async (req, res) => {
   }, "Logged in successfully"));
 });
 
+const heartbeat = asyncHandler(async (req, res) => {
+  await User.findByIdAndUpdate(req.user._id, { lastSeen: new Date() });
+  return res.json(new ApiResponse(200, null, 'ok'));
+});
+
 const logout = asyncHandler(async (req, res) => {
   res.clearCookie('token', {
     httpOnly: true,
@@ -209,6 +214,7 @@ module.exports = {
   verifyEmail: verifyEmailController,
   login,
   logout,
+  heartbeat,
   forgotPassword,
   resetPassword: resetPasswordController,
   getMe,

@@ -64,6 +64,10 @@ const userSchema = new mongoose.Schema({
   workspaceId: {
     type: String,
     default: ''
+  },
+  lastSeen: {
+    type: Date,
+    default: null
   }
 }, {
   timestamps: true

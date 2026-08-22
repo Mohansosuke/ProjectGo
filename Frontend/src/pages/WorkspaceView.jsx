@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -95,10 +95,10 @@ const WorkspaceView = () => {
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
-  const handleSelect = (id) => {
+  const handleSelect = useCallback((id) => {
     selectWorkspace(id);
     navigate(`/workspace/${id}/kanban`);
-  };
+  }, [selectWorkspace, navigate]);
 
   // Real computed stats from task data
   const totalTasks = tasks.length;
@@ -107,13 +107,13 @@ const WorkspaceView = () => {
   const urgentT = tasks.filter(t => t.priority === 'URGENT' || t.priority === 'HIGH').length;
   const velocity = totalTasks > 0 ? Math.round((completedT / totalTasks) * 100) : 0;
 
-  const getWorkspaceStats = (wId) => {
+  const getWorkspaceStats = useCallback((wId) => {
     const wTasks = tasks.filter(t => t.workspaceId === wId);
     const total = wTasks.length;
     const done = wTasks.filter(t => t.status === 'COMPLETED').length;
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
     return { total, done, pct };
-  };
+  }, [tasks]);
 
   const WORKSPACE_CONFIGS = [
     { Icon: Code, bg: 'bg-blue-50 text-blue-600', bar: 'bg-blue-500', role: 'ADMIN' },
@@ -132,14 +132,14 @@ const WorkspaceView = () => {
     return WORKSPACE_CONFIGS[idx % WORKSPACE_CONFIGS.length];
   };
 
-  const filteredWorkspaces = workspaces.filter(w => {
+  const filteredWorkspaces = useMemo(() => workspaces.filter(w => {
     const query = globalSearchQuery || searchQuery;
     const matchSearch = (w.name || '').toLowerCase().includes(query.toLowerCase());
     const matchFilter = filterType === 'All' || (w.visibility || '').toLowerCase() === filterType.toLowerCase();
     return matchSearch && matchFilter;
-  });
+  }), [workspaces, globalSearchQuery, searchQuery, filterType]);
 
-  const homeFilteredTasks = tasks.filter(t => {
+  const homeFilteredTasks = useMemo(() => tasks.filter(t => {
     let matchTab = true;
     if (homeActiveTab === 'Primary') matchTab = t.status !== 'COMPLETED';
     else if (homeActiveTab === 'Other') matchTab = t.priority === 'LOW' || !t.priority;
@@ -148,13 +148,13 @@ const WorkspaceView = () => {
     const matchPriority = priorityFilter === 'All' || t.priority === priorityFilter;
     const matchSearch = !globalSearchQuery || (t.title || '').toLowerCase().includes(globalSearchQuery.toLowerCase());
     return matchTab && matchPriority && matchSearch;
-  });
+  }), [tasks, homeActiveTab, priorityFilter, globalSearchQuery]);
 
-  const recentTasks = [...tasks]
+  const recentTasks = useMemo(() => [...tasks]
     .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
-    .slice(0, 5);
+    .slice(0, 5), [tasks]);
 
-  const STAT_CARDS = [
+  const STAT_CARDS = useMemo(() => [
     {
       label: 'Total Tasks', value: totalTasks, icon: Layers, trend: '+12% this week',
       trendUp: true, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100',
@@ -171,7 +171,7 @@ const WorkspaceView = () => {
       label: 'High Priority', value: urgentT, icon: AlertCircle, trend: 'Need attention',
       trendUp: false, color: 'text-rose-600', bg: 'bg-rose-50', border: 'border-rose-100',
     },
-  ];
+  ], [totalTasks, completedT, inProgressT, urgentT, velocity]);
 
   // Calendar helpers
   const calMonth = now;
@@ -181,23 +181,23 @@ const WorkspaceView = () => {
   const monthStr = `${calMonth.getFullYear()}-${String(calMonth.getMonth() + 1).padStart(2, '0')}`;
 
   // Build a map of memberId -> avatarUrl from the real teamMembers API data
-  const memberAvatars = teamMembers.reduce((acc, m) => {
+  const memberAvatars = useMemo(() => teamMembers.reduce((acc, m) => {
     const id = m.userId || m.id || m._id;
-    if (id && m.avatarUrl) acc[id] = m.avatarUrl;
+    if (id && (m.avatarUrl || m.avatar)) acc[id] = m.avatarUrl || m.avatar;
     return acc;
-  }, {});
+  }, {}), [teamMembers]);
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={activeTab + homeActiveTab}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          className="flex-1 overflow-y-auto"
-        >
+        <AnimatePresence mode="sync">
+          <motion.div
+            key={activeTab + homeActiveTab}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+            className="flex-1 overflow-y-auto"
+          >
 
           {/* ── HOME ── */}
           {activeTab === 'Home' && (
@@ -307,7 +307,7 @@ const WorkspaceView = () => {
                             key={t.id}
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
-                            transition={{ delay: idx * 0.03 }}
+                            transition={{ delay: idx * 0.02 }}
                             onClick={() => t.workspaceId && handleSelect(t.workspaceId)}
                             className="flex items-center gap-3 px-5 py-3 hover:bg-gray-50 cursor-pointer group transition-colors"
                           >
@@ -664,7 +664,7 @@ const WorkspaceView = () => {
               <div className="grid grid-cols-3 gap-3">
                 {[
                   { label: 'Total Members', value: teamMembers.length, icon: Users, color: 'text-violet-600 bg-violet-50' },
-                  { label: 'Active Now', value: teamMembers.filter(m => (m.status || '').toLowerCase() === 'active').length, icon: Activity, color: 'text-emerald-600 bg-emerald-50' },
+                  { label: 'Active Now', value: teamMembers.filter(m => m.isOnline).length, icon: Activity, color: 'text-emerald-600 bg-emerald-50' },
                   { label: 'Pending Invites', value: pendingInvitesCount, icon: Mail, color: 'text-amber-600 bg-amber-50' },
                 ].map(s => (
                   <div key={s.label} className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3 shadow-xs">
@@ -714,7 +714,8 @@ const WorkspaceView = () => {
                     teamMembers.map(m => {
                       const memberId = m.id || m._id;
                       const memberTasks = tasks.filter(t => String(t.assigneeId) === String(memberId)).length;
-                      const isActive = (m.status || 'Active').toLowerCase() === 'active';
+                      // Use the real isOnline flag from the API (lastSeen within 5 min)
+                      const isOnline = !!m.isOnline;
                       const initials = (m.name || m.email || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
                       return (
                         <div key={memberId} className="grid grid-cols-12 gap-0 px-5 py-3 hover:bg-slate-50/50 transition-colors items-center group">
@@ -727,7 +728,10 @@ const WorkspaceView = () => {
                                   {initials}
                                 </div>
                               )}
-                              <span className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${isActive ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                              <span
+                                title={isOnline ? 'Online' : 'Offline'}
+                                className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border border-white ${isOnline ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                              />
                             </div>
                             <span className="text-xs font-bold text-slate-800 truncate">{m.name || m.email}</span>
                           </div>
@@ -739,9 +743,9 @@ const WorkspaceView = () => {
                             }`}>{m.role || 'Member'}</span>
                           </div>
                           <div className="col-span-2 text-[11px] font-bold">
-                            <span className={`flex items-center gap-1 ${isActive ? 'text-emerald-600' : 'text-slate-400'}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
-                              {m.status || 'Active'}
+                            <span className={`flex items-center gap-1 ${isOnline ? 'text-emerald-600' : 'text-slate-400'}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
+                              {isOnline ? 'Online' : 'Offline'}
                             </span>
                           </div>
                           <div className="col-span-1 text-xs font-bold text-slate-500">{memberTasks}</div>

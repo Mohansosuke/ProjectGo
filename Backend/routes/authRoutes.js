@@ -8,6 +8,7 @@ const {
   verifyEmail,
   login,
   logout,
+  heartbeat,
   forgotPassword,
   resetPassword,
   getMe,
@@ -45,6 +46,7 @@ router.post('/forgot-password', forgotPasswordValidator, validate, forgotPasswor
 router.post('/reset-password', resetPasswordValidator, validate, resetPassword);
 
 router.get('/me', verifyJWT, getMe);
+router.patch('/heartbeat', verifyJWT, heartbeat);
 router.put('/profile', verifyJWT, updateProfile);
 router.get('/users', verifyJWT, getAllUsers);
 router.delete('/delete-account', verifyJWT, deleteAccount);

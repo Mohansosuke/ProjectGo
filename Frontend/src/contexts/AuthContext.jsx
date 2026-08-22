@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import apiClient from '../services/apiClient';
 
 const AuthContext = createContext(null);
@@ -9,6 +9,33 @@ export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const heartbeatRef = useRef(null);
+
+  // Send a lightweight presence ping
+  const sendHeartbeat = () => {
+    apiClient.patch('/auth/heartbeat').catch(() => {/* silently ignore */});
+  };
+
+  // Start/stop heartbeat whenever currentUser changes
+  useEffect(() => {
+    if (!currentUser) {
+      clearInterval(heartbeatRef.current);
+      return;
+    }
+    // Immediately mark as online
+    sendHeartbeat();
+    // Then ping every 30 seconds
+    heartbeatRef.current = setInterval(sendHeartbeat, 30_000);
+
+    // Also refresh on tab focus so short idle gaps don't flip to Offline
+    const onFocus = () => sendHeartbeat();
+    window.addEventListener('focus', onFocus);
+
+    return () => {
+      clearInterval(heartbeatRef.current);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [currentUser]);
 
   // Fetch current user session on mount
   useEffect(() => {
