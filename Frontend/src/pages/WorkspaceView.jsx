@@ -761,7 +761,7 @@ const WorkspaceView = () => {
                       };
 
                       return (
-                        <div key={memberId} className="grid grid-cols-12 gap-0 px-5 py-3 hover:bg-slate-50/50 transition-colors items-center group">
+                        <div key={memberId} className="relative grid grid-cols-12 gap-0 px-5 py-3 hover:bg-slate-50/50 transition-colors items-center group">
                           <div className="col-span-4 flex items-center gap-2.5">
                             <div className="relative shrink-0">
                               {m.avatar ? (
@@ -795,31 +795,33 @@ const WorkspaceView = () => {
                               </span>
                             )}
                           </div>
-                          {/* Tasks + optional remove button */}
-                          <div className="col-span-1 flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-500">{memberTasks}</span>
-                            {canRemove && (
+                          {/* Tasks */}
+                          <div className="col-span-1 text-xs font-bold text-slate-500">{memberTasks}</div>
+
+                          {/* Three-dot remove menu — only for admins on non-owner rows */}
+                          {canRemove ? (
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center">
                               <div className="relative group/menu">
                                 <button
                                   disabled={removingMemberId === memberId}
-                                  className="p-1 rounded-md text-slate-300 hover:text-rose-500 hover:bg-rose-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all cursor-pointer border border-transparent hover:border-rose-100"
                                   title="Member options"
                                 >
                                   <MoreHorizontal className="w-3.5 h-3.5" />
                                 </button>
-                                <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1 hidden group-hover/menu:block">
+                                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 hidden group-hover/menu:block">
                                   <button
                                     onClick={handleRemove}
                                     disabled={removingMemberId === memberId}
-                                    className="w-full text-left px-3 py-2 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 transition-colors flex items-center gap-2 cursor-pointer"
+                                    className="w-full text-left px-3 py-2.5 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 transition-colors flex items-center gap-2 cursor-pointer"
                                   >
                                     <UserPlus className="w-3 h-3 rotate-180" />
                                     {removingMemberId === memberId ? 'Removing…' : 'Remove from workspace'}
                                   </button>
                                 </div>
                               </div>
-                            )}
-                          </div>
+                            </div>
+                          ) : null}
                         </div>
                       );
                     })
