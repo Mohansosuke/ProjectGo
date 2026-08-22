@@ -64,6 +64,7 @@ const WorkspaceView = () => {
   const [pendingInvites, setPendingInvites] = useState([]);
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [removingMemberId, setRemovingMemberId] = useState(null);
+  const [openMenuId, setOpenMenuId] = useState(null);
 
   useEffect(() => {
     if (location.state?.initialTab) setActiveTab(location.state.initialTab);
@@ -74,6 +75,14 @@ const WorkspaceView = () => {
     const t = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(t);
   }, []);
+
+  // Close member action menu when clicking anywhere outside
+  useEffect(() => {
+    if (!openMenuId) return;
+    const close = () => setOpenMenuId(null);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [openMenuId]);
 
   // Fetch real team members when Teams tab is active
   useEffect(() => {
@@ -746,13 +755,13 @@ const WorkspaceView = () => {
                       const canRemove = isAdmin && !isOwnerRow;
 
                       const handleRemove = async () => {
+                        setOpenMenuId(null);
                         if (!window.confirm(`Remove ${m.name || m.email} from this workspace?`)) return;
                         const wsId = activeWorkspace?.id || activeWorkspace?._id;
                         setRemovingMemberId(memberId);
                         try {
                           await apiClient.delete(`/invitations/workspace/${wsId}/member/${memberId}`);
                           setTeamMembers(prev => prev.filter(x => (x.id || x._id) !== memberId));
-                          setPendingInvitesCount(c => c);
                         } catch (err) {
                           alert(err?.response?.data?.message || 'Failed to remove member');
                         } finally {
@@ -801,24 +810,33 @@ const WorkspaceView = () => {
                           {/* Three-dot remove menu — only for admins on non-owner rows */}
                           {canRemove ? (
                             <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center">
-                              <div className="relative group/menu">
+                              <div className="relative">
                                 <button
                                   disabled={removingMemberId === memberId}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setOpenMenuId(prev => prev === memberId ? null : memberId);
+                                  }}
                                   className="p-1.5 rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-all cursor-pointer border border-transparent hover:border-rose-100"
                                   title="Member options"
                                 >
                                   <MoreHorizontal className="w-3.5 h-3.5" />
                                 </button>
-                                <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 hidden group-hover/menu:block">
-                                  <button
-                                    onClick={handleRemove}
-                                    disabled={removingMemberId === memberId}
-                                    className="w-full text-left px-3 py-2.5 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 transition-colors flex items-center gap-2 cursor-pointer"
+                                {openMenuId === memberId && (
+                                  <div
+                                    onClick={e => e.stopPropagation()}
+                                    className="absolute right-0 top-full mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1"
                                   >
-                                    <UserPlus className="w-3 h-3 rotate-180" />
-                                    {removingMemberId === memberId ? 'Removing…' : 'Remove from workspace'}
-                                  </button>
-                                </div>
+                                    <button
+                                      onClick={handleRemove}
+                                      disabled={removingMemberId === memberId}
+                                      className="w-full text-left px-3 py-2.5 text-[11px] font-semibold text-rose-600 hover:bg-rose-50 transition-colors flex items-center gap-2 cursor-pointer"
+                                    >
+                                      <UserPlus className="w-3 h-3 rotate-180" />
+                                      {removingMemberId === memberId ? 'Removing…' : 'Remove from workspace'}
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           ) : null}
