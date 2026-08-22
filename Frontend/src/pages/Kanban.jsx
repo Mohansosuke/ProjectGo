@@ -393,8 +393,10 @@ export default function Kanban() {
                                             {...provided.dragHandleProps}
                                             style={provided.draggableProps.style}
                                             onClick={() => navigate(`/workspace/${workspaceId}/task/${task.id}`)}
-                                            className={`bg-white border border-gray-200 rounded-xl p-3.5 shadow-xs cursor-grab active:cursor-grabbing transition-all group hover:border-indigo-300 hover:shadow-elevated ${
-                                              snapshot.isDragging ? 'shadow-xl border-indigo-400 rotate-1 scale-105' : 'hover:-translate-y-0.5'
+                                            className={`bg-white border border-gray-200 rounded-xl p-3.5 shadow-xs cursor-grab active:cursor-grabbing transition-shadow group hover:border-indigo-300 hover:shadow-elevated ${
+                                              snapshot.isDragging
+                                                ? 'shadow-2xl ring-2 ring-indigo-400 border-indigo-400'
+                                                : 'hover:-translate-y-0.5 transition-transform'
                                             }`}
                                           >
                                             {/* Label chip */}

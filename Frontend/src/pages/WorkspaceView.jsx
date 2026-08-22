@@ -726,7 +726,9 @@ const WorkspaceView = () => {
                   ) : (
                     teamMembers.map(m => {
                       const memberId = m.id || m._id;
-                      const memberTasks = tasks.filter(t => String(t.assigneeId) === String(memberId)).length;
+                      const memberTasks = tasks.filter(t =>
+                        String(t.assignee || t.assigneeId) === String(memberId)
+                      ).length;
                       // Use the real isOnline flag from the API (lastSeen within 5 min)
                       const isOnline = !!m.isOnline;
                       const initials = (m.name || m.email || '?').split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);

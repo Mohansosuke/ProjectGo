@@ -51,13 +51,17 @@ export const TaskProvider = ({ children }) => {
   }, [activeWorkspace]);
 
   const moveTask = async (taskId, newStatus) => {
+    // Optimistic update: move the card instantly in the UI
+    const prevTasks = allTasks;
+    setAllTasks(prev => prev.map(task =>
+      task.id === taskId ? { ...task, status: newStatus } : task
+    ));
     try {
       await apiClient.put(`/tasks/${taskId}`, { status: newStatus });
-      setAllTasks(prev => prev.map(task =>
-        task.id === taskId ? { ...task, status: newStatus } : task
-      ));
     } catch (error) {
-      console.error("Error moving task:", error);
+      // Rollback on failure
+      console.error('Error moving task:', error);
+      setAllTasks(prevTasks);
     }
   };
 
