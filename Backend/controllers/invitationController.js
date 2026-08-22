@@ -98,10 +98,12 @@
 
   const getWorkspaceMembers = asyncHandler(async (req, res) => {
     const { workspaceId } = req.params;
+    const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+    const now = Date.now();
 
     const workspace = await Workspace.findById(workspaceId)
-      .populate('owner', 'fullName email photoURL bio')
-      .populate('members', 'fullName email photoURL bio');
+      .populate('owner', 'fullName email photoURL bio lastSeen')
+      .populate('members', 'fullName email photoURL bio lastSeen');
 
     if (!workspace) {
       throw new ApiError(404, 'Workspace not found');
@@ -114,15 +116,21 @@
       throw new ApiError(403, 'Forbidden: You do not have access to this workspace member list');
     }
 
+    const computeOnline = (user) => {
+      return !!(user.lastSeen && (now - new Date(user.lastSeen).getTime()) < ONLINE_THRESHOLD_MS);
+    };
+
     const membersList = [];
 
+    const ownerOnline = computeOnline(workspace.owner);
     membersList.push({
       id: workspace.owner._id,
       name: workspace.owner.fullName,
       email: workspace.owner.email,
       avatar: workspace.owner.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(workspace.owner.fullName)}`,
       role: 'Owner',
-      status: 'Active',
+      isOnline: ownerOnline,
+      status: ownerOnline ? 'Online' : 'Offline',
       joinedAt: workspace.createdAt
     });
 
@@ -130,6 +138,7 @@
       if (member._id.toString() !== workspace.owner._id.toString()) {
         const memberRoleObj = workspace.memberRoles?.find(mr => mr.user.toString() === member._id.toString());
         const role = memberRoleObj ? memberRoleObj.role : 'Member';
+        const memberOnline = computeOnline(member);
 
         membersList.push({
           id: member._id,
@@ -137,7 +146,8 @@
           email: member.email,
           avatar: member.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.fullName)}`,
           role: role,
-          status: 'Active',
+          isOnline: memberOnline,
+          status: memberOnline ? 'Online' : 'Offline',
           joinedAt: workspace.createdAt
         });
       }
