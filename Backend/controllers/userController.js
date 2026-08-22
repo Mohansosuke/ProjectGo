@@ -81,7 +81,7 @@ const updateProfile = asyncHandler(async (req, res) => {
 });
 
 const getAllUsers = asyncHandler(async (req, res) => {
-  const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+  const ONLINE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
   const users = await User.find({}).select('fullName email photoURL bio lastSeen');
   const now = Date.now();
   const formatted = users.map(u => {

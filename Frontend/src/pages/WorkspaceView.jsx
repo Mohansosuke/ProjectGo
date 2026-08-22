@@ -30,6 +30,19 @@ const STATUS_CONFIG = {
   BACKLOG: { label: 'Backlog', color: 'bg-gray-100 text-gray-500 border border-gray-200' },
 };
 
+const formatLastSeen = (lastSeen) => {
+  if (!lastSeen) return 'Never';
+  const diffMs = Date.now() - new Date(lastSeen).getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHr  = Math.floor(diffMs / 3600000);
+  const diffDay = Math.floor(diffMs / 86400000);
+  if (diffMin < 1)   return 'Just now';
+  if (diffMin < 60)  return `${diffMin} min ago`;
+  if (diffHr  < 24)  return `${diffHr} hr ago`;
+  if (diffDay === 1) return 'Yesterday';
+  return `${diffDay} days ago`;
+};
+
 const WorkspaceView = () => {
   const { workspaces, selectWorkspace, activeWorkspace, globalSearchQuery } = useWorkspace();
   const { tasks } = useTask();
@@ -747,6 +760,11 @@ const WorkspaceView = () => {
                               <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`} />
                               {isOnline ? 'Online' : 'Offline'}
                             </span>
+                            {!isOnline && m.lastSeen && (
+                              <span className="text-[9px] text-slate-300 font-medium mt-0.5 block leading-tight">
+                                {formatLastSeen(m.lastSeen)}
+                              </span>
+                            )}
                           </div>
                           <div className="col-span-1 text-xs font-bold text-slate-500">{memberTasks}</div>
                         </div>

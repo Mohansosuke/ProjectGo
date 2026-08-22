@@ -98,7 +98,7 @@
 
   const getWorkspaceMembers = asyncHandler(async (req, res) => {
     const { workspaceId } = req.params;
-    const ONLINE_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
+    const ONLINE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
     const now = Date.now();
 
     const workspace = await Workspace.findById(workspaceId)
@@ -131,6 +131,7 @@
       role: 'Owner',
       isOnline: ownerOnline,
       status: ownerOnline ? 'Online' : 'Offline',
+      lastSeen: workspace.owner.lastSeen || null,
       joinedAt: workspace.createdAt
     });
 
@@ -148,6 +149,7 @@
           role: role,
           isOnline: memberOnline,
           status: memberOnline ? 'Online' : 'Offline',
+          lastSeen: member.lastSeen || null,
           joinedAt: workspace.createdAt
         });
       }
