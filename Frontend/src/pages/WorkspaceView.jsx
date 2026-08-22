@@ -80,8 +80,14 @@ const WorkspaceView = () => {
   useEffect(() => {
     if (!openMenuId) return;
     const close = () => setOpenMenuId(null);
-    document.addEventListener('click', close);
-    return () => document.removeEventListener('click', close);
+    // Defer by one tick so the click that OPENED the menu doesn't also close it
+    const timer = setTimeout(() => {
+      document.addEventListener('click', close);
+    }, 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', close);
+    };
   }, [openMenuId]);
 
   // Fetch real team members when Teams tab is active
@@ -711,8 +717,8 @@ const WorkspaceView = () => {
                 ))}
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-                <div className="grid grid-cols-12 gap-0 px-5 py-2.5 border-b border-slate-100 bg-slate-50 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
+              <div className="bg-white border border-slate-200 rounded-2xl shadow-xs">
+                <div className="grid grid-cols-12 gap-0 px-5 py-2.5 border-b border-slate-100 bg-slate-50 rounded-t-2xl text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
                   <div className="col-span-4">Member</div>
                   <div className="col-span-3">Email</div>
                   <div className="col-span-2">Role</div>
