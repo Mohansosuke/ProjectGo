@@ -180,6 +180,13 @@ const WorkspaceView = () => {
   const todayDate = now.getDate();
   const monthStr = `${calMonth.getFullYear()}-${String(calMonth.getMonth() + 1).padStart(2, '0')}`;
 
+  // Build a map of memberId -> avatarUrl from the real teamMembers API data
+  const memberAvatars = teamMembers.reduce((acc, m) => {
+    const id = m.userId || m.id || m._id;
+    if (id && m.avatarUrl) acc[id] = m.avatarUrl;
+    return acc;
+  }, {});
+
   return (
     <div className="h-full flex flex-col bg-gray-50">
       <AnimatePresence mode="wait">
@@ -333,11 +340,17 @@ const WorkspaceView = () => {
                               <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${sc.color}`}>
                                 {sc.label}
                               </span>
-                              <img
-                                src={memberAvatars[t.assigneeId || 'u1']}
-                                alt=""
-                                className="w-6 h-6 rounded-lg border border-gray-200 object-cover"
-                              />
+                              {memberAvatars[t.assigneeId] ? (
+                                <img
+                                  src={memberAvatars[t.assigneeId]}
+                                  alt=""
+                                  className="w-6 h-6 rounded-lg border border-gray-200 object-cover"
+                                />
+                              ) : (
+                                <div className="w-6 h-6 rounded-lg border border-gray-200 bg-indigo-100 flex items-center justify-center">
+                                  <User className="w-3.5 h-3.5 text-indigo-400" />
+                                </div>
+                              )}
                             </div>
                           </motion.div>
                         );
