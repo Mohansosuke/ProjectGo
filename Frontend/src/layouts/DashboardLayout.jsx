@@ -402,7 +402,7 @@ const DashboardLayout = () => {
           MAIN CONTENT AREA
       ═══════════════════════════════════════════════════════ */}
       <div
-        className="flex-1 flex flex-col h-full overflow-hidden transition-all duration-300 w-full"
+        className="flex-1 flex flex-col h-full overflow-hidden transition-[padding] duration-300 w-full"
         style={{
           paddingLeft: typeof window !== 'undefined' && window.innerWidth >= 1024
             ? (isSecondaryCollapsed ? '64px' : '316px')
