@@ -305,29 +305,18 @@ export default function Kanban() {
 
       {/* ── View Content ────────────────────────────────────── */}
       <div className="flex-1 overflow-hidden min-h-0">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeSubTab}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.12 }}
-            className="h-full"
-          >
-
-            {/* ════ BOARD VIEW ════ */}
-            {activeSubTab === 'board' && (
-              <div className="h-full overflow-x-auto overflow-y-hidden px-4 py-3 select-none">
-                <DragDropContext onDragEnd={onDragEnd}>
-                  <div className="flex gap-3 h-full min-w-max items-start">
-                    {columns.map((col, colIdx) => {
-                      const theme = COLUMN_THEMES[colIdx % COLUMN_THEMES.length];
-                      const colTasks = filteredTasks.filter(t => t.status === col.id);
-                      return (
-                        <div
-                          key={col.id}
-                          className="w-72 flex flex-col bg-white border border-gray-200 rounded-2xl flex-shrink-0 h-full overflow-hidden shadow-card backdrop-blur-sm"
-                        >
+        {activeSubTab === 'board' && (
+          <div className="h-full overflow-x-auto overflow-y-hidden px-4 py-3 select-none">
+            <DragDropContext onDragEnd={onDragEnd}>
+              <div className="flex gap-3 h-full min-w-max items-start">
+                {columns.map((col, colIdx) => {
+                  const theme = COLUMN_THEMES[colIdx % COLUMN_THEMES.length];
+                  const colTasks = filteredTasks.filter(t => t.status === col.id);
+                  return (
+                    <div
+                      key={col.id}
+                      className="w-72 flex flex-col bg-white border border-gray-200 rounded-2xl flex-shrink-0 h-full overflow-hidden shadow-card"
+                    >
                           {/* Column header */}
                           <div className={`shrink-0 border-b ${theme.header} px-3 py-2.5 flex items-center justify-between`}>
                             <div className="flex items-center gap-2">
@@ -694,9 +683,6 @@ export default function Kanban() {
                 </div>
               );
             })()}
-
-          </motion.div>
-        </AnimatePresence>
       </div>
 
       {/* ── Add Task Modal ──────────────────────────────────── */}
