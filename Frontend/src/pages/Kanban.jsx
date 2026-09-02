@@ -26,15 +26,26 @@ const COLUMN_THEMES = [
 
 const PRIORITY_STYLE = {
   Critical: 'bg-red-50 text-red-600 border border-red-100',
+  CRITICAL: 'bg-red-50 text-red-600 border border-red-100',
+  Urgent:   'bg-red-50 text-red-600 border border-red-100',
   High:     'bg-orange-50 text-orange-600 border border-orange-100',
+  HIGH:     'bg-orange-50 text-orange-600 border border-orange-100',
   Medium:   'bg-blue-50 text-blue-600 border border-blue-100',
+  MEDIUM:   'bg-blue-50 text-blue-600 border border-blue-100',
   Low:      'bg-gray-100 text-gray-500 border border-gray-200',
+  LOW:      'bg-gray-100 text-gray-500 border border-gray-200',
 };
+
 const PRIORITY_DOT = {
   Critical: 'bg-red-500',
+  CRITICAL: 'bg-red-500',
+  Urgent:   'bg-red-500',
   High:     'bg-orange-500',
+  HIGH:     'bg-orange-500',
   Medium:   'bg-blue-500',
+  MEDIUM:   'bg-blue-500',
   Low:      'bg-gray-400',
+  LOW:      'bg-gray-400',
 };
 
 const memberAvatars = {
@@ -364,7 +375,7 @@ export default function Kanban() {
                           <div className="h-0.5 bg-slate-100">
                             <div
                               className={`h-full ${theme.dot} transition-all duration-700`}
-                              style={{ width: total > 0 ? `${Math.round((colTasks.length / total) * 100)}%` : '0%' }}
+                              style={{ width: filteredTasks.length > 0 ? `${Math.round((colTasks.length / filteredTasks.length) * 100)}%` : '0%' }}
                             />
                           </div>
 
@@ -375,8 +386,10 @@ export default function Kanban() {
                                 <div
                                   ref={provided.innerRef}
                                   {...provided.droppableProps}
-                                  className={`flex flex-col gap-2 min-h-[120px] rounded-xl transition-all ${
-                                    snapshot.isDraggingOver ? 'bg-indigo-500/5 ring-1 ring-indigo-500/20' : ''
+                                  className={`flex flex-col gap-2 min-h-[130px] rounded-xl p-1 transition-all duration-200 ${
+                                    snapshot.isDraggingOver
+                                      ? 'bg-indigo-50/70 ring-2 ring-indigo-400/40 ring-dashed border-indigo-200 shadow-inner'
+                                      : 'border-transparent'
                                   }`}
                                 >
                                   {colTasks.map((task, idx) => {
@@ -393,10 +406,10 @@ export default function Kanban() {
                                             {...provided.dragHandleProps}
                                             style={provided.draggableProps.style}
                                             onClick={() => navigate(`/workspace/${workspaceId}/task/${task.id}`)}
-                                            className={`bg-white border border-gray-200 rounded-xl p-3.5 shadow-xs cursor-grab active:cursor-grabbing transition-shadow group hover:border-indigo-300 hover:shadow-elevated ${
+                                            className={`bg-white border rounded-xl p-3.5 select-none transition-all ${
                                               snapshot.isDragging
-                                                ? 'shadow-2xl ring-2 ring-indigo-400 border-indigo-400'
-                                                : 'hover:-translate-y-0.5 transition-transform'
+                                                ? 'shadow-2xl ring-2 ring-indigo-500/70 border-indigo-400 rotate-[1.5deg] scale-[1.03] z-50 bg-white/95 backdrop-blur-md opacity-95 cursor-grabbing'
+                                                : 'border-gray-200/90 shadow-xs hover:border-indigo-300 hover:shadow-md cursor-grab active:cursor-grabbing hover:-translate-y-0.5'
                                             }`}
                                           >
                                             {/* Label chip */}

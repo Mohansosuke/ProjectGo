@@ -19,10 +19,18 @@ import { Button, Input, Avatar, Badge, Dropdown, EmptyState, WorkspaceLogo } fro
 import apiClient from '../services/apiClient';
 
 const PRIORITY_CONFIG = {
-  URGENT: { label: 'Urgent', dot: 'bg-red-500', chip: 'bg-red-50 text-red-600 border-red-100' },
-  HIGH: { label: 'High', dot: 'bg-orange-500', chip: 'bg-orange-50 text-orange-600 border-orange-100' },
-  MEDIUM: { label: 'Medium', dot: 'bg-amber-500', chip: 'bg-amber-50 text-amber-600 border-amber-100' },
-  LOW: { label: 'Low', dot: 'bg-gray-400', chip: 'bg-gray-100 text-gray-500 border-gray-200' },
+  CRITICAL: { label: 'Critical', dot: 'bg-red-500', chip: 'bg-red-50 text-red-600 border-red-100', color: 'bg-red-500' },
+  HIGH: { label: 'High', dot: 'bg-orange-500', chip: 'bg-orange-50 text-orange-600 border-orange-100', color: 'bg-orange-500' },
+  MEDIUM: { label: 'Medium', dot: 'bg-blue-500', chip: 'bg-blue-50 text-blue-600 border-blue-100', color: 'bg-blue-500' },
+  LOW: { label: 'Low', dot: 'bg-gray-400', chip: 'bg-gray-100 text-gray-500 border-gray-200', color: 'bg-gray-400' },
+};
+
+export const getTaskPriorityKey = (priority) => {
+  const p = (priority || '').toUpperCase();
+  if (p === 'CRITICAL' || p === 'URGENT') return 'CRITICAL';
+  if (p === 'HIGH') return 'HIGH';
+  if (p === 'LOW') return 'LOW';
+  return 'MEDIUM';
 };
 
 const STATUS_CONFIG = {
@@ -210,10 +218,10 @@ const WorkspaceView = () => {
   const homeFilteredTasks = useMemo(() => tasks.filter(t => {
     let matchTab = true;
     if (homeActiveTab === 'Primary') matchTab = t.status !== 'COMPLETED';
-    else if (homeActiveTab === 'Other') matchTab = t.priority === 'LOW' || !t.priority;
+    else if (homeActiveTab === 'Other') matchTab = getTaskPriorityKey(t.priority) === 'LOW';
     else if (homeActiveTab === 'Later') matchTab = t.status === 'BACKLOG' || !t.dueDate;
     else if (homeActiveTab === 'Cleared') matchTab = t.status === 'COMPLETED';
-    const matchPriority = priorityFilter === 'All' || t.priority === priorityFilter;
+    const matchPriority = priorityFilter === 'All' || getTaskPriorityKey(t.priority) === getTaskPriorityKey(priorityFilter);
     const matchSearch = !globalSearchQuery || (t.title || '').toLowerCase().includes(globalSearchQuery.toLowerCase());
     return matchTab && matchPriority && matchSearch;
   }), [tasks, homeActiveTab, priorityFilter, globalSearchQuery]);
@@ -1157,18 +1165,18 @@ const WorkspaceView = () => {
             const total = activeScopeTasks.length;
             const completed = activeScopeTasks.filter(t => t.status === 'COMPLETED').length;
             const inProgress = activeScopeTasks.filter(t => t.status === 'IN_PROGRESS').length;
-            const todo = activeScopeTasks.filter(t => t.status === 'TO_DO').length;
-            const backlog = activeScopeTasks.filter(t => t.status === 'BACKLOG').length;
-            const urgent = activeScopeTasks.filter(t => t.priority === 'URGENT').length;
-            const high = activeScopeTasks.filter(t => t.priority === 'HIGH').length;
-            const medium = activeScopeTasks.filter(t => t.priority === 'MEDIUM').length;
-            const low = activeScopeTasks.filter(t => t.priority === 'LOW').length;
+            const todo = activeScopeTasks.filter(t => t.status === 'TO_DO' || t.status === 'TODO').length;
+            const backlog = activeScopeTasks.filter(t => t.status === 'BACKLOG' || t.status === 'IN_REVIEW').length;
+            const critical = activeScopeTasks.filter(t => getTaskPriorityKey(t.priority) === 'CRITICAL').length;
+            const high = activeScopeTasks.filter(t => getTaskPriorityKey(t.priority) === 'HIGH').length;
+            const medium = activeScopeTasks.filter(t => getTaskPriorityKey(t.priority) === 'MEDIUM').length;
+            const low = activeScopeTasks.filter(t => getTaskPriorityKey(t.priority) === 'LOW').length;
             const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
             // Tasks filtered for the radar table
             const radarTasks = activeScopeTasks.filter(t => {
               const matchStatus = dashboardStatusFilter === 'ALL' || t.status === dashboardStatusFilter;
-              const matchPriority = dashboardPriorityFilter === 'ALL' || t.priority === dashboardPriorityFilter;
+              const matchPriority = dashboardPriorityFilter === 'ALL' || getTaskPriorityKey(t.priority) === dashboardPriorityFilter;
               const matchSearch = !dashboardSearchQuery || (t.title || '').toLowerCase().includes(dashboardSearchQuery.toLowerCase());
               return matchStatus && matchPriority && matchSearch;
             });
@@ -1317,7 +1325,7 @@ const WorkspaceView = () => {
                     </div>
                   </motion.div>
 
-                  {/* Card 3: Urgent Watchlist */}
+                  {/* Card 3: Critical Watchlist */}
                   <motion.div
                     initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -1325,7 +1333,7 @@ const WorkspaceView = () => {
                     className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-card hover:shadow-card-hover transition-all flex flex-col justify-between min-h-[145px]"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">High Priority Radar</span>
+                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Critical Priority Radar</span>
                       <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
                         <Flame className="w-4 h-4" />
                       </div>
@@ -1333,10 +1341,10 @@ const WorkspaceView = () => {
 
                     <div className="my-2">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-3xl font-black text-rose-600 tracking-tight">{urgent + high}</span>
-                        {urgent > 0 && (
+                        <span className="text-3xl font-black text-rose-600 tracking-tight">{critical + high}</span>
+                        {critical > 0 && (
                           <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100 animate-pulse">
-                            {urgent} Urgent
+                            {critical} Critical
                           </span>
                         )}
                       </div>
@@ -1345,10 +1353,10 @@ const WorkspaceView = () => {
 
                     <div className="pt-2 border-t border-slate-100">
                       <button
-                        onClick={() => setDashboardPriorityFilter(p => p === 'URGENT' ? 'ALL' : 'URGENT')}
+                        onClick={() => setDashboardPriorityFilter(p => p === 'CRITICAL' ? 'ALL' : 'CRITICAL')}
                         className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 transition-colors cursor-pointer"
                       >
-                        {dashboardPriorityFilter === 'URGENT' ? 'Show all priorities' : 'Filter urgent items'}
+                        {dashboardPriorityFilter === 'CRITICAL' ? 'Show all priorities' : 'Filter critical items'}
                         <ArrowRight className="w-3 h-3" />
                       </button>
                     </div>
@@ -1495,9 +1503,9 @@ const WorkspaceView = () => {
 
                     <div className="space-y-3">
                       {[
-                        { key: 'URGENT', label: 'Urgent', count: urgent, color: 'bg-red-500', chip: 'bg-red-50 text-red-700' },
+                        { key: 'CRITICAL', label: 'Critical', count: critical, color: 'bg-red-500', chip: 'bg-red-50 text-red-700' },
                         { key: 'HIGH', label: 'High', count: high, color: 'bg-orange-500', chip: 'bg-orange-50 text-orange-700' },
-                        { key: 'MEDIUM', label: 'Medium', count: medium, color: 'bg-amber-500', chip: 'bg-amber-50 text-amber-700' },
+                        { key: 'MEDIUM', label: 'Medium', count: medium, color: 'bg-blue-500', chip: 'bg-blue-50 text-blue-700' },
                         { key: 'LOW', label: 'Low', count: low, color: 'bg-slate-400', chip: 'bg-slate-100 text-slate-600' },
                       ].map((p, i) => {
                         const pct = total > 0 ? Math.round((p.count / total) * 100) : 0;
@@ -1598,7 +1606,7 @@ const WorkspaceView = () => {
                   <div className="divide-y divide-slate-100">
                     {radarTasks.length > 0 ? (
                       radarTasks.slice(0, 8).map((task, idx) => {
-                        const pc = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.MEDIUM;
+                        const pc = PRIORITY_CONFIG[getTaskPriorityKey(task.priority)] || PRIORITY_CONFIG.MEDIUM;
                         const sc = STATUS_CONFIG[task.status] || STATUS_CONFIG.TO_DO;
                         const taskWs = workspaces.find(w => w.id === task.workspaceId);
                         const isMoving = movingTaskId === task.id;
