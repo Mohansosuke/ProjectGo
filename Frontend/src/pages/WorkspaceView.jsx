@@ -65,6 +65,11 @@ const WorkspaceView = () => {
   const [showPendingModal, setShowPendingModal] = useState(false);
   const [removingMemberId, setRemovingMemberId] = useState(null);
   const [openMenuId, setOpenMenuId] = useState(null);
+  // Teams filter
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [teamFilterQuery, setTeamFilterQuery] = useState('');
+  const [appliedTeamFilter, setAppliedTeamFilter] = useState(null); // { type: 'workspace'|'member', id, label }
+  const [filterWorkspaceMembers, setFilterWorkspaceMembers] = useState(null); // members for filtered workspace
 
   useEffect(() => {
     if (location.state?.initialTab) setActiveTab(location.state.initialTab);
@@ -80,15 +85,36 @@ const WorkspaceView = () => {
   useEffect(() => {
     if (!openMenuId) return;
     const close = () => setOpenMenuId(null);
-    // Defer by one tick so the click that OPENED the menu doesn't also close it
-    const timer = setTimeout(() => {
-      document.addEventListener('click', close);
-    }, 0);
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener('click', close);
-    };
+    const timer = setTimeout(() => { document.addEventListener('click', close); }, 0);
+    return () => { clearTimeout(timer); document.removeEventListener('click', close); };
   }, [openMenuId]);
+
+  // Close filter panel when clicking outside
+  useEffect(() => {
+    if (!showFilterPanel) return;
+    const close = (e) => {
+      if (!e.target.closest('#teams-filter-panel') && !e.target.closest('#teams-filter-btn')) {
+        setShowFilterPanel(false);
+      }
+    };
+    const timer = setTimeout(() => { document.addEventListener('click', close); }, 0);
+    return () => { clearTimeout(timer); document.removeEventListener('click', close); };
+  }, [showFilterPanel]);
+
+  // When filter workspace changes, fetch its members
+  useEffect(() => {
+    if (appliedTeamFilter?.type !== 'workspace') {
+      setFilterWorkspaceMembers(null);
+      return;
+    }
+    const wsId = appliedTeamFilter.id;
+    apiClient.get(`/invitations/workspace/${wsId}`)
+      .then(res => {
+        const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+        setFilterWorkspaceMembers(list);
+      })
+      .catch(() => setFilterWorkspaceMembers([]));
+  }, [appliedTeamFilter]);
 
   // Fetch real team members when Teams tab is active
   useEffect(() => {
@@ -682,14 +708,150 @@ const WorkspaceView = () => {
                   <h1 className="text-lg font-black text-slate-900 tracking-tight">Team Members</h1>
                   <p className="text-xs text-slate-500 font-medium mt-0.5">Manage roles, permissions, and collaboration access.</p>
                 </div>
-                <Button
-                  size="sm"
-                  onClick={() =>
-                    navigate(`/workspace/${activeWorkspace?.id || activeWorkspace?._id}/invite`)
-                  }
-                >
-                  <Plus className="w-3.5 h-3.5 mr-1.5" /> Invite Member
-                </Button>
+                <div className="flex items-center gap-2">
+                  {/* Filter button */}
+                  <div className="relative">
+                    <button
+                      id="teams-filter-btn"
+                      onClick={() => setShowFilterPanel(p => !p)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
+                        appliedTeamFilter
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-400 hover:text-indigo-600'
+                      }`}
+                      title="Filter members"
+                    >
+                      <SlidersHorizontal className="w-3.5 h-3.5" />
+                      {appliedTeamFilter ? appliedTeamFilter.label : 'Filter'}
+                      {appliedTeamFilter && (
+                        <span
+                          onClick={(e) => { e.stopPropagation(); setAppliedTeamFilter(null); setTeamFilterQuery(''); }}
+                          className="ml-1 text-white/70 hover:text-white font-bold cursor-pointer"
+                        >×</span>
+                      )}
+                    </button>
+
+                    {/* Filter floating panel */}
+                    {showFilterPanel && (
+                      <div
+                        id="teams-filter-panel"
+                        className="absolute right-0 top-full mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 p-4"
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3">Filter Team</p>
+
+                        {/* Search input */}
+                        <div className="relative mb-3">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                          <input
+                            autoFocus
+                            type="text"
+                            placeholder="Search workspace or member name…"
+                            value={teamFilterQuery}
+                            onChange={e => setTeamFilterQuery(e.target.value)}
+                            className="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
+                          />
+                        </div>
+
+                        {/* Workspace suggestions */}
+                        {workspaces.filter(w =>
+                          teamFilterQuery.trim() &&
+                          w.name.toLowerCase().includes(teamFilterQuery.toLowerCase())
+                        ).length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">Workspaces</p>
+                            <div className="space-y-1">
+                              {workspaces
+                                .filter(w => w.name.toLowerCase().includes(teamFilterQuery.toLowerCase()))
+                                .slice(0, 4)
+                                .map(w => (
+                                  <button
+                                    key={w.id}
+                                    onClick={() => {
+                                      setAppliedTeamFilter({ type: 'workspace', id: w.id, label: w.name });
+                                      setShowFilterPanel(false);
+                                      setTeamFilterQuery('');
+                                    }}
+                                    className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700 transition-colors text-xs font-medium text-slate-700 cursor-pointer"
+                                  >
+                                    <Layers className="w-3 h-3 shrink-0 text-indigo-400" />
+                                    {w.name}
+                                  </button>
+                                ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Member suggestions */}
+                        {teamMembers.filter(m =>
+                          teamFilterQuery.trim() &&
+                          (m.name || m.email || '').toLowerCase().includes(teamFilterQuery.toLowerCase())
+                        ).length > 0 && (
+                          <div className="mb-3">
+                            <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">Members</p>
+                            <div className="space-y-1">
+                              {teamMembers
+                                .filter(m => (m.name || m.email || '').toLowerCase().includes(teamFilterQuery.toLowerCase()))
+                                .slice(0, 5)
+                                .map(m => {
+                                  const id = m.id || m._id;
+                                  return (
+                                    <button
+                                      key={id}
+                                      onClick={() => {
+                                        setAppliedTeamFilter({ type: 'member', id, label: m.name || m.email });
+                                        setShowFilterPanel(false);
+                                        setTeamFilterQuery('');
+                                      }}
+                                      className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700 transition-colors text-xs font-medium text-slate-700 cursor-pointer"
+                                    >
+                                      {m.avatar
+                                        ? <img src={m.avatar} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" />
+                                        : <User className="w-3 h-3 shrink-0 text-slate-400" />
+                                      }
+                                      {m.name || m.email}
+                                    </button>
+                                  );
+                                })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Empty state */}
+                        {teamFilterQuery.trim() &&
+                          workspaces.filter(w => w.name.toLowerCase().includes(teamFilterQuery.toLowerCase())).length === 0 &&
+                          teamMembers.filter(m => (m.name || m.email || '').toLowerCase().includes(teamFilterQuery.toLowerCase())).length === 0 && (
+                          <p className="text-xs text-slate-400 text-center py-3">No results for "{teamFilterQuery}"</p>
+                        )}
+
+                        {/* No query yet */}
+                        {!teamFilterQuery.trim() && (
+                          <p className="text-[11px] text-slate-400 text-center py-2">Type a workspace or member name to filter</p>
+                        )}
+
+                        <div className="border-t border-slate-100 mt-3 pt-3 flex justify-between items-center">
+                          <button
+                            onClick={() => { setAppliedTeamFilter(null); setTeamFilterQuery(''); setShowFilterPanel(false); }}
+                            className="text-[11px] text-slate-400 hover:text-slate-700 font-semibold cursor-pointer"
+                          >Clear filter</button>
+                          <button
+                            onClick={() => setShowFilterPanel(false)}
+                            className="text-[11px] px-3 py-1.5 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors cursor-pointer"
+                          >Done</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <Button
+                    size="sm"
+                    onClick={() =>
+                      navigate(`/workspace/${activeWorkspace?.id || activeWorkspace?._id}/invite`)
+                    }
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1.5" /> Invite Member
+                  </Button>
+                </div>
               </div>
 
               {/* Team stats — real data */}
@@ -748,8 +910,32 @@ const WorkspaceView = () => {
                       <p className="text-xs font-semibold text-slate-500">No members yet</p>
                       <p className="text-[11px] text-slate-400">Invite teammates to get started.</p>
                     </div>
-                  ) : (
-                    teamMembers.map(m => {
+                  ) : (() => {
+                    // Determine which list to show based on active filter
+                    let displayedMembers = teamMembers;
+                    if (appliedTeamFilter?.type === 'workspace' && filterWorkspaceMembers !== null) {
+                      displayedMembers = filterWorkspaceMembers;
+                    } else if (appliedTeamFilter?.type === 'member') {
+                      displayedMembers = teamMembers.filter(m =>
+                        (m.id || m._id) === appliedTeamFilter.id
+                      );
+                    }
+
+                    if (displayedMembers.length === 0) {
+                      return (
+                        <div className="py-10 flex flex-col items-center justify-center gap-2">
+                          <Search className="w-5 h-5 text-slate-300" />
+                          <p className="text-xs font-semibold text-slate-400">No members match this filter</p>
+                          <button
+                            onClick={() => setAppliedTeamFilter(null)}
+                            className="text-[11px] text-indigo-600 font-semibold hover:underline cursor-pointer"
+                          >Clear filter</button>
+                        </div>
+                      );
+                    }
+
+                    return displayedMembers.map(m => {
+
                       const memberId = m.id || m._id;
                       const memberTasks = tasks.filter(t =>
                         String(t.assignee || t.assigneeId) === String(memberId)
@@ -848,8 +1034,8 @@ const WorkspaceView = () => {
                           ) : null}
                         </div>
                       );
-                    })
-                  )}
+                    });
+                  })()}
                 </div>
               </div>
 
