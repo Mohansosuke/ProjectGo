@@ -41,8 +41,11 @@ const CreateWorkspace = () => {
     if (file.size > 5 * 1024 * 1024) { setError('Logo must be under 5 MB'); return; }
     const reader = new FileReader();
     reader.onload = (ev) => {
-      setLogoPreview(ev.target.result);
-      setLogoBase64(ev.target.result);
+      const result = ev.target.result;
+      if (typeof result === 'string') {
+        setLogoPreview(result);
+        setLogoBase64(result);
+      }
     };
     reader.readAsDataURL(file);
   };
