@@ -2,46 +2,19 @@ const User = require('../models/User');
 const ApiError = require('../utils/ApiError');
 const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
-const fs = require('fs');
-const path = require('path');
 
-const saveBase64Image = (base64Str, subfolder = 'profiles') => {
-  if (!base64Str || typeof base64Str !== 'string' || !base64Str.startsWith('data:image')) {
-    return base64Str;
-  }
-
-  try {
-    const matches = base64Str.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-    if (!matches || matches.length !== 3) {
-      return base64Str;
-    }
-
-    const type = matches[1];
-    const extension = type.split('/')[2] || type.split('/')[1] || 'png';
-    const buffer = Buffer.from(matches[2], 'base64');
-    
-    const fileName = `${Date.now()}-${Math.round(Math.random() * 1E9)}.${extension}`;
-    const uploadDir = path.join(__dirname, '../uploads', subfolder);
-    
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    
-    const filePath = path.join(uploadDir, fileName);
-    fs.writeFileSync(filePath, buffer);
-    
-    return `/uploads/${subfolder}/${fileName}`;
-  } catch (error) {
-    console.error("Error saving base64 image:", error);
-    return base64Str;
-  }
-};
-
+// Pass through base64 data URIs and external URLs as-is;
+// only prepend SERVER_URL for relative /uploads paths (legacy data).
 const getAbsoluteUrl = (pathStr) => {
   if (!pathStr) return '';
-  if (pathStr.startsWith('http://') || pathStr.startsWith('https://') || pathStr.startsWith('data:')) {
+  if (
+    pathStr.startsWith('data:') ||
+    pathStr.startsWith('http://') ||
+    pathStr.startsWith('https://')
+  ) {
     return pathStr;
   }
+  // Legacy: relative file path stored before this fix
   return `${process.env.SERVER_URL || 'http://localhost:5000'}${pathStr}`;
 };
 
@@ -55,12 +28,13 @@ const updateProfile = asyncHandler(async (req, res) => {
   if (name !== undefined) user.fullName = name;
   if (bio !== undefined) user.bio = bio;
   if (phone !== undefined) user.phone = phone;
-  if (avatar !== undefined) user.photoURL = saveBase64Image(avatar, 'profiles');
   if (nickname !== undefined) user.nickname = nickname;
+
+  // Store images directly as base64 (or external URL) — no disk writes
+  if (avatar !== undefined) user.photoURL = avatar || '';
   if (cover !== undefined) {
-    const savedPath = saveBase64Image(cover, 'profiles');
-    user.cover = savedPath;
-    user.coverPhoto = savedPath;
+    user.cover = cover || '';
+    user.coverPhoto = cover || '';
   }
 
   await user.save();

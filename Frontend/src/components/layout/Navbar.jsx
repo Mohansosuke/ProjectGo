@@ -1,10 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Search,
   Bell,
   Plus,
-  Command,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
@@ -15,32 +13,11 @@ const Navbar = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { activeWorkspace } = useWorkspace();
-  const [searchFocused, setSearchFocused] = useState(false);
 
   return (
     <header className="h-14 bg-white border-b border-slate-200/80 flex items-center justify-between px-5 shrink-0 sticky top-0 z-20">
-      {/* ─── Search Bar ──────────────────────────────── */}
-      <div className="flex-1 max-w-md">
-        <div
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition-all ${
-            searchFocused
-              ? 'border-blue-300 bg-white ring-2 ring-blue-500/10'
-              : 'border-slate-200 bg-slate-50 hover:border-slate-300'
-          }`}
-        >
-          <Search className="w-4 h-4 text-slate-400 shrink-0" />
-          <input
-            type="text"
-            placeholder="Search tasks, projects, docs..."
-            className="flex-1 bg-transparent text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none"
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setSearchFocused(false)}
-          />
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-[10px] font-semibold text-slate-400">
-            <Command className="w-2.5 h-2.5" />K
-          </kbd>
-        </div>
-      </div>
+      {/* ─── Left spacer ─────────────────────────────── */}
+      <div className="flex-1" />
 
       {/* ─── Right Actions ──────────────────────────── */}
       <div className="flex items-center gap-2">

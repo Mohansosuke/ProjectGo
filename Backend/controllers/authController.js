@@ -9,9 +9,14 @@ const isProduction = process.env.NODE_ENV === 'production';
 
 const getAbsoluteUrl = (pathStr) => {
   if (!pathStr) return '';
-  if (pathStr.startsWith('http://') || pathStr.startsWith('https://') || pathStr.startsWith('data:')) {
+  if (
+    pathStr.startsWith('data:') ||
+    pathStr.startsWith('http://') ||
+    pathStr.startsWith('https://')
+  ) {
     return pathStr;
   }
+  // Legacy: relative file path stored before base64-in-DB fix
   return `${process.env.SERVER_URL}${pathStr}`;
 };
 
