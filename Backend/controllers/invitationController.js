@@ -241,6 +241,43 @@
   );
 });
 
+  const updateMemberRole = asyncHandler(async (req, res) => {
+    const { workspaceId, userId } = req.params;
+    const { role } = req.body;
+
+    if (!['Admin', 'Member', 'Viewer'].includes(role)) {
+      throw new ApiError(400, "Invalid role specified");
+    }
+
+    const workspace = await Workspace.findById(workspaceId);
+    if (!workspace) {
+      throw new ApiError(404, "Workspace not found");
+    }
+
+    const isOwner = workspace.owner.toString() === req.user._id.toString();
+    const memberRoleObj = workspace.memberRoles?.find(mr => mr.user.toString() === req.user._id.toString());
+    const isAdmin = isOwner || (memberRoleObj && memberRoleObj.role === 'Admin');
+
+    if (!isAdmin) {
+      throw new ApiError(403, "Only workspace owner or admin can update member roles");
+    }
+
+    if (workspace.owner.toString() === userId) {
+      throw new ApiError(400, "Owner role cannot be changed");
+    }
+
+    if (!workspace.memberRoles) workspace.memberRoles = [];
+    const targetRoleObj = workspace.memberRoles.find(mr => mr.user.toString() === userId);
+    if (targetRoleObj) {
+      targetRoleObj.role = role;
+    } else {
+      workspace.memberRoles.push({ user: userId, role });
+    }
+
+    await workspace.save();
+    return res.json(new ApiResponse(200, { userId, role }, "Member role updated successfully"));
+  });
+
   module.exports = {
     sendInvitation,
     getInvitations,
@@ -249,5 +286,6 @@
     getWorkspaceMembers,
     cancelInvitation,
     getWorkspaceInvitations,
-    removeWorkspaceMember
+    removeWorkspaceMember,
+    updateMemberRole
   };

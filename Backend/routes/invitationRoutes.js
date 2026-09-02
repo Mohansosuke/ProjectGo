@@ -7,7 +7,8 @@ const {
   acceptInvitationGet,
   getWorkspaceMembers,
   cancelInvitation,
-  removeWorkspaceMember
+  removeWorkspaceMember,
+  updateMemberRole
 } = require('../controllers/invitationController');
 const { verifyJWT } = require('../middleware/authMiddleware');
 const validate = require('../middleware/validateMiddleware');
@@ -23,6 +24,11 @@ router.delete(
   '/workspace/:workspaceId/member/:userId',
   verifyJWT,
   removeWorkspaceMember
+);
+router.put(
+  '/workspace/:workspaceId/member/:userId/role',
+  verifyJWT,
+  updateMemberRole
 );
 
 module.exports = router;

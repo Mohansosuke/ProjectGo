@@ -387,49 +387,34 @@ const InviteMembers = () => {
             )}
           </AnimatePresence>
 
-          {/* ── 1. Role Selection Cards ── */}
+          {/* ── 1. Minimal Role Selection ── */}
           <div>
-            <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-500 mb-3">
-              1. Select Workspace Role
+            <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-500 mb-2.5">
+              1. Workspace Role
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-              {ROLE_CONFIGS.map((r) => {
+            <div className="inline-flex p-1 bg-slate-100 border border-slate-200/80 rounded-2xl gap-1 flex-wrap">
+              {[
+                { id: 'Member', label: 'Member', icon: User, note: 'Can create & edit tasks' },
+                { id: 'Admin', label: 'Admin', icon: ShieldCheck, note: 'Full workspace control' },
+                { id: 'Viewer', label: 'Viewer', icon: Eye, note: 'Read-only access' },
+              ].map((r) => {
                 const isSelected = role === r.id;
                 const Icon = r.icon;
                 return (
-                  <div
+                  <button
                     key={r.id}
+                    type="button"
                     onClick={() => setRole(r.id)}
-                    className={`relative p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
+                    className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                       isSelected
-                        ? 'border-indigo-600 bg-indigo-50/40 shadow-sm ring-2 ring-indigo-500/20'
-                        : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/50'
+                        ? 'bg-white text-indigo-700 shadow-xs border border-slate-200/80 ring-1 ring-indigo-500/20'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
                     }`}
                   >
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className={`p-2 rounded-xl ${isSelected ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30' : 'bg-slate-100 text-slate-600'}`}>
-                          <Icon className="w-4 h-4" />
-                        </div>
-                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isSelected ? 'border-indigo-600 bg-indigo-600 text-white' : 'border-slate-300'}`}>
-                          {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
-                        </div>
-                      </div>
-                      <h3 className="text-sm font-bold text-slate-900">{r.name}</h3>
-                      <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
-                        {r.description}
-                      </p>
-                    </div>
-
-                    <div className="mt-3 pt-3 border-t border-slate-100 space-y-1">
-                      {r.permissions.map((p, idx) => (
-                        <div key={idx} className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium">
-                          <Check className="w-3 h-3 text-emerald-500 shrink-0" />
-                          <span>{p}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                    <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-indigo-600' : 'text-slate-400'}`} />
+                    <span>{r.label}</span>
+                    <span className="hidden sm:inline text-[10px] font-medium text-slate-400">· {r.note}</span>
+                  </button>
                 );
               })}
             </div>
