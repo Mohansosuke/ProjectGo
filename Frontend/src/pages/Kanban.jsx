@@ -308,10 +308,10 @@ export default function Kanban() {
         <AnimatePresence mode="wait">
           <motion.div
             key={activeSubTab}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
+            transition={{ duration: 0.12 }}
             className="h-full"
           >
 
@@ -386,9 +386,9 @@ export default function Kanban() {
                                 <div
                                   ref={provided.innerRef}
                                   {...provided.droppableProps}
-                                  className={`flex flex-col gap-2 min-h-[130px] rounded-xl p-1 transition-all duration-200 ${
+                                  className={`flex flex-col gap-2 min-h-[130px] rounded-xl p-1 transition-colors duration-150 ${
                                     snapshot.isDraggingOver
-                                      ? 'bg-indigo-50/70 ring-2 ring-indigo-400/40 ring-dashed border-indigo-200 shadow-inner'
+                                      ? 'bg-indigo-50/70 ring-2 ring-indigo-400/40 ring-dashed border-indigo-200'
                                       : 'border-transparent'
                                   }`}
                                 >
@@ -406,56 +406,60 @@ export default function Kanban() {
                                             {...provided.dragHandleProps}
                                             style={provided.draggableProps.style}
                                             onClick={() => navigate(`/workspace/${workspaceId}/task/${task.id}`)}
-                                            className={`bg-white border rounded-xl p-3.5 select-none transition-all ${
-                                              snapshot.isDragging
-                                                ? 'shadow-2xl ring-2 ring-indigo-500/70 border-indigo-400 rotate-[1.5deg] scale-[1.03] z-50 bg-white/95 backdrop-blur-md opacity-95 cursor-grabbing'
-                                                : 'border-gray-200/90 shadow-xs hover:border-indigo-300 hover:shadow-md cursor-grab active:cursor-grabbing hover:-translate-y-0.5'
-                                            }`}
+                                            className="outline-none"
                                           >
-                                            {/* Label chip */}
-                                            {labelCfg && (
-                                              <span className={`inline-flex items-center text-[8px] font-extrabold px-1.5 py-0.5 rounded border uppercase tracking-wider mb-1.5 ${labelCfg.bgClass}`}>
-                                                {labelCfg.label}
-                                              </span>
-                                            )}
-
-                                            {/* Title */}
-                                            <p className="text-sm font-medium text-gray-800 leading-snug group-hover:text-indigo-700 transition-colors line-clamp-2">
-                                              {task.title}
-                                            </p>
-
-                                            {/* Description preview */}
-                                            {task.description && task.description !== 'No description provided.' && (
-                                              <p className="text-xs text-gray-400 mt-1 line-clamp-1 leading-relaxed">
-                                                {task.description}
-                                              </p>
-                                            )}
-
-                                            {/* Footer */}
-                                            <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-100/80">
-                                              <div className="flex items-center gap-1.5">
-                                                <span className={`flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded border ${pStyle}`}>
-                                                  <span className={`w-1.5 h-1.5 rounded-full ${pDot}`} />
-                                                  {task.priority}
+                                            <div
+                                              className={`bg-white border rounded-xl p-3.5 select-none transition-shadow ${
+                                                snapshot.isDragging
+                                                  ? 'shadow-2xl ring-2 ring-indigo-500 border-indigo-500 bg-white cursor-grabbing'
+                                                  : 'border-gray-200 shadow-xs hover:border-indigo-300 hover:shadow-md cursor-grab active:cursor-grabbing'
+                                              }`}
+                                            >
+                                              {/* Label chip */}
+                                              {labelCfg && (
+                                                <span className={`inline-flex items-center text-[8px] font-extrabold px-1.5 py-0.5 rounded border uppercase tracking-wider mb-1.5 ${labelCfg.bgClass}`}>
+                                                  {labelCfg.label}
                                                 </span>
-                                                {task.dueDate && (
-                                                  <span className="flex items-center gap-0.5 text-[9px] text-slate-400 font-medium">
-                                                    <Clock className="w-2.5 h-2.5" />
-                                                    {task.dueDate}
+                                              )}
+
+                                              {/* Title */}
+                                              <p className="text-sm font-medium text-gray-800 leading-snug group-hover:text-indigo-700 transition-colors line-clamp-2">
+                                                {task.title}
+                                              </p>
+
+                                              {/* Description preview */}
+                                              {task.description && task.description !== 'No description provided.' && (
+                                                <p className="text-xs text-gray-400 mt-1 line-clamp-1 leading-relaxed">
+                                                  {task.description}
+                                                </p>
+                                              )}
+
+                                              {/* Footer */}
+                                              <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-100/80">
+                                                <div className="flex items-center gap-1.5">
+                                                  <span className={`flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded border ${pStyle}`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full ${pDot}`} />
+                                                    {task.priority}
                                                   </span>
-                                                )}
-                                              </div>
-                                              <div className="flex items-center gap-1.5">
-                                                {task.points && (
-                                                  <span className="w-4 h-4 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-[8px] font-black border border-slate-200">
-                                                    {task.points}
-                                                  </span>
-                                                )}
-                                                <img
-                                                  src={assignee.avatar || `https://i.pravatar.cc/40?u=${task.assignee}`}
-                                                  alt=""
-                                                  className="w-5 h-5 rounded-full border border-white shadow-xs object-cover"
-                                                />
+                                                  {task.dueDate && (
+                                                    <span className="flex items-center gap-0.5 text-[9px] text-slate-400 font-medium">
+                                                      <Clock className="w-2.5 h-2.5" />
+                                                      {task.dueDate}
+                                                    </span>
+                                                  )}
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                  {task.points && (
+                                                    <span className="w-4 h-4 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-[8px] font-black border border-slate-200">
+                                                      {task.points}
+                                                    </span>
+                                                  )}
+                                                  <img
+                                                    src={assignee.avatar || `https://i.pravatar.cc/40?u=${task.assignee}`}
+                                                    alt=""
+                                                    className="w-5 h-5 rounded-full border border-white shadow-xs object-cover"
+                                                  />
+                                                </div>
                                               </div>
                                             </div>
                                           </div>
