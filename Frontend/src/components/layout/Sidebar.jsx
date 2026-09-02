@@ -24,6 +24,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useWorkspace } from '../../contexts/WorkspaceContext';
 import Avatar from '../ui/Avatar';
+import WorkspaceLogo from '../ui/WorkspaceLogo';
 
 const iconMap = {
   Home, LayoutDashboard, List, Calendar, Target, FileText, Users, Settings,
@@ -127,9 +128,7 @@ const Sidebar = ({ isCollapsed, toggleCollapse }) => {
             className="w-full flex items-center justify-between p-2 rounded-lg hover:bg-slate-50 transition-colors text-left group"
           >
             <div className="flex items-center gap-2 min-w-0">
-              <div className="w-6 h-6 rounded-md bg-blue-50 text-blue-600 flex items-center justify-center text-[10px] font-bold shrink-0">
-                {activeWorkspace.name.charAt(0)}
-              </div>
+              <WorkspaceLogo workspace={activeWorkspace} size="sm" className="shrink-0" />
               <span className="text-sm font-semibold text-slate-700 truncate">{activeWorkspace.name}</span>
             </div>
             <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${showWorkspaceDropdown ? 'rotate-180' : ''}`} />
@@ -154,9 +153,7 @@ const Sidebar = ({ isCollapsed, toggleCollapse }) => {
                     className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-5 h-5 rounded bg-blue-50 text-blue-600 flex items-center justify-center text-[9px] font-bold shrink-0">
-                        {w.name.charAt(0)}
-                      </div>
+                      <WorkspaceLogo workspace={w} size="xs" className="shrink-0" />
                       <span className="truncate">{w.name}</span>
                     </div>
                     {w.id === activeWorkspace.id && <Check className="w-3.5 h-3.5 text-blue-500 shrink-0" />}

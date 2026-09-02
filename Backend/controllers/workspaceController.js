@@ -45,13 +45,15 @@ const createWorkspaceController = asyncHandler(async (req, res) => {
 
 const updateWorkspaceController = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { name, subdomain } = req.body;
-  const workspace = await updateWorkspace(id, { name, subdomain }, req.user._id);
+  const { name, subdomain, description, logoUrl } = req.body;
+  const workspace = await updateWorkspace(id, { name, subdomain, description, logoUrl }, req.user._id);
 
   return res.json(new ApiResponse(200, {
     id: workspace._id,
     name: workspace.name,
     subdomain: workspace.subdomain,
+    description: workspace.description,
+    logoUrl: workspace.logoUrl,
     ownerId: workspace.owner,
     members: workspace.members
   }, "Workspace updated successfully"));

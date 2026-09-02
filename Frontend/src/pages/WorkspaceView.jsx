@@ -8,12 +8,14 @@ import {
   Sparkles, FileText, Mail, AlertTriangle, ArrowRight, TrendingUp,
   BarChart3, Target, Zap, Code, Megaphone, Lightbulb, Palette,
   Check, Circle, AlertCircle, BookOpen, Hash, ExternalLink,
-  MoreHorizontal, Layers, Globe, Lock, UserPlus
+  MoreHorizontal, Layers, Globe, Lock, UserPlus, Flame,
+  CheckCircle2, PlayCircle, AlertOctagon, ArrowUpRight,
+  Filter, CheckCheck, RefreshCw
 } from 'lucide-react';
 import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useTask } from '../contexts/TaskContext';
 import { useAuth } from '../contexts/AuthContext';
-import { Button, Input, Avatar, Badge, Dropdown, EmptyState } from '../components/ui';
+import { Button, Input, Avatar, Badge, Dropdown, EmptyState, WorkspaceLogo } from '../components/ui';
 import apiClient from '../services/apiClient';
 
 const PRIORITY_CONFIG = {
@@ -45,7 +47,7 @@ const formatLastSeen = (lastSeen) => {
 
 const WorkspaceView = () => {
   const { workspaces, selectWorkspace, activeWorkspace, globalSearchQuery } = useWorkspace();
-  const { tasks } = useTask();
+  const { tasks, moveTask } = useTask();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -56,6 +58,14 @@ const WorkspaceView = () => {
   const [homeActiveTab, setHomeActiveTab] = useState('Primary');
   const [priorityFilter, setPriorityFilter] = useState('All');
   const [now, setNow] = useState(new Date());
+
+  // Dashboard specific state
+  const [dashboardScope, setDashboardScope] = useState('ALL'); // 'ALL' or workspaceId
+  const [dashboardStatusFilter, setDashboardStatusFilter] = useState('ALL');
+  const [dashboardPriorityFilter, setDashboardPriorityFilter] = useState('ALL');
+  const [dashboardSearchQuery, setDashboardSearchQuery] = useState('');
+  const [dashboardTimeRange, setDashboardTimeRange] = useState('sprint');
+  const [movingTaskId, setMovingTaskId] = useState(null);
 
   // Real team members state
   const [teamMembers, setTeamMembers] = useState([]);
@@ -506,9 +516,7 @@ const WorkspaceView = () => {
                             onClick={() => handleSelect(w.id)}
                             className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl hover:bg-gray-50 group transition-colors text-left"
                           >
-                            <div className={`w-7 h-7 rounded-lg ${cfg.bg} flex items-center justify-center shrink-0`}>
-                              <cfg.Icon className="w-3.5 h-3.5" />
-                            </div>
+                            <WorkspaceLogo workspace={w} size="sm" className="shrink-0" />
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-700 truncate group-hover:text-indigo-700 transition-colors">{w.name}</p>
                             </div>
@@ -580,9 +588,7 @@ const WorkspaceView = () => {
                       className="bg-white border border-gray-200 hover:border-gray-300 rounded-2xl p-5 cursor-pointer transition-all flex flex-col gap-4 min-h-[185px] shadow-card hover:shadow-card-hover group"
                     >
                       <div className="flex justify-between items-start">
-                        <div className={`w-10 h-10 rounded-xl ${cfg.bg} flex items-center justify-center`}>
-                          <cfg.Icon className="w-5 h-5" />
-                        </div>
+                        <WorkspaceLogo workspace={w} size="md" className="shrink-0 ring-2 ring-slate-100/80" />
                         <div className="flex items-center gap-1.5">
                           <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-gray-100 text-gray-500">
                             {w.visibility || 'Private'}
@@ -1140,134 +1146,648 @@ const WorkspaceView = () => {
           )}
 
           {/* ── DASHBOARD ── */}
-          {activeTab === 'Dashboard' && (
-            <div className="p-5 space-y-4">
-              <div>
-                <h1 className="text-lg font-black text-slate-900 tracking-tight">Sprint Analytics</h1>
-                <p className="text-xs text-slate-500 font-medium mt-0.5">Live metrics and workload indicators for your team.</p>
-              </div>
+          {activeTab === 'Dashboard' && (() => {
+            // Filter tasks by selected dashboard scope
+            const activeScopeTasks = dashboardScope === 'ALL'
+              ? tasks
+              : tasks.filter(t => t.workspaceId === dashboardScope);
 
-              {/* Stat row */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                {[
-                  { label: 'Sprint Velocity', value: `${velocity}%`, sub: velocity > 70 ? '↑ On track' : 'Needs attention', color: 'text-violet-600 bg-violet-50', positive: velocity > 70 },
-                  { label: 'Total Tasks', value: totalTasks, sub: `${inProgressT} active`, color: 'text-blue-600 bg-blue-50', positive: true },
-                  { label: 'Completed', value: completedT, sub: `${velocity}% completion rate`, color: 'text-emerald-600 bg-emerald-50', positive: true },
-                  { label: 'Avg Cycle Time', value: '4.2d', sub: '↓ 1.8d faster', color: 'text-amber-600 bg-amber-50', positive: true },
-                ].map((s, i) => (
+            const activeScopeWs = workspaces.find(w => w.id === dashboardScope);
+
+            const total = activeScopeTasks.length;
+            const completed = activeScopeTasks.filter(t => t.status === 'COMPLETED').length;
+            const inProgress = activeScopeTasks.filter(t => t.status === 'IN_PROGRESS').length;
+            const todo = activeScopeTasks.filter(t => t.status === 'TO_DO').length;
+            const backlog = activeScopeTasks.filter(t => t.status === 'BACKLOG').length;
+            const urgent = activeScopeTasks.filter(t => t.priority === 'URGENT').length;
+            const high = activeScopeTasks.filter(t => t.priority === 'HIGH').length;
+            const medium = activeScopeTasks.filter(t => t.priority === 'MEDIUM').length;
+            const low = activeScopeTasks.filter(t => t.priority === 'LOW').length;
+            const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+            // Tasks filtered for the radar table
+            const radarTasks = activeScopeTasks.filter(t => {
+              const matchStatus = dashboardStatusFilter === 'ALL' || t.status === dashboardStatusFilter;
+              const matchPriority = dashboardPriorityFilter === 'ALL' || t.priority === dashboardPriorityFilter;
+              const matchSearch = !dashboardSearchQuery || (t.title || '').toLowerCase().includes(dashboardSearchQuery.toLowerCase());
+              return matchStatus && matchPriority && matchSearch;
+            });
+
+            const handleStatusChange = async (taskId, newStatus, e) => {
+              e?.stopPropagation?.();
+              setMovingTaskId(taskId);
+              try {
+                if (moveTask) {
+                  await moveTask(taskId, newStatus);
+                }
+              } catch (err) {
+                console.error('Failed to change status:', err);
+              } finally {
+                setMovingTaskId(null);
+              }
+            };
+
+            return (
+              <div className="p-6 space-y-6 max-w-full">
+                {/* ── Top Header & Scope Bar ── */}
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white border border-slate-200/80 rounded-2xl p-5 shadow-card">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600">
+                        <BarChart3 className="w-5 h-5" />
+                      </span>
+                      <h1 className="text-xl font-black text-slate-900 tracking-tight">Workspace Command Center</h1>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-100 flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live Metrics
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 font-medium mt-1">
+                      Real-time velocity, workload balance, and task execution pipeline across your projects.
+                    </p>
+                  </div>
+
+                  {/* Scope & Quick Actions */}
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    {/* Workspace Scope dropdown */}
+                    <div className="relative">
+                      <select
+                        value={dashboardScope}
+                        onChange={(e) => setDashboardScope(e.target.value)}
+                        className="h-9 pl-3 pr-8 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer appearance-none"
+                      >
+                        <option value="ALL">🌐 All Workspaces ({workspaces.length})</option>
+                        {workspaces.map(w => (
+                          <option key={w.id} value={w.id}>
+                            📁 {w.name}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    </div>
+
+                    <Button
+                      size="sm"
+                      icon={Plus}
+                      onClick={() => {
+                        const targetId = dashboardScope !== 'ALL' ? dashboardScope : (activeWorkspace?.id || workspaces[0]?.id);
+                        if (targetId) navigate(`/workspace/${targetId}/kanban`);
+                        else navigate('/create-workspace');
+                      }}
+                      className="h-9 px-3 text-xs"
+                    >
+                      New Task
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      icon={PlusCircle}
+                      onClick={() => navigate('/create-workspace')}
+                      className="h-9 px-3 text-xs"
+                    >
+                      New Space
+                    </Button>
+                  </div>
+                </div>
+
+                {/* ── KPI Highlight Cards ── */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Card 1: Velocity */}
                   <motion.div
-                    key={s.label}
-                    initial={{ opacity: 0, y: 10 }}
+                    initial={{ opacity: 0, y: 12 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                    className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs"
+                    transition={{ duration: 0.3 }}
+                    className="bg-gradient-to-br from-[#1e1b4b] via-[#312e81] to-[#4c1d95] rounded-2xl p-5 text-white shadow-elevated relative overflow-hidden flex flex-col justify-between min-h-[145px]"
                   >
-                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">{s.label}</p>
-                    <p className="text-2xl font-black text-slate-900 mt-1">{s.value}</p>
-                    <p className={`text-[10px] font-bold mt-1 ${s.positive ? 'text-emerald-600' : 'text-rose-500'}`}>{s.sub}</p>
-                  </motion.div>
-                ))}
-              </div>
+                    <div className="absolute right-0 top-0 w-32 h-32 bg-indigo-400/10 rounded-full blur-2xl pointer-events-none" />
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-300">Sprint Velocity</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-indigo-200 border border-white/10">
+                        {rate >= 70 ? 'High Momentum' : rate >= 40 ? 'On Track' : 'In Progress'}
+                      </span>
+                    </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Workload breakdown */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-                  <p className="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-4">Task Workload Breakdown</p>
-                  <div className="space-y-3">
-                    {[
-                      { name: 'Completed', count: completedT, color: 'bg-emerald-500' },
-                      { name: 'In Progress', count: inProgressT, color: 'bg-violet-500' },
-                      { name: 'Todo', count: tasks.filter(t => t.status === 'TO_DO').length, color: 'bg-blue-400' },
-                      { name: 'Backlog', count: tasks.filter(t => t.status === 'BACKLOG').length, color: 'bg-slate-200' },
-                    ].map((s, i) => {
-                      const pct = totalTasks > 0 ? Math.round((s.count / totalTasks) * 100) : 0;
-                      return (
-                        <div key={s.name}>
-                          <div className="flex justify-between text-[11px] font-bold text-slate-600 mb-1.5">
-                            <div className="flex items-center gap-2">
-                              <span className={`w-2 h-2 rounded-full ${s.color}`} />
-                              <span>{s.name}</span>
-                            </div>
-                            <span className="text-slate-400">{s.count} tasks ({pct}%)</span>
-                          </div>
-                          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${pct}%` }}
-                              transition={{ duration: 0.8, delay: i * 0.1 }}
-                              className={`h-full ${s.color} rounded-full`}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
+                    <div className="my-2 flex items-baseline gap-2">
+                      <span className="text-3xl font-black tracking-tight">{rate}%</span>
+                      <span className="text-xs text-indigo-200/80 font-medium">completion rate</span>
+                    </div>
 
-                {/* Priority distribution */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-                  <p className="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-4">Priority Distribution</p>
-                  <div className="space-y-3">
-                    {Object.entries(PRIORITY_CONFIG).map(([key, pc], i) => {
-                      const count = tasks.filter(t => t.priority === key).length;
-                      const pct = totalTasks > 0 ? Math.round((count / totalTasks) * 100) : 0;
-                      return (
-                        <div key={key}>
-                          <div className="flex justify-between text-[11px] font-bold text-slate-600 mb-1.5">
-                            <div className="flex items-center gap-2">
-                              <span className={`w-2 h-2 rounded-full ${pc.dot}`} />
-                              <span>{pc.label}</span>
-                            </div>
-                            <span className="text-slate-400">{count} tasks ({pct}%)</span>
-                          </div>
-                          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${pct}%` }}
-                              transition={{ duration: 0.8, delay: i * 0.1 }}
-                              className={`h-full ${pc.dot} rounded-full`}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Per-workspace breakdown */}
-              <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
-                <p className="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-4">Workspace Overview</p>
-                <div className="space-y-3">
-                  {workspaces.map((w, i) => {
-                    const { total, done, pct } = getWorkspaceStats(w.id);
-                    const cfg = getWorkspaceConfig(w.name, i);
-                    return (
-                      <div key={w.id} className="flex items-center gap-3 cursor-pointer group" onClick={() => handleSelect(w.id)}>
-                        <div className={`w-7 h-7 rounded-lg ${cfg.bg} flex items-center justify-center shrink-0`}>
-                          <cfg.Icon className="w-3.5 h-3.5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="text-[11px] font-bold text-slate-700 group-hover:text-[#5f35f5] truncate">{w.name}</p>
-                            <span className="text-[10px] font-bold text-slate-400 shrink-0 ml-2">{done}/{total} · {pct}%</span>
-                          </div>
-                          <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <motion.div
-                              initial={{ width: 0 }}
-                              animate={{ width: `${pct}%` }}
-                              transition={{ duration: 0.8, delay: i * 0.1 }}
-                              className={`h-full ${cfg.bar} rounded-full`}
-                            />
-                          </div>
-                        </div>
+                    <div className="space-y-1.5">
+                      <div className="w-full h-1.5 bg-white/15 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${rate}%` }}
+                          transition={{ duration: 1, ease: 'easeOut' }}
+                          className="h-full bg-gradient-to-r from-emerald-400 to-teal-300 rounded-full"
+                        />
                       </div>
-                    );
-                  })}
+                      <div className="flex justify-between text-[10px] text-indigo-200/70 font-semibold">
+                        <span>{completed} completed</span>
+                        <span>{total} total tasks</span>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* Card 2: Active Workload */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.05 }}
+                    className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-card hover:shadow-card-hover transition-all flex flex-col justify-between min-h-[145px]"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Active Workload</span>
+                      <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                        <Activity className="w-4 h-4" />
+                      </div>
+                    </div>
+
+                    <div className="my-2">
+                      <div className="text-3xl font-black text-slate-900 tracking-tight">{inProgress + todo}</div>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5">Tasks actively in flight</p>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-2 border-t border-slate-100 text-xs font-semibold">
+                      <span className="text-indigo-600 flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-indigo-500" /> {inProgress} In Progress
+                      </span>
+                      <span className="text-blue-600 flex items-center gap-1">
+                        <span className="w-2 h-2 rounded-full bg-blue-400" /> {todo} To Do
+                      </span>
+                    </div>
+                  </motion.div>
+
+                  {/* Card 3: Urgent Watchlist */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.1 }}
+                    className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-card hover:shadow-card-hover transition-all flex flex-col justify-between min-h-[145px]"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">High Priority Radar</span>
+                      <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                        <Flame className="w-4 h-4" />
+                      </div>
+                    </div>
+
+                    <div className="my-2">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-black text-rose-600 tracking-tight">{urgent + high}</span>
+                        {urgent > 0 && (
+                          <span className="text-xs font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md border border-rose-100 animate-pulse">
+                            {urgent} Urgent
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5">Tasks requiring priority focus</p>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100">
+                      <button
+                        onClick={() => setDashboardPriorityFilter(p => p === 'URGENT' ? 'ALL' : 'URGENT')}
+                        className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        {dashboardPriorityFilter === 'URGENT' ? 'Show all priorities' : 'Filter urgent items'}
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </motion.div>
+
+                  {/* Card 4: Workspaces & Members */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.15 }}
+                    className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-card hover:shadow-card-hover transition-all flex flex-col justify-between min-h-[145px]"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">Workspaces & Team</span>
+                      <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                    </div>
+
+                    <div className="my-2">
+                      <div className="text-3xl font-black text-slate-900 tracking-tight">{workspaces.length}</div>
+                      <p className="text-xs text-slate-500 font-medium mt-0.5">Active Project Spaces</p>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-100 text-xs text-slate-500 font-semibold">
+                      <span className="flex items-center gap-1">
+                        <Users className="w-3.5 h-3.5 text-slate-400" />
+                        {teamMembers.length || 1} team members
+                      </span>
+                      <span className="text-emerald-600 font-bold flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        {teamMembers.filter(m => m.isOnline).length || 1} online
+                      </span>
+                    </div>
+                  </motion.div>
+                </div>
+
+                {/* ── Visual Pipelines: Status Flow & Priority Matrix ── */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Status Pipeline */}
+                  <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-card space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-black text-slate-900 tracking-tight">Execution Pipeline</h3>
+                        <p className="text-xs text-slate-400 font-medium">Task distribution across stages</p>
+                      </div>
+                      <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+                        {total} Total
+                      </span>
+                    </div>
+
+                    {/* Proportional Segmented Bar */}
+                    <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+                      {total > 0 ? (
+                        <>
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${(completed / total) * 100}%` }}
+                            transition={{ duration: 0.8 }}
+                            className="h-full bg-emerald-500 hover:bg-emerald-600 transition-colors cursor-pointer"
+                            title={`Completed: ${completed} (${Math.round((completed / total) * 100)}%)`}
+                            onClick={() => setDashboardStatusFilter(s => s === 'COMPLETED' ? 'ALL' : 'COMPLETED')}
+                          />
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${(inProgress / total) * 100}%` }}
+                            transition={{ duration: 0.8, delay: 0.05 }}
+                            className="h-full bg-indigo-500 hover:bg-indigo-600 transition-colors cursor-pointer"
+                            title={`In Progress: ${inProgress} (${Math.round((inProgress / total) * 100)}%)`}
+                            onClick={() => setDashboardStatusFilter(s => s === 'IN_PROGRESS' ? 'ALL' : 'IN_PROGRESS')}
+                          />
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${(todo / total) * 100}%` }}
+                            transition={{ duration: 0.8, delay: 0.1 }}
+                            className="h-full bg-blue-400 hover:bg-blue-500 transition-colors cursor-pointer"
+                            title={`To Do: ${todo} (${Math.round((todo / total) * 100)}%)`}
+                            onClick={() => setDashboardStatusFilter(s => s === 'TO_DO' ? 'ALL' : 'TO_DO')}
+                          />
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${(backlog / total) * 100}%` }}
+                            transition={{ duration: 0.8, delay: 0.15 }}
+                            className="h-full bg-slate-300 hover:bg-slate-400 transition-colors cursor-pointer"
+                            title={`Backlog: ${backlog} (${Math.round((backlog / total) * 100)}%)`}
+                            onClick={() => setDashboardStatusFilter(s => s === 'BACKLOG' ? 'ALL' : 'BACKLOG')}
+                          />
+                        </>
+                      ) : (
+                        <div className="w-full h-full bg-slate-200" />
+                      )}
+                    </div>
+
+                    {/* Status Legend Clickable Chips */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
+                      {[
+                        { key: 'COMPLETED', label: 'Completed', count: completed, dot: 'bg-emerald-500', bg: 'hover:bg-emerald-50/50' },
+                        { key: 'IN_PROGRESS', label: 'In Progress', count: inProgress, dot: 'bg-indigo-500', bg: 'hover:bg-indigo-50/50' },
+                        { key: 'TO_DO', label: 'To Do', count: todo, dot: 'bg-blue-400', bg: 'hover:bg-blue-50/50' },
+                        { key: 'BACKLOG', label: 'Backlog', count: backlog, dot: 'bg-slate-400', bg: 'hover:bg-slate-50' },
+                      ].map(s => {
+                        const isSelected = dashboardStatusFilter === s.key;
+                        const pct = total > 0 ? Math.round((s.count / total) * 100) : 0;
+                        return (
+                          <button
+                            key={s.key}
+                            onClick={() => setDashboardStatusFilter(curr => curr === s.key ? 'ALL' : s.key)}
+                            className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                              isSelected
+                                ? 'border-indigo-600 bg-indigo-50/50 ring-2 ring-indigo-500/10'
+                                : `border-slate-200/70 bg-white ${s.bg}`
+                            }`}
+                          >
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <span className={`w-2 h-2 rounded-full ${s.dot}`} />
+                              <span className="text-[11px] font-bold text-slate-700 truncate">{s.label}</span>
+                            </div>
+                            <div className="flex items-baseline justify-between">
+                              <span className="text-base font-black text-slate-900 leading-none">{s.count}</span>
+                              <span className="text-[10px] text-slate-400 font-semibold">{pct}%</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Priority Spectrum */}
+                  <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-card space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="text-sm font-black text-slate-900 tracking-tight">Priority Spectrum</h3>
+                        <p className="text-xs text-slate-400 font-medium">Risk and urgency allocation</p>
+                      </div>
+                      {dashboardPriorityFilter !== 'ALL' && (
+                        <button
+                          onClick={() => setDashboardPriorityFilter('ALL')}
+                          className="text-xs text-indigo-600 font-bold hover:underline cursor-pointer"
+                        >
+                          Clear Filter
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="space-y-3">
+                      {[
+                        { key: 'URGENT', label: 'Urgent', count: urgent, color: 'bg-red-500', chip: 'bg-red-50 text-red-700' },
+                        { key: 'HIGH', label: 'High', count: high, color: 'bg-orange-500', chip: 'bg-orange-50 text-orange-700' },
+                        { key: 'MEDIUM', label: 'Medium', count: medium, color: 'bg-amber-500', chip: 'bg-amber-50 text-amber-700' },
+                        { key: 'LOW', label: 'Low', count: low, color: 'bg-slate-400', chip: 'bg-slate-100 text-slate-600' },
+                      ].map((p, i) => {
+                        const pct = total > 0 ? Math.round((p.count / total) * 100) : 0;
+                        const isSelected = dashboardPriorityFilter === p.key;
+                        return (
+                          <div
+                            key={p.key}
+                            onClick={() => setDashboardPriorityFilter(curr => curr === p.key ? 'ALL' : p.key)}
+                            className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                              isSelected ? 'border-indigo-500 bg-indigo-50/40' : 'border-transparent hover:bg-slate-50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between text-xs font-bold mb-1.5">
+                              <div className="flex items-center gap-2">
+                                <span className={`w-2.5 h-2.5 rounded-full ${p.color}`} />
+                                <span className="text-slate-800">{p.label}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-slate-900 font-black">{p.count}</span>
+                                <span className="text-[10px] text-slate-400 font-semibold">({pct}%)</span>
+                              </div>
+                            </div>
+                            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${pct}%` }}
+                                transition={{ duration: 0.8, delay: i * 0.08 }}
+                                className={`h-full ${p.color} rounded-full`}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Actionable Task Radar (Workable directly from Dashboard!) ── */}
+                <div className="bg-white border border-slate-200/80 rounded-2xl shadow-card overflow-hidden">
+                  {/* Task Radar Toolbar */}
+                  <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/50">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-1.5 bg-white border border-slate-200 rounded-lg shadow-xs">
+                        <Target className="w-4 h-4 text-indigo-600" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-black text-slate-900 tracking-tight">Task Radar & Actions</h3>
+                        <p className="text-[11px] text-slate-400 font-medium">Update status, inspect assignments, and jump to boards</p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {/* Search */}
+                      <div className="relative w-full sm:w-56">
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          placeholder="Search tasks..."
+                          value={dashboardSearchQuery}
+                          onChange={(e) => setDashboardSearchQuery(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                        />
+                      </div>
+
+                      {/* Status Filter Tab Pills */}
+                      <div className="flex items-center bg-white border border-slate-200 p-0.5 rounded-xl shadow-xs">
+                        {['ALL', 'IN_PROGRESS', 'TO_DO', 'COMPLETED'].map(statusKey => (
+                          <button
+                            key={statusKey}
+                            onClick={() => setDashboardStatusFilter(statusKey)}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                              dashboardStatusFilter === statusKey
+                                ? 'bg-indigo-600 text-white shadow-xs'
+                                : 'text-slate-500 hover:text-slate-800'
+                            }`}
+                          >
+                            {statusKey === 'ALL' ? 'All' : statusKey === 'IN_PROGRESS' ? 'Active' : statusKey === 'TO_DO' ? 'Todo' : 'Done'}
+                          </button>
+                        ))}
+                      </div>
+
+                      {(dashboardStatusFilter !== 'ALL' || dashboardPriorityFilter !== 'ALL' || dashboardSearchQuery) && (
+                        <button
+                          onClick={() => {
+                            setDashboardStatusFilter('ALL');
+                            setDashboardPriorityFilter('ALL');
+                            setDashboardSearchQuery('');
+                          }}
+                          className="text-xs font-bold text-slate-400 hover:text-slate-700 px-2 py-1 cursor-pointer"
+                        >
+                          Reset
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Task Rows */}
+                  <div className="divide-y divide-slate-100">
+                    {radarTasks.length > 0 ? (
+                      radarTasks.slice(0, 8).map((task, idx) => {
+                        const pc = PRIORITY_CONFIG[task.priority] || PRIORITY_CONFIG.MEDIUM;
+                        const sc = STATUS_CONFIG[task.status] || STATUS_CONFIG.TO_DO;
+                        const taskWs = workspaces.find(w => w.id === task.workspaceId);
+                        const isMoving = movingTaskId === task.id;
+
+                        return (
+                          <motion.div
+                            key={task.id}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: idx * 0.02 }}
+                            onClick={() => task.workspaceId && handleSelect(task.workspaceId)}
+                            className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-slate-50/80 transition-all cursor-pointer group gap-3"
+                          >
+                            {/* Left info */}
+                            <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                              {/* Workspace Logo badge */}
+                              <WorkspaceLogo workspace={taskWs} size="sm" className="shrink-0 ring-1 ring-slate-200/50" />
+
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className={`w-2 h-2 rounded-full shrink-0 ${pc.dot}`} />
+                                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors truncate">
+                                    {task.title}
+                                  </h4>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-2.5 mt-1 text-xs text-slate-400">
+                                  <span className="font-semibold text-slate-600">
+                                    {taskWs?.name || 'Workspace'}
+                                  </span>
+                                  {task.dueDate && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="flex items-center gap-1 font-medium text-slate-500">
+                                        <Clock className="w-3 h-3 text-slate-400" />
+                                        Due {task.dueDate}
+                                      </span>
+                                    </>
+                                  )}
+                                  {task.points && (
+                                    <>
+                                      <span>•</span>
+                                      <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold">
+                                        {task.points} pts
+                                      </span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Right actions: Priority Pill, Assignee, Quick Status Switcher */}
+                            <div className="flex items-center gap-3 shrink-0 self-end sm:self-center" onClick={e => e.stopPropagation()}>
+                              {/* Priority */}
+                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border ${pc.chip}`}>
+                                {pc.label}
+                              </span>
+
+                              {/* Quick Move Status Selector */}
+                              <div className="relative">
+                                <select
+                                  disabled={isMoving}
+                                  value={task.status}
+                                  onChange={(e) => handleStatusChange(task.id, e.target.value, e)}
+                                  className={`text-xs font-bold py-1 pl-2.5 pr-7 rounded-lg border focus:outline-none transition-all cursor-pointer appearance-none ${sc.color} ${
+                                    isMoving ? 'opacity-50' : 'hover:shadow-xs'
+                                  }`}
+                                >
+                                  <option value="TO_DO">To Do</option>
+                                  <option value="IN_PROGRESS">In Progress</option>
+                                  <option value="COMPLETED">Completed</option>
+                                  <option value="BACKLOG">Backlog</option>
+                                </select>
+                                <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                              </div>
+
+                              {/* Assignee Avatar */}
+                              {memberAvatars[task.assigneeId || task.assignee] ? (
+                                <img
+                                  src={memberAvatars[task.assigneeId || task.assignee]}
+                                  alt=""
+                                  className="w-7 h-7 rounded-full object-cover border border-slate-200"
+                                />
+                              ) : (
+                                <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-black flex items-center justify-center border border-indigo-200/50">
+                                  {currentUser?.name?.charAt(0) || 'U'}
+                                </div>
+                              )}
+
+                              <button
+                                onClick={() => task.workspaceId && handleSelect(task.workspaceId)}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                                title="Open in Board"
+                              >
+                                <ArrowUpRight className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </motion.div>
+                        );
+                      })
+                    ) : (
+                      <div className="p-12 text-center flex flex-col items-center justify-center">
+                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
+                          <CheckCircle className="w-6 h-6" />
+                        </div>
+                        <h4 className="text-sm font-bold text-slate-800">No tasks match your filter</h4>
+                        <p className="text-xs text-slate-400 mt-1 max-w-sm">
+                          Try resetting your filter parameters or create a new task in this workspace.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {radarTasks.length > 8 && (
+                    <div className="p-3 border-t border-slate-100 bg-slate-50/50 flex justify-center">
+                      <button
+                        onClick={() => {
+                          const targetId = dashboardScope !== 'ALL' ? dashboardScope : (activeWorkspace?.id || workspaces[0]?.id);
+                          if (targetId) navigate(`/workspace/${targetId}/kanban`);
+                        }}
+                        className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 cursor-pointer"
+                      >
+                        View all {radarTasks.length} tasks in board <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Workspace Fleet Overview ── */}
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-card space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-black text-slate-900 tracking-tight">Workspace Fleet Performance</h3>
+                      <p className="text-xs text-slate-400 font-medium">Cross-workspace velocity and delivery metrics</p>
+                    </div>
+                    <Button size="xs" variant="outline" icon={Plus} onClick={() => navigate('/create-workspace')}>
+                      New Space
+                    </Button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {workspaces.map((ws, i) => {
+                      const { total: wsTotal, done: wsDone, pct: wsPct } = getWorkspaceStats(ws.id);
+                      return (
+                        <motion.div
+                          key={ws.id}
+                          whileHover={{ y: -2 }}
+                          onClick={() => handleSelect(ws.id)}
+                          className="p-4 rounded-xl border border-slate-200/80 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer bg-white group flex flex-col justify-between min-h-[140px]"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
+                              <WorkspaceLogo workspace={ws} size="md" className="shrink-0 ring-2 ring-slate-100" />
+                              <div className="min-w-0">
+                                <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors truncate">
+                                  {ws.name}
+                                </h4>
+                                <span className="text-[10px] font-semibold text-slate-400">
+                                  {ws.visibility || 'Private'} · {ws.userRole || 'Member'}
+                                </span>
+                              </div>
+                            </div>
+                            <span className="text-xs font-black text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md">
+                              {wsPct}%
+                            </span>
+                          </div>
+
+                          <div className="space-y-1.5 mt-3 pt-3 border-t border-slate-100">
+                            <div className="flex justify-between text-[11px] font-bold text-slate-500">
+                              <span>Progress</span>
+                              <span>{wsDone} / {wsTotal} done</span>
+                            </div>
+                            <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                              <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${wsPct}%` }}
+                                transition={{ duration: 0.8, delay: i * 0.05 }}
+                                className="h-full bg-gradient-to-r from-indigo-500 to-violet-600 rounded-full"
+                              />
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
         </motion.div>
       </AnimatePresence>

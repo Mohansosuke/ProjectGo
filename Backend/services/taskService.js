@@ -24,6 +24,15 @@ const checkWorkspacePermission = async (workspaceId, userId, action = 'view') =>
 };
 
 const getWorkspaceTasks = async (workspaceId, userId) => {
+  if (!workspaceId || workspaceId === 'ALL' || workspaceId === 'all') {
+    const userWorkspaces = await Workspace.find({
+      $or: [{ owner: userId }, { members: userId }]
+    }).select('_id');
+    const wsIds = userWorkspaces.map(w => w._id);
+    return await Task.find({ workspaceId: { $in: wsIds } })
+      .populate('assignee', 'fullName email photoURL')
+      .populate('reporter', 'fullName email photoURL');
+  }
   await checkWorkspacePermission(workspaceId, userId, 'view');
   return await Task.find({ workspaceId })
     .populate('assignee', 'fullName email photoURL')

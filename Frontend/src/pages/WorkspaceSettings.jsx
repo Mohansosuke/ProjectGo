@@ -15,7 +15,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { useWorkspace } from '../contexts/WorkspaceContext';
-import { Button, Input, Switch, Modal, Breadcrumb } from '../components/ui';
+import { Button, Input, Switch, Modal, Breadcrumb, WorkspaceLogo } from '../components/ui';
 
 const WorkspaceSettings = () => {
   const { workspaceId } = useParams();
@@ -31,7 +31,8 @@ const WorkspaceSettings = () => {
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState('Public');
   const [subdomain, setSubdomain] = useState('');
-  const [logoBgColor, setLogoBgColor] = useState('bg-blue-500');
+  const [logoUrl, setLogoUrl] = useState('');
+  const logoInputRef = React.useRef(null);
   
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [showSuccessToast, setShowSuccessToast] = useState(false);
@@ -44,6 +45,7 @@ const WorkspaceSettings = () => {
       setDescription(workspace.description || '');
       setVisibility(workspace.visibility || 'Public');
       setSubdomain(workspace.subdomain || workspace.url || (workspace.name || '').toLowerCase().replace(/\s+/g, '-'));
+      setLogoUrl(workspace.logoUrl || '');
     }
   }, [workspaceId, workspace]);
 
@@ -75,20 +77,38 @@ const WorkspaceSettings = () => {
     );
   }
 
-  const logoColors = [
-    'bg-blue-500', 'bg-purple-600', 'bg-emerald-600', 'bg-amber-500', 'bg-pink-600', 'bg-red-500'
-  ];
+  const handleLogoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Logo image must be under 5 MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const result = ev.target.result;
+      if (typeof result === 'string') {
+        setLogoUrl(result);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
-  const handleSaveChanges = () => {
-    updateWorkspace(workspace.id, {
-      name: workspaceName,
-      description,
-      visibility,
-      url: subdomain
-    });
-    setSuccessMessage('Workspace settings updated successfully!');
-    setShowSuccessToast(true);
-    setTimeout(() => setShowSuccessToast(false), 3000);
+  const handleSaveChanges = async () => {
+    try {
+      await updateWorkspace(workspace.id, {
+        name: workspaceName,
+        description,
+        visibility,
+        subdomain,
+        logoUrl
+      });
+      setSuccessMessage('Workspace settings updated successfully!');
+      setShowSuccessToast(true);
+      setTimeout(() => setShowSuccessToast(false), 3000);
+    } catch (err) {
+      alert(err?.response?.data?.message || 'Failed to update workspace');
+    }
   };
 
   const handleDeleteConfirm = () => {
@@ -209,27 +229,49 @@ const WorkspaceSettings = () => {
 
             <div className="p-5 space-y-5">
               {/* Workspace Logo Row */}
-              <div className="flex flex-col sm:flex-row items-center gap-4 pb-5 border-b border-gray-100">
-                <div className={`w-14 h-14 rounded-2xl ${logoBgColor} text-white flex items-center justify-center font-bold text-2xl shadow-md shrink-0`}>
-                  {workspaceName ? workspaceName.charAt(0) : 'W'}
-                </div>
-                <div className="space-y-2 w-full">
-                  <span className="block text-xs font-semibold text-gray-700">
-                    Workspace Logo
-                  </span>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {logoColors.map((col) => (
-                      <button
-                        key={col}
-                        onClick={() => setLogoBgColor(col)}
-                        className={`w-6 h-6 rounded-full ${col} ring-offset-2 hover:scale-110 transition-all ${
-                          logoBgColor === col ? 'ring-2 ring-indigo-600' : ''
-                        }`}
-                      />
-                    ))}
-                    <Button variant="secondary" size="xs" icon={UploadCloud}>
-                      Upload Custom
+              <div className="flex flex-col sm:flex-row items-center gap-5 pb-5 border-b border-gray-100">
+                <input
+                  type="file"
+                  ref={logoInputRef}
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleLogoUpload}
+                />
+                <WorkspaceLogo
+                  name={workspaceName}
+                  logoUrl={logoUrl}
+                  id={workspace.id}
+                  size="lg"
+                  className="shadow-md shrink-0 ring-4 ring-slate-50"
+                />
+                <div className="space-y-2 w-full text-center sm:text-left">
+                  <div>
+                    <span className="block text-xs font-bold text-gray-800 uppercase tracking-wider">
+                      Workspace Icon / Logo
+                    </span>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Upload a custom brand logo image, or we'll automatically generate a distinct symbol.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 pt-1">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="xs"
+                      icon={UploadCloud}
+                      onClick={() => logoInputRef.current?.click()}
+                    >
+                      {logoUrl ? 'Change Logo' : 'Upload Custom Logo'}
                     </Button>
+                    {logoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setLogoUrl('')}
+                        className="text-xs font-semibold text-rose-500 hover:text-rose-600 px-2 py-1 rounded-md hover:bg-rose-50 transition-colors"
+                      >
+                        Use Default Symbol
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

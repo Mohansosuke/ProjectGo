@@ -11,7 +11,7 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useTask } from '../contexts/TaskContext';
-import { Button, Input, Avatar, Badge, Dropdown, Breadcrumb } from '../components/ui';
+import { Button, Input, Avatar, Badge, Dropdown, Breadcrumb, WorkspaceLogo } from '../components/ui';
 
 /* ─── Custom Icons ────────────────────────────────────────── */
 const OrbitIcon = ({ className }) => (
@@ -329,7 +329,7 @@ const DashboardLayout = () => {
                       }`}
                     >
                       <div className="flex items-center gap-2.5 truncate" onClick={(e) => { e.stopPropagation(); handleSelect(w.id); }}>
-                        <div className={`w-2 h-2 rounded-full shrink-0 ${w.id === activeWorkspace?.id ? 'bg-indigo-600' : 'bg-gray-300'}`} />
+                        <WorkspaceLogo workspace={w} size="xs" className="shrink-0" />
                         <span className="truncate">{w.name}</span>
                       </div>
                       <ChevronDown className={`w-3.5 h-3.5 shrink-0 text-gray-400 transition-transform ${expandedWorkspaces[w.id] ? 'rotate-180' : ''}`} />
@@ -423,8 +423,8 @@ const DashboardLayout = () => {
             </button>
 
             {/* Workspace avatar */}
-            <div className="hidden md:flex w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 text-white items-center justify-center font-bold text-xs shadow-sm shrink-0">
-              {activeWorkspace?.name.charAt(0) || 'W'}
+            <div className="hidden md:flex shrink-0">
+              <WorkspaceLogo workspace={activeWorkspace} size="sm" />
             </div>
 
             <Breadcrumb items={getBreadcrumbs()} />
@@ -565,7 +565,7 @@ const DashboardLayout = () => {
                       onClick={() => { handleSelect(w.id); setIsMobileMenuOpen(false); }}
                       className="w-full text-left px-2.5 py-2 hover:bg-gray-100 rounded-lg text-sm font-medium text-gray-700 flex items-center gap-2.5 cursor-pointer"
                     >
-                      <div className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+                      <WorkspaceLogo workspace={w} size="xs" className="shrink-0" />
                       <span className="truncate">{w.name}</span>
                     </button>
                   ))}

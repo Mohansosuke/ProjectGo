@@ -12,4 +12,5 @@ export { default as Modal } from './Modal';
 export { default as Skeleton } from './Skeleton';
 export { default as Switch } from './Switch';
 export { default as Tabs } from './Tabs';
+export { default as WorkspaceLogo, getWorkspaceSymbolConfig } from './WorkspaceLogo';
 export { ToastProvider, useToast } from './Toast';
