@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Outlet, Navigate, useLocation, useNavigate, useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Search, Plus, Folder, Lock, Globe, Clock, Users, CheckCircle,
+  Search, Plus, Folder, Lock, Globe, Clock, Users, Users2, CheckCircle,
   User, Settings, LogOut, ChevronDown, ChevronRight, Star, Bell,
-  Activity, SlidersHorizontal, PlusCircle, Calendar, Grid, Sparkles,
+  Activity, SlidersHorizontal, PlusCircle, Calendar, CalendarDays, Grid, Sparkles,
   FileText, Mail, AlertTriangle, ArrowRight, Menu, X, Compass,
-  Check, MoreHorizontal, Camera, Home, BookOpen, LayoutDashboard, Hash
+  Check, MoreHorizontal, Camera, Home, BookOpen, LayoutDashboard, BarChart3, Hash, Layers
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useWorkspace } from '../contexts/WorkspaceContext';
@@ -135,11 +135,11 @@ const DashboardLayout = () => {
 
   const primaryNavItems = [
     { id: 'Home', label: 'Home', Icon: Home, route: '/workspaces' },
-    { id: 'Spaces', label: 'Spaces', Icon: OrbitIcon, route: '/workspaces' },
-    { id: 'Planner', label: 'Planner', Icon: Calendar, route: '/workspaces' },
-    { id: 'Teams', label: 'Teams', Icon: Users, route: '/workspaces' },
-    { id: 'Docs', label: 'Docs', Icon: DocsIcon, route: '/workspaces' },
-    { id: 'Dashboard', label: 'Dashboard', Icon: LayoutDashboard, route: '/workspaces' },
+    { id: 'Spaces', label: 'Spaces', Icon: Layers, route: '/workspaces' },
+    { id: 'Planner', label: 'Planner', Icon: CalendarDays, route: '/workspaces' },
+    { id: 'Teams', label: 'Teams', Icon: Users2, route: '/workspaces' },
+    { id: 'Docs', label: 'Docs', Icon: FileText, route: '/workspaces' },
+    { id: 'Dashboard', label: 'Dashboard', Icon: BarChart3, route: '/workspaces' },
   ];
 
   const handlePrimaryClick = (item) => {
@@ -206,26 +206,26 @@ const DashboardLayout = () => {
                   return (
                     <div key={item.id} className="relative group w-full">
                       <motion.button
-                        whileTap={{ scale: 0.95 }}
+                        whileTap={{ scale: 0.92 }}
                         onClick={() => handlePrimaryClick(item)}
                         onMouseEnter={() => setHoveredTab(item.id)}
-                        className={`w-full h-10 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all duration-150 cursor-pointer relative ${
+                        className={`w-full h-11 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer relative group/nav ${
                           isActive
-                            ? 'bg-white/15 text-white'
-                            : 'text-white/55 hover:text-white/90 hover:bg-white/08'
+                            ? 'bg-gradient-to-b from-white/20 to-white/10 text-white shadow-[0_2px_12px_rgba(0,0,0,0.25)] border border-white/20'
+                            : 'text-white/60 hover:text-white hover:bg-white/10'
                         }`}
                       >
                         {/* Active left indicator */}
                         {isActive && (
-                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 bg-white rounded-r-full" />
+                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-gradient-to-b from-indigo-300 via-sky-300 to-indigo-400 rounded-r-full shadow-[0_0_8px_rgba(165,180,252,0.8)]" />
                         )}
-                        <item.Icon className="w-[17px] h-[17px]" />
-                        <span className="text-[9px] font-semibold leading-none tracking-tight">{item.label}</span>
+                        <item.Icon className={`w-[18px] h-[18px] transition-transform duration-200 group-hover/nav:scale-110 ${isActive ? 'text-white stroke-[2.2]' : 'stroke-[1.8]'}`} />
+                        <span className={`text-[9px] font-semibold leading-none tracking-tight transition-colors ${isActive ? 'text-white font-bold' : 'text-white/70'}`}>{item.label}</span>
                       </motion.button>
                       {/* Tooltip */}
-                      <div className="absolute left-[68px] top-1/2 -translate-y-1/2 bg-gray-900 text-white text-xs font-medium px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 z-50 whitespace-nowrap shadow-lg">
+                      <div className="absolute left-[70px] top-1/2 -translate-y-1/2 bg-slate-900/95 backdrop-blur-md text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 z-50 whitespace-nowrap shadow-xl border border-white/10">
                         {item.label}
-                        <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-gray-900" />
+                        <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-900" />
                       </div>
                     </div>
                   );
