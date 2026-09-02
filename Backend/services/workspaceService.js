@@ -11,10 +11,12 @@ const getUserWorkspaces = async (userId) => {
   }).populate('owner', 'fullName email photoURL');
 };
 
-const createWorkspace = async (name, subdomain, ownerId) => {
+const createWorkspace = async (name, subdomain, ownerId, description = '', logoUrl = '') => {
   return await Workspace.create({
     name,
     subdomain: subdomain || '',
+    description,
+    logoUrl,
     owner: ownerId,
     members: [ownerId],
     memberRoles: [{ user: ownerId, role: 'Admin' }]
@@ -37,6 +39,8 @@ const updateWorkspace = async (workspaceId, updates, userId) => {
 
   if (updates.name) workspace.name = updates.name;
   if (updates.subdomain !== undefined) workspace.subdomain = updates.subdomain;
+  if (updates.description !== undefined) workspace.description = updates.description;
+  if (updates.logoUrl !== undefined) workspace.logoUrl = updates.logoUrl;
 
   return await workspace.save();
 };

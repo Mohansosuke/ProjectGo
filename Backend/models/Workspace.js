@@ -10,6 +10,14 @@ const workspaceSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  description: {
+    type: String,
+    default: ''
+  },
+  logoUrl: {
+    type: String,
+    default: ''
+  },
   owner: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

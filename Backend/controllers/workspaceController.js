@@ -14,6 +14,8 @@ const getWorkspaces = asyncHandler(async (req, res) => {
         id: w._id,
         name: w.name,
         subdomain: w.subdomain,
+        description: w.description || '',
+        logoUrl: w.logoUrl || '',
         ownerId: w.owner._id,
         members: w.members,
         memberRoles: w.memberRoles || [],
@@ -25,13 +27,15 @@ const getWorkspaces = asyncHandler(async (req, res) => {
 });
 
 const createWorkspaceController = asyncHandler(async (req, res) => {
-  const { name, subdomain } = req.body;
-  const workspace = await createWorkspace(name, subdomain, req.user._id);
+  const { name, subdomain, description, logoUrl } = req.body;
+  const workspace = await createWorkspace(name, subdomain, req.user._id, description || '', logoUrl || '');
 
   return res.status(201).json(new ApiResponse(201, {
     id: workspace._id,
     name: workspace.name,
     subdomain: workspace.subdomain,
+    description: workspace.description,
+    logoUrl: workspace.logoUrl,
     ownerId: req.user._id,
     members: workspace.members,
     memberRoles: workspace.memberRoles || [],
