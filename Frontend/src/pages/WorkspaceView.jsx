@@ -123,33 +123,6 @@ export const isTaskAssignedToUser = (task, user) => {
     return true;
   }
 
-  // 4. Check reporter
-  const taskReporterId = String(
-    task.reporter?._id ||
-    task.reporter?.id ||
-    task.reporterId ||
-    task.reporterUser?._id ||
-    task.reporterUser?.id ||
-    (typeof task.reporter === 'string' && task.reporter.length > 20 ? task.reporter : '') ||
-    ''
-  ).trim();
-
-  if (taskReporterId && userIds.includes(taskReporterId)) return true;
-
-  const taskReporterStr = String(
-    task.reporterUser?.fullName ||
-    task.reporterUser?.name ||
-    task.reporter?.fullName ||
-    task.reporter?.name ||
-    (typeof task.reporter === 'string' ? task.reporter : '') ||
-    ''
-  ).trim().toLowerCase();
-
-  if (taskReporterStr) {
-    if (userIds.map(id => id.toLowerCase()).includes(taskReporterStr)) return true;
-    if (userNames.some(un => un === taskReporterStr || taskReporterStr.includes(un))) return true;
-  }
-
   return false;
 };
 
@@ -176,6 +149,8 @@ const WorkspaceView = () => {
   const [dashboardTimeRange, setDashboardTimeRange] = useState('sprint');
   const [movingTaskId, setMovingTaskId] = useState(null);
   const [hoveredPieSlice, setHoveredPieSlice] = useState(null);
+  const [showScopeDropdown, setShowScopeDropdown] = useState(false);
+  const [activeStatusDropdownTaskId, setActiveStatusDropdownTaskId] = useState(null);
 
   // Real team members state
   const [teamMembers, setTeamMembers] = useState([]);
@@ -220,6 +195,30 @@ const WorkspaceView = () => {
     const timer = setTimeout(() => { document.addEventListener('click', close); }, 0);
     return () => { clearTimeout(timer); document.removeEventListener('click', close); };
   }, [showFilterPanel]);
+
+  // Close workspace scope dropdown when clicking outside
+  useEffect(() => {
+    if (!showScopeDropdown) return;
+    const close = (e) => {
+      if (!e.target.closest('#workspace-scope-picker')) {
+        setShowScopeDropdown(false);
+      }
+    };
+    const timer = setTimeout(() => { document.addEventListener('click', close); }, 0);
+    return () => { clearTimeout(timer); document.removeEventListener('click', close); };
+  }, [showScopeDropdown]);
+
+  // Close quick status dropdown when clicking outside
+  useEffect(() => {
+    if (!activeStatusDropdownTaskId) return;
+    const close = (e) => {
+      if (!e.target.closest('#quick-status-popover')) {
+        setActiveStatusDropdownTaskId(null);
+      }
+    };
+    const timer = setTimeout(() => { document.addEventListener('click', close); }, 0);
+    return () => { clearTimeout(timer); document.removeEventListener('click', close); };
+  }, [activeStatusDropdownTaskId]);
 
   // When filter workspace changes, fetch its members
   useEffect(() => {
@@ -1468,21 +1467,66 @@ const WorkspaceView = () => {
                       </button>
                     </div>
 
-                    {/* Workspace Scope dropdown (filtered to user workspaces) */}
-                    <div className="relative">
-                      <select
-                        value={dashboardScope}
-                        onChange={(e) => setDashboardScope(e.target.value)}
-                        className="h-9 pl-3 pr-8 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer appearance-none"
+                    {/* Workspace Scope Custom Dropdown */}
+                    <div className="relative" id="workspace-scope-picker">
+                      <button
+                        type="button"
+                        onClick={() => setShowScopeDropdown(!showScopeDropdown)}
+                        className="h-9 px-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 flex items-center gap-2 transition-all cursor-pointer shadow-xs"
                       >
-                        <option value="ALL">🌐 Your Workspaces ({userAccessibleWorkspaces.length})</option>
-                        {userAccessibleWorkspaces.map(w => (
-                          <option key={w.id} value={w.id}>
-                            📁 {w.name}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        <span className="truncate max-w-[170px]">
+                          {dashboardScope === 'ALL'
+                            ? `🌐 Your Workspaces (${userAccessibleWorkspaces.length})`
+                            : `📁 ${userAccessibleWorkspaces.find(w => w.id === dashboardScope)?.name || 'Workspace'}`}
+                        </span>
+                        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${showScopeDropdown ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      <AnimatePresence>
+                        {showScopeDropdown && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 4, scale: 0.98 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute right-0 mt-1.5 w-64 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1.5 overflow-hidden"
+                          >
+                            <button
+                              onClick={() => {
+                                setDashboardScope('ALL');
+                                setShowScopeDropdown(false);
+                              }}
+                              className={`w-full px-3 py-2 text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                                dashboardScope === 'ALL' ? 'bg-indigo-50/70 text-indigo-700 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                              }`}
+                            >
+                              <span>🌐 Your Workspaces ({userAccessibleWorkspaces.length})</span>
+                              {dashboardScope === 'ALL' && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                            </button>
+                            <div className="h-px bg-slate-100 my-1" />
+                            <div className="max-h-52 overflow-y-auto">
+                              {userAccessibleWorkspaces.map(w => (
+                                <button
+                                  key={w.id}
+                                  onClick={() => {
+                                    setDashboardScope(w.id);
+                                    setShowScopeDropdown(false);
+                                  }}
+                                  className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                                    dashboardScope === w.id ? 'bg-indigo-50/70 text-indigo-700 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 truncate">
+                                    <span>📁</span>
+                                    <span className="truncate">{w.name}</span>
+                                  </div>
+                                  {dashboardScope === w.id && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
+                                </button>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
 
                     <Button
@@ -2029,22 +2073,59 @@ const WorkspaceView = () => {
                                 {pc.label}
                               </span>
 
-                              {/* Quick Move Status Selector */}
-                              <div className="relative">
-                                <select
+                              {/* Quick Move Status Custom Dropdown */}
+                              <div className="relative" id={`quick-status-${task.id}`}>
+                                <button
+                                  type="button"
                                   disabled={isMoving}
-                                  value={task.status}
-                                  onChange={(e) => handleStatusChange(task.id, e.target.value, e)}
-                                  className={`text-xs font-bold py-1 pl-2.5 pr-7 rounded-lg border focus:outline-none transition-all cursor-pointer appearance-none ${sc.color} ${
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveStatusDropdownTaskId(activeStatusDropdownTaskId === task.id ? null : task.id);
+                                  }}
+                                  className={`text-xs font-bold py-1 px-2.5 rounded-lg border focus:outline-none transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${sc.color} ${
                                     isMoving ? 'opacity-50' : 'hover:shadow-xs'
                                   }`}
                                 >
-                                  <option value="TO_DO">To Do</option>
-                                  <option value="IN_PROGRESS">In Progress</option>
-                                  <option value="COMPLETED">Completed</option>
-                                  <option value="BACKLOG">Backlog</option>
-                                </select>
-                                <ChevronDown className="w-3 h-3 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                                  <span>{sc.label}</span>
+                                  <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${activeStatusDropdownTaskId === task.id ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                <AnimatePresence>
+                                  {activeStatusDropdownTaskId === task.id && (
+                                    <motion.div
+                                      initial={{ opacity: 0, y: 4, scale: 0.98 }}
+                                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                                      exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                                      transition={{ duration: 0.12 }}
+                                      className="absolute right-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 overflow-hidden"
+                                    >
+                                      {[
+                                        { id: 'TO_DO', label: 'To Do', dot: 'bg-blue-400' },
+                                        { id: 'IN_PROGRESS', label: 'In Progress', dot: 'bg-indigo-500' },
+                                        { id: 'COMPLETED', label: 'Completed', dot: 'bg-emerald-500' },
+                                        { id: 'BACKLOG', label: 'Backlog', dot: 'bg-slate-400' }
+                                      ].map((st) => (
+                                        <button
+                                          key={st.id}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setActiveStatusDropdownTaskId(null);
+                                            handleStatusChange(task.id, st.id, e);
+                                          }}
+                                          className={`w-full px-3 py-1.5 text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                                            task.status === st.id ? 'bg-indigo-50/70 text-indigo-700 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                                          }`}
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
+                                            <span>{st.label}</span>
+                                          </div>
+                                          {task.status === st.id && <Check className="w-3 h-3 text-indigo-600" />}
+                                        </button>
+                                      ))}
+                                    </motion.div>
+                                  )}
+                                </AnimatePresence>
                               </div>
 
                               {/* Assignee Avatar */}

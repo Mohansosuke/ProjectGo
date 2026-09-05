@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -6,7 +6,7 @@ import {
   ChevronsUp, ArrowUp, Minus, ArrowDown, ChevronDown, Plus,
   Trash2, Edit3, Smile, Bold, Italic, Link as LinkIcon,
   Zap, Clock, FileText, Download, X, Copy, ExternalLink,
-  HelpCircle, Eye, CheckSquare
+  HelpCircle, Eye, CheckSquare, Search, UserX
 } from 'lucide-react';
 import { useTask } from '../contexts/TaskContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,10 +21,10 @@ const STATUS_ITEMS = [
 ];
 
 const PRIORITY_ITEMS = [
-  { id: 'Critical', label: 'Critical', icon: ChevronsUp, color: 'text-rose-600', stroke: '#dc2626' },
-  { id: 'High', label: 'High', icon: ChevronsUp, color: 'text-rose-500', stroke: '#ef4444' },
-  { id: 'Medium', label: 'Medium', icon: Minus, color: 'text-amber-500', stroke: '#f59e0b' },
-  { id: 'Low', label: 'Low', icon: ArrowDown, color: 'text-blue-500', stroke: '#3b82f6' }
+  { id: 'Critical', label: 'Critical', icon: ChevronsUp, color: 'text-rose-600' },
+  { id: 'High', label: 'High', icon: ChevronsUp, color: 'text-rose-500' },
+  { id: 'Medium', label: 'Medium', icon: Minus, color: 'text-amber-500' },
+  { id: 'Low', label: 'Low', icon: ArrowDown, color: 'text-blue-500' }
 ];
 
 export default function TaskView() {
@@ -40,76 +40,56 @@ export default function TaskView() {
   const found = tasks.find(t => t.id === taskId || t._id === taskId);
   const activeTask = found || {
     id: taskId || 'PROJ-123',
-    title: 'Implement OAuth2 authentication flow for external partners',
-    description: `We need to integrate the new OAuth2 provider for our partner portal. This involves:\n\n• Configuring the authorization endpoint\n• Implementing the callback handler in the middleware\n• Storing encrypted refresh tokens in the Redis cache\n\nPlease ensure all secrets are managed via the vault and not hardcoded in the application config.`,
+    title: 'Task Details',
+    description: '',
     status: 'IN_PROGRESS',
     priority: 'High',
     points: 8,
-    labels: ['BACKEND', 'AUTH-SERVICE'],
+    labels: [],
     assignee: null,
     reporter: null,
+    attachments: [],
     createdAt: new Date().toISOString()
   };
 
   // State
-  const [title, setTitle] = useState(activeTask.title || 'Implement OAuth2 authentication flow for external partners');
+  const [title, setTitle] = useState(activeTask.title || 'Untitled Task');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   
-  const [description, setDescription] = useState(
-    activeTask.description ||
-    `We need to integrate the new OAuth2 provider for our partner portal. This involves:\n\n• Configuring the authorization endpoint\n• Implementing the callback handler in the middleware\n• Storing encrypted refresh tokens in the Redis cache\n\nPlease ensure all secrets are managed via the vault and not hardcoded in the application config.`
-  );
+  const [description, setDescription] = useState(activeTask.description || '');
   const [isEditingDesc, setIsEditingDesc] = useState(false);
 
   const [activeTab, setActiveTab] = useState('comments'); // 'comments' | 'history' | 'worklog'
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [priorityDropdownOpen, setPriorityDropdownOpen] = useState(false);
   const [assigneeDropdownOpen, setAssigneeDropdownOpen] = useState(false);
-  const [reporterDropdownOpen, setReporterDropdownOpen] = useState(false);
+  const [assigneeSearch, setAssigneeSearch] = useState('');
   const [pointsEditing, setPointsEditing] = useState(false);
-  const [pointsVal, setPointsVal] = useState(activeTask.points || 8);
+  const [pointsVal, setPointsVal] = useState(activeTask.points || 0);
 
-  const [labels, setLabels] = useState(
-    activeTask.labels && activeTask.labels.length > 0 ? activeTask.labels : ['BACKEND', 'AUTH-SERVICE']
-  );
+  const [labels, setLabels] = useState(activeTask.labels || []);
   const [showAddLabel, setShowAddLabel] = useState(false);
   const [newLabelText, setNewLabelText] = useState('');
 
-  // Attachments matching screenshot
-  const [attachments, setAttachments] = useState([
-    {
-      id: 'att-1',
-      name: 'auth-flow-diagram.pdf',
-      type: 'pdf',
-      size: '2.4 MB'
-    },
-    {
-      id: 'att-2',
-      name: 'screen-capture.png',
-      type: 'image',
-      url: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=600&auto=format&fit=crop&q=80',
-      size: '840 KB'
-    }
-  ]);
+  // Attachments strictly from task data (no default dummy files)
+  const [attachments, setAttachments] = useState(activeTask.attachments || []);
   const fileInputRef = useRef(null);
 
-  // Comments matching screenshot
-  const [comments, setComments] = useState([
-    {
-      id: 'c-init',
-      author: {
-        name: 'Jane Smith',
-        avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80'
-      },
-      createdAt: '2 hours ago',
-      content: "I've reviewed the API documentation for the new provider. It looks like we'll need to handle a specific error code for expired tokens during the initial handshake."
-    }
-  ]);
+  // Comments strictly from backend (no default dummy comments)
+  const [comments, setComments] = useState([]);
   const [newCommentText, setNewCommentText] = useState('');
   const [savingComment, setSavingComment] = useState(false);
 
-  // Keyboard shortcut M to focus comment box
+  // Team members for assignee picker
+  const [teamMembers, setTeamMembers] = useState([]);
+
+  // Refs for click outside
+  const assigneeDropdownRef = useRef(null);
+  const statusDropdownRef = useRef(null);
+  const priorityDropdownRef = useRef(null);
   const commentInputRef = useRef(null);
+
+  // Keyboard shortcut M to focus comment box
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'm' || e.key === 'M') {
@@ -123,38 +103,129 @@ export default function TaskView() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Fetch comments from backend if available
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handleDocClick = (e) => {
+      if (assigneeDropdownRef.current && !assigneeDropdownRef.current.contains(e.target)) {
+        setAssigneeDropdownOpen(false);
+      }
+      if (statusDropdownRef.current && !statusDropdownRef.current.contains(e.target)) {
+        setStatusDropdownOpen(false);
+      }
+      if (priorityDropdownRef.current && !priorityDropdownRef.current.contains(e.target)) {
+        setPriorityDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleDocClick);
+    return () => document.removeEventListener('mousedown', handleDocClick);
+  }, []);
+
+  // Fetch real team members of workspace
+  useEffect(() => {
+    const wsId = workspaceId || activeWorkspace?.id;
+    if (!wsId) return;
+    apiClient.get(`/invitations/workspace/${wsId}`)
+      .then(res => {
+        const list = Array.isArray(res.data) ? res.data : (res.data?.data || []);
+        setTeamMembers(list);
+      })
+      .catch(() => {});
+  }, [workspaceId, activeWorkspace?.id]);
+
+  // Fetch real comments from backend
   useEffect(() => {
     const fetchComments = async () => {
       if (!activeTask.id && !activeTask._id) return;
       try {
         const res = await apiClient.get(`/comments/${activeTask.id || activeTask._id}`);
-        if (Array.isArray(res.data) && res.data.length > 0) {
+        if (Array.isArray(res.data)) {
           const mapped = res.data.map(c => ({
             id: c._id || c.id,
             author: {
-              name: c.user?.fullName || c.user?.name || c.authorName || 'Jane Smith',
-              avatar: c.user?.photoURL || c.user?.avatar || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80'
+              name: c.user?.fullName || c.user?.name || c.authorName || 'Teammate',
+              avatar: c.user?.photoURL || c.user?.avatar || `https://i.pravatar.cc/100?u=${c.user?._id || 'user'}`
             },
-            createdAt: 'Just now',
-            content: c.content || c.text
+            createdAt: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : 'Recent',
+            content: c.content || c.text || ''
           }));
           setComments(mapped);
         }
       } catch (err) {
-        // Fallback to initial matching comment
+        setComments([]);
       }
     };
     fetchComments();
   }, [activeTask.id, activeTask._id]);
 
-  // Sync title & description if activeTask updates
+  // Sync state values when activeTask changes
   useEffect(() => {
-    if (activeTask.title) setTitle(activeTask.title);
-    if (activeTask.description) setDescription(activeTask.description);
-    if (activeTask.points) setPointsVal(activeTask.points);
-    if (activeTask.labels && activeTask.labels.length > 0) setLabels(activeTask.labels);
-  }, [activeTask.id, activeTask._id]);
+    if (activeTask) {
+      setTitle(activeTask.title || 'Untitled Task');
+      setDescription(activeTask.description || '');
+      setPointsVal(activeTask.points || 0);
+      setLabels(activeTask.labels || []);
+      setAttachments(activeTask.attachments || []);
+    }
+  }, [activeTask.id, activeTask._id, activeTask.title, activeTask.description, activeTask.assignee]);
+
+  // Assemble full list of assignable members
+  const assignableMembers = useMemo(() => {
+    const map = new Map();
+
+    // 1. Current logged-in user
+    if (currentUser) {
+      const id = String(currentUser.id || currentUser._id || '');
+      map.set(id, {
+        id,
+        _id: id,
+        name: currentUser.fullName || currentUser.name || 'Current User',
+        email: currentUser.email || '',
+        avatar: currentUser.photoURL || currentUser.avatar || 'https://i.pravatar.cc/150?u=mohan',
+        role: 'You'
+      });
+    }
+
+    // 2. Users from AuthContext / database
+    (users || []).forEach(u => {
+      const id = String(u.id || u._id || '');
+      if (id && !map.has(id)) {
+        map.set(id, {
+          id,
+          _id: id,
+          name: u.fullName || u.name || u.email,
+          email: u.email || '',
+          avatar: u.photoURL || u.avatar || `https://i.pravatar.cc/150?u=${id}`,
+          role: u.role || 'Member'
+        });
+      }
+    });
+
+    // 3. Workspace members
+    (teamMembers || []).forEach(m => {
+      const id = String(m.userId || m.id || m._id || '');
+      if (id && !map.has(id)) {
+        map.set(id, {
+          id,
+          _id: id,
+          name: m.name || m.fullName || m.email,
+          email: m.email || '',
+          avatar: m.avatarUrl || m.avatar || `https://i.pravatar.cc/150?u=${id}`,
+          role: m.role || 'Member'
+        });
+      }
+    });
+
+    return Array.from(map.values());
+  }, [currentUser, users, teamMembers]);
+
+  const filteredAssignees = useMemo(() => {
+    if (!assigneeSearch.trim()) return assignableMembers;
+    const q = assigneeSearch.toLowerCase();
+    return assignableMembers.filter(m =>
+      (m.name || '').toLowerCase().includes(q) ||
+      (m.email || '').toLowerCase().includes(q)
+    );
+  }, [assignableMembers, assigneeSearch]);
 
   // Save title
   const handleSaveTitle = async () => {
@@ -209,6 +280,34 @@ export default function TaskView() {
     }
   };
 
+  // Change assignee (syncs immediately to TaskContext and backend, updating dashboard)
+  const handleAssigneeChange = async (member) => {
+    setAssigneeDropdownOpen(false);
+    const newAssigneeId = member ? (member.id || member._id) : null;
+    const newAssigneeUser = member ? {
+      _id: newAssigneeId,
+      id: newAssigneeId,
+      fullName: member.name || member.fullName,
+      name: member.name || member.fullName,
+      email: member.email,
+      photoURL: member.avatar
+    } : null;
+
+    activeTask.assignee = newAssigneeId;
+    activeTask.assigneeUser = newAssigneeUser;
+
+    try {
+      if (updateTask && (activeTask.id || activeTask._id)) {
+        await updateTask(activeTask.id || activeTask._id, {
+          assignee: newAssigneeId,
+          assigneeUser: newAssigneeUser
+        });
+      }
+    } catch (err) {
+      console.error('Failed to change assignee:', err);
+    }
+  };
+
   // Add Comment
   const handleAddComment = async (e) => {
     e.preventDefault();
@@ -217,19 +316,20 @@ export default function TaskView() {
     const newEntry = {
       id: 'c-' + Date.now(),
       author: {
-        name: currentUser?.fullName || currentUser?.name || 'Alex Morgan',
-        avatar: currentUser?.photoURL || currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
+        name: currentUser?.fullName || currentUser?.name || 'You',
+        avatar: currentUser?.photoURL || currentUser?.avatar || 'https://i.pravatar.cc/150?u=mohan'
       },
       createdAt: 'Just now',
       content: newCommentText.trim()
     };
     setComments(prev => [...prev, newEntry]);
+    const textToSend = newCommentText.trim();
     setNewCommentText('');
 
     try {
       if (activeTask.id || activeTask._id) {
         await apiClient.post(`/comments/${activeTask.id || activeTask._id}`, {
-          content: newCommentText.trim()
+          content: textToSend
         });
       }
     } catch (err) {
@@ -266,32 +366,69 @@ export default function TaskView() {
       url: isImg ? URL.createObjectURL(file) : null,
       size: `${(file.size / (1024 * 1024)).toFixed(1)} MB`
     };
-    setAttachments(prev => [...prev, newAtt]);
+    const updated = [...attachments, newAtt];
+    setAttachments(updated);
+    if (updateTask && (activeTask.id || activeTask._id)) {
+      updateTask(activeTask.id || activeTask._id, { attachments: updated });
+    }
+  };
+
+  // Remove attachment
+  const handleRemoveAttachment = (attId) => {
+    const updated = attachments.filter(a => a.id !== attId);
+    setAttachments(updated);
+    if (updateTask && (activeTask.id || activeTask._id)) {
+      updateTask(activeTask.id || activeTask._id, { attachments: updated });
+    }
   };
 
   // Current status object
   const currentStatus = STATUS_ITEMS.find(s => s.id === (activeTask.status || 'IN_PROGRESS')) || STATUS_ITEMS[1];
   const currentPriority = PRIORITY_ITEMS.find(p => p.id.toLowerCase() === (activeTask.priority || 'high').toLowerCase()) || PRIORITY_ITEMS[1];
 
-  // Assignee & Reporter display matching image
-  const defaultAssignee = {
-    name: 'Alex Morgan',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
-  };
-  const defaultReporter = {
-    name: 'Jane Smith',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80'
-  };
+  // Resolve current assigned person object
+  const currentAssignee = useMemo(() => {
+    const aId = String(activeTask.assignee || activeTask.assigneeId || activeTask.assigneeUser?._id || activeTask.assigneeUser?.id || '');
+    if (!aId) return null;
 
-  const assignedPerson = activeTask.assigneeUser?.fullName || activeTask.assigneeUser?.name
-    ? { name: activeTask.assigneeUser.fullName || activeTask.assigneeUser.name, avatar: activeTask.assigneeUser.photoURL || defaultAssignee.avatar }
-    : defaultAssignee;
+    const foundMember = assignableMembers.find(m => String(m.id || m._id) === aId);
+    if (foundMember) return foundMember;
 
-  const reportingPerson = activeTask.reporterUser?.fullName || activeTask.reporterUser?.name
-    ? { name: activeTask.reporterUser.fullName || activeTask.reporterUser.name, avatar: activeTask.reporterUser.photoURL || defaultReporter.avatar }
-    : defaultReporter;
+    if (activeTask.assigneeUser?.fullName || activeTask.assigneeUser?.name) {
+      return {
+        id: aId,
+        name: activeTask.assigneeUser.fullName || activeTask.assigneeUser.name,
+        avatar: activeTask.assigneeUser.photoURL || `https://i.pravatar.cc/150?u=${aId}`,
+        email: activeTask.assigneeUser.email || ''
+      };
+    }
+    return {
+      id: aId,
+      name: typeof activeTask.assignee === 'string' ? activeTask.assignee : 'Assignee',
+      avatar: `https://i.pravatar.cc/150?u=${aId}`
+    };
+  }, [activeTask.assignee, activeTask.assigneeUser, assignableMembers]);
 
-  // Task key (e.g. PROJ-123)
+  // Resolve current reporter object
+  const currentReporter = useMemo(() => {
+    if (activeTask.reporterUser?.fullName || activeTask.reporterUser?.name) {
+      return {
+        name: activeTask.reporterUser.fullName || activeTask.reporterUser.name,
+        avatar: activeTask.reporterUser.photoURL || 'https://i.pravatar.cc/150?u=reporter'
+      };
+    }
+    if (currentUser) {
+      return {
+        name: currentUser.fullName || currentUser.name || 'Reporter',
+        avatar: currentUser.photoURL || currentUser.avatar || 'https://i.pravatar.cc/150?u=currentUser'
+      };
+    }
+    return {
+      name: 'Jane Smith',
+      avatar: 'https://i.pravatar.cc/150?u=reporter'
+    };
+  }, [activeTask.reporterUser, currentUser]);
+
   const taskKey = activeTask.key || (typeof activeTask.id === 'string' && activeTask.id.startsWith('PROJ') ? activeTask.id : 'PROJ-123');
   const teamName = workspace?.name || 'Phoenix Team';
 
@@ -299,12 +436,11 @@ export default function TaskView() {
     <div className="min-h-screen bg-white font-sans text-[#172b4d] select-text">
       
       {/* ════════════════════════════════════════════════════════
-          TOP HEADER BAR (Matching picture top navigation)
+          TOP HEADER BAR
       ════════════════════════════════════════════════════════ */}
       <header className="h-14 border-b border-[#ebecf0] px-6 flex items-center justify-between bg-white sticky top-0 z-30">
         {/* Left: App Icon + Breadcrumbs */}
         <div className="flex items-center gap-3">
-          {/* Blue 4-box app icon */}
           <Link to="/workspaces" className="p-1 hover:opacity-90 transition-opacity">
             <div className="w-7 h-7 rounded-md bg-[#0052cc] p-1.5 flex items-center justify-center shadow-xs">
               <div className="grid grid-cols-2 gap-0.5 w-full h-full">
@@ -345,7 +481,7 @@ export default function TaskView() {
           </button>
           <div className="w-7 h-7 rounded-full overflow-hidden ring-1 ring-slate-200">
             <img
-              src={currentUser?.photoURL || currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
+              src={currentUser?.photoURL || currentUser?.avatar || 'https://i.pravatar.cc/150?u=mohan'}
               alt=""
               className="w-full h-full object-cover"
             />
@@ -354,7 +490,7 @@ export default function TaskView() {
       </header>
 
       {/* ════════════════════════════════════════════════════════
-          MAIN CONTENT AREA: 2-COLUMN GRID (Exact picture layout)
+          MAIN CONTENT AREA: 2-COLUMN GRID
       ════════════════════════════════════════════════════════ */}
       <main className="max-w-[1400px] mx-auto px-8 py-8 grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
         
@@ -373,7 +509,7 @@ export default function TaskView() {
             </span>
           </div>
 
-          {/* Issue Title (Large Bold) */}
+          {/* Issue Title (Editable on click) */}
           <div className="group relative">
             {isEditingTitle ? (
               <div className="flex items-center gap-2">
@@ -388,7 +524,7 @@ export default function TaskView() {
                 />
                 <button
                   onClick={handleSaveTitle}
-                  className="px-3 py-1 bg-[#0052cc] text-white text-xs font-bold rounded-md"
+                  className="px-3 py-1 bg-[#0052cc] text-white text-xs font-bold rounded-md cursor-pointer"
                 >
                   Save
                 </button>
@@ -399,7 +535,7 @@ export default function TaskView() {
                 className="text-2xl md:text-[26px] font-bold text-[#172b4d] tracking-tight leading-snug cursor-pointer hover:bg-[#f4f5f7] -ml-1 p-1 rounded-md transition-colors"
                 title="Click to edit title"
               >
-                {title}
+                {title || 'Untitled Task'}
               </h1>
             )}
           </div>
@@ -448,20 +584,21 @@ export default function TaskView() {
                   <textarea
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
-                    rows={6}
+                    rows={5}
+                    placeholder="Add a description..."
                     className="w-full text-sm text-[#172b4d] leading-relaxed p-2 border border-[#0052cc] rounded-lg focus:outline-none resize-y"
                     autoFocus
                   />
                   <div className="flex items-center gap-2 justify-end">
                     <button
                       onClick={() => setIsEditingDesc(false)}
-                      className="px-3 py-1 text-xs font-bold text-[#6b778c] hover:text-[#172b4d]"
+                      className="px-3 py-1 text-xs font-bold text-[#6b778c] hover:text-[#172b4d] cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={handleSaveDesc}
-                      className="px-4 py-1.5 bg-[#0052cc] text-white text-xs font-bold rounded-md hover:bg-[#0065ff]"
+                      className="px-4 py-1.5 bg-[#0052cc] text-white text-xs font-bold rounded-md hover:bg-[#0065ff] cursor-pointer"
                     >
                       Save
                     </button>
@@ -473,7 +610,9 @@ export default function TaskView() {
                   className="text-sm text-[#172b4d] leading-relaxed cursor-pointer whitespace-pre-line"
                   title="Click to edit description"
                 >
-                  {description}
+                  {description ? description : (
+                    <span className="text-slate-400 italic">No description provided. Click here to add details.</span>
+                  )}
                 </div>
               )}
             </div>
@@ -493,49 +632,61 @@ export default function TaskView() {
               </button>
             </div>
 
-            {/* Attachments Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {attachments.map((att) => (
-                <div
-                  key={att.id}
-                  className="border border-[#dfe1e6] rounded-xl overflow-hidden bg-white hover:shadow-md transition-shadow flex flex-col group cursor-pointer"
-                >
-                  {/* Preview Area */}
-                  {att.type === 'image' && att.url ? (
-                    <div className="h-28 bg-slate-900 overflow-hidden relative">
-                      <img
-                        src={att.url}
-                        alt={att.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    </div>
-                  ) : (
-                    <div className="h-28 bg-[#f4f5f7] flex items-center justify-center">
-                      <div className="w-10 h-12 bg-white rounded border border-[#dfe1e6] flex items-center justify-center text-[#8993a4] shadow-xs">
-                        <FileText className="w-6 h-6 stroke-[1.5]" />
+            {attachments.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                {attachments.map((att) => (
+                  <div
+                    key={att.id}
+                    className="border border-[#dfe1e6] rounded-xl overflow-hidden bg-white hover:shadow-md transition-shadow flex flex-col group cursor-pointer"
+                  >
+                    {/* Preview Area */}
+                    {att.type === 'image' && att.url ? (
+                      <div className="h-28 bg-slate-900 overflow-hidden relative">
+                        <img
+                          src={att.url}
+                          alt={att.name}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="h-28 bg-[#f4f5f7] flex items-center justify-center">
+                        <div className="w-10 h-12 bg-white rounded border border-[#dfe1e6] flex items-center justify-center text-[#8993a4] shadow-xs">
+                          <FileText className="w-6 h-6 stroke-[1.5]" />
+                        </div>
+                      </div>
+                    )}
 
-                  {/* Attachment Card Footer */}
-                  <div className="p-2.5 bg-white border-t border-[#dfe1e6] flex items-center justify-between">
-                    <span className="text-xs font-medium text-[#172b4d] truncate max-w-[160px]">
-                      {att.name}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setAttachments(prev => prev.filter(a => a.id !== att.id));
-                      }}
-                      className="opacity-0 group-hover:opacity-100 text-[#8993a4] hover:text-rose-600 transition-opacity p-0.5"
-                      title="Remove attachment"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
+                    {/* Attachment Card Footer */}
+                    <div className="p-2.5 bg-white border-t border-[#dfe1e6] flex items-center justify-between">
+                      <span className="text-xs font-medium text-[#172b4d] truncate max-w-[160px]">
+                        {att.name}
+                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveAttachment(att.id);
+                        }}
+                        className="opacity-0 group-hover:opacity-100 text-[#8993a4] hover:text-rose-600 transition-opacity p-0.5 cursor-pointer"
+                        title="Remove attachment"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-5 border border-dashed border-[#dfe1e6] rounded-xl bg-[#fafbfc] text-center flex flex-col items-center justify-center gap-1.5">
+                <Paperclip className="w-4 h-4 text-[#8993a4]" />
+                <span className="text-xs text-[#6b778c]">No attachments attached to this task.</span>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="text-xs font-semibold text-[#0052cc] hover:underline cursor-pointer"
+                >
+                  + Upload files
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Activity Section (Comments, History, Work Log) */}
@@ -550,7 +701,7 @@ export default function TaskView() {
                     : 'text-[#6b778c] hover:text-[#172b4d]'
                 }`}
               >
-                Comments
+                Comments ({comments.length})
               </button>
               <button
                 onClick={() => setActiveTab('history')}
@@ -577,52 +728,54 @@ export default function TaskView() {
             {/* Comments Stream */}
             {activeTab === 'comments' && (
               <div className="space-y-6">
-                {/* Existing Comments */}
-                <div className="space-y-5">
-                  {comments.map((c) => (
-                    <div key={c.id} className="flex items-start gap-3">
-                      <img
-                        src={c.author?.avatar || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80'}
-                        alt=""
-                        className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-200 mt-0.5 shrink-0"
-                      />
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-xs font-bold text-[#172b4d]">
-                            {c.author?.name || 'Jane Smith'}
-                          </span>
-                          <span className="text-xs text-[#6b778c]">
-                            {c.createdAt}
-                          </span>
-                        </div>
-                        <p className="text-xs text-[#172b4d] leading-relaxed">
-                          {c.content}
-                        </p>
-                        <div className="flex items-center gap-3 pt-1 text-xs text-[#6b778c]">
-                          <button className="hover:text-[#172b4d] hover:underline cursor-pointer">
-                            Edit
-                          </button>
-                          <span>·</span>
-                          <button
-                            onClick={() => setComments(prev => prev.filter(item => item.id !== c.id))}
-                            className="hover:text-rose-600 hover:underline cursor-pointer"
-                          >
-                            Delete
-                          </button>
-                          <span>·</span>
-                          <button className="hover:text-[#172b4d] flex items-center gap-1 cursor-pointer">
-                            <Smile className="w-3.5 h-3.5" />
-                          </button>
+                {/* Real Comments list or clean empty state */}
+                {comments.length > 0 ? (
+                  <div className="space-y-5">
+                    {comments.map((c) => (
+                      <div key={c.id} className="flex items-start gap-3">
+                        <img
+                          src={c.author?.avatar || 'https://i.pravatar.cc/100?u=user'}
+                          alt=""
+                          className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-200 mt-0.5 shrink-0"
+                        />
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-xs font-bold text-[#172b4d]">
+                              {c.author?.name || 'Teammate'}
+                            </span>
+                            <span className="text-xs text-[#6b778c]">
+                              {c.createdAt}
+                            </span>
+                          </div>
+                          <p className="text-xs text-[#172b4d] leading-relaxed">
+                            {c.content}
+                          </p>
+                          <div className="flex items-center gap-3 pt-1 text-xs text-[#6b778c]">
+                            <button
+                              onClick={() => setComments(prev => prev.filter(item => item.id !== c.id))}
+                              className="hover:text-rose-600 hover:underline cursor-pointer"
+                            >
+                              Delete
+                            </button>
+                            <span>·</span>
+                            <button className="hover:text-[#172b4d] flex items-center gap-1 cursor-pointer">
+                              <Smile className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="py-5 text-center text-xs text-[#6b778c]">
+                    No comments yet. Start the conversation below.
+                  </div>
+                )}
 
                 {/* Add a Comment Composer */}
                 <div className="flex items-start gap-3 pt-2">
                   <img
-                    src={currentUser?.photoURL || currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
+                    src={currentUser?.photoURL || currentUser?.avatar || 'https://i.pravatar.cc/150?u=mohan'}
                     alt=""
                     className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-200 mt-0.5 shrink-0"
                   />
@@ -669,27 +822,27 @@ export default function TaskView() {
 
             {activeTab === 'history' && (
               <div className="p-4 bg-[#f4f5f7] rounded-xl text-xs text-[#6b778c] space-y-2">
-                <p>• Status changed to <strong>IN PROGRESS</strong> 45 minutes ago</p>
-                <p>• Assigned to <strong>Alex Morgan</strong> 2 hours ago</p>
-                <p>• Issue created by <strong>Jane Smith</strong> today at 10:45 AM</p>
+                <p>• Status: <strong>{currentStatus.label}</strong></p>
+                <p>• Assignee: <strong>{currentAssignee ? currentAssignee.name : 'Unassigned'}</strong></p>
+                <p>• Created at: <strong>{new Date(activeTask.createdAt || Date.now()).toLocaleString()}</strong></p>
               </div>
             )}
 
             {activeTab === 'worklog' && (
               <div className="p-4 bg-[#f4f5f7] rounded-xl text-xs text-[#6b778c]">
-                <p>No work logged yet. Estimated remaining time: 8 story points.</p>
+                <p>No work logged yet. Story points: {pointsVal || 0}.</p>
               </div>
             )}
           </div>
         </div>
 
         {/* ────────────────────────────────────────────────────────
-            RIGHT COLUMN: Status, Details Card, Metadata, Sprint (~32%)
+            RIGHT COLUMN: Status, Details Card (with Interactive Assignee Dropdown), Metadata, Sprint (~32%)
         ──────────────────────────────────────────────────────── */}
         <div className="lg:col-span-4 space-y-5">
           
-          {/* ── STATUS DROPDOWN WIDGET (Matching picture full-width blue button) ── */}
-          <div className="space-y-1.5 relative">
+          {/* ── STATUS DROPDOWN WIDGET (Modern floating menu) ── */}
+          <div className="space-y-1.5 relative" ref={statusDropdownRef}>
             <span className="text-[11px] font-bold uppercase tracking-wider text-[#6b778c]">
               STATUS
             </span>
@@ -698,7 +851,7 @@ export default function TaskView() {
               <button
                 type="button"
                 onClick={() => setStatusDropdownOpen(!statusDropdownOpen)}
-                className="w-full bg-[#0052cc] hover:bg-[#0065ff] text-white font-bold text-xs py-2.5 px-3.5 rounded-lg flex items-center justify-between shadow-xs transition-colors cursor-pointer"
+                className="w-full bg-[#0052cc] hover:bg-[#0065ff] text-white font-bold text-xs py-2.5 px-3.5 rounded-lg flex items-center justify-between shadow-xs transition-all cursor-pointer"
               >
                 <div className="flex items-center gap-2">
                   <span className="text-[10px]">▶</span>
@@ -708,51 +861,156 @@ export default function TaskView() {
               </button>
 
               {/* Status Dropdown Menu */}
-              {statusDropdownOpen && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-[#dfe1e6] rounded-lg shadow-xl z-50 py-1 overflow-hidden">
-                  {STATUS_ITEMS.map((st) => (
-                    <button
-                      key={st.id}
-                      onClick={() => handleStatusChange(st.id)}
-                      className="w-full px-3.5 py-2 text-left text-xs font-bold flex items-center justify-between hover:bg-[#f4f5f7] transition-colors cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full ${st.bg}`} />
-                        <span className={st.id === currentStatus.id ? 'text-[#0052cc]' : 'text-[#172b4d]'}>
-                          {st.label}
-                        </span>
-                      </div>
-                      {st.id === currentStatus.id && (
-                        <Check className="w-3.5 h-3.5 text-[#0052cc]" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <AnimatePresence>
+                {statusDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 4, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1.5 overflow-hidden"
+                  >
+                    {STATUS_ITEMS.map((st) => {
+                      const isSel = st.id === currentStatus.id;
+                      return (
+                        <button
+                          key={st.id}
+                          onClick={() => handleStatusChange(st.id)}
+                          className={`w-full px-3.5 py-2.5 text-left text-xs font-bold flex items-center justify-between transition-colors cursor-pointer ${
+                            isSel ? 'bg-indigo-50/60 text-[#0052cc]' : 'hover:bg-slate-50 text-[#172b4d]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <span className={`w-2 h-2 rounded-full ${st.bg}`} />
+                            <span>{st.label}</span>
+                          </div>
+                          {isSel && (
+                            <Check className="w-4 h-4 text-[#0052cc]" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
 
-          {/* ── DETAILS CARD (Matching picture) ── */}
+          {/* ── DETAILS CARD ── */}
           <div className="bg-white border border-[#dfe1e6] rounded-xl p-4 shadow-xs space-y-4">
             <h3 className="text-sm font-bold text-[#172b4d]">
               Details
             </h3>
 
             <div className="space-y-3.5 text-xs">
-              {/* Assignee */}
-              <div className="flex items-center justify-between">
+              
+              {/* ── ASSIGNEE FIELD (Interactive Dropdown Option) ── */}
+              <div className="flex items-center justify-between relative" ref={assigneeDropdownRef}>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#6b778c] w-24 shrink-0">
                   ASSIGNEE
                 </span>
-                <div className="flex-1 flex items-center gap-2">
-                  <img
-                    src={assignedPerson.avatar}
-                    alt=""
-                    className="w-5 h-5 rounded-full object-cover ring-1 ring-slate-200"
-                  />
-                  <span className="font-semibold text-[#172b4d]">
-                    {assignedPerson.name}
-                  </span>
+                
+                <div className="flex-1 relative">
+                  <button
+                    type="button"
+                    onClick={() => setAssigneeDropdownOpen(!assigneeDropdownOpen)}
+                    className="w-full flex items-center justify-between p-1.5 -ml-1 rounded-lg hover:bg-[#f4f5f7] transition-colors cursor-pointer group"
+                    title="Click to change assignee"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {currentAssignee ? (
+                        <>
+                          <img
+                            src={currentAssignee.avatar || `https://i.pravatar.cc/150?u=${currentAssignee.id}`}
+                            alt=""
+                            className="w-5 h-5 rounded-full object-cover ring-1 ring-slate-200 shrink-0"
+                          />
+                          <span className="font-semibold text-[#172b4d] truncate">
+                            {currentAssignee.name}
+                          </span>
+                        </>
+                      ) : (
+                        <div className="flex items-center gap-1.5 text-[#6b778c]">
+                          <UserX className="w-4 h-4 text-slate-400" />
+                          <span className="italic text-slate-500">Unassigned</span>
+                        </div>
+                      )}
+                    </div>
+                    <ChevronDown className={`w-3.5 h-3.5 text-slate-400 group-hover:text-slate-600 transition-transform ${assigneeDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Modern Floating Assignee Dropdown UI */}
+                  <AnimatePresence>
+                    {assigneeDropdownOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute right-0 sm:left-0 top-full mt-1.5 w-64 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 p-2 overflow-hidden"
+                      >
+                        {/* Search in Dropdown */}
+                        <div className="relative mb-2">
+                          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <input
+                            type="text"
+                            value={assigneeSearch}
+                            onChange={(e) => setAssigneeSearch(e.target.value)}
+                            placeholder="Search teammates..."
+                            autoFocus
+                            className="w-full pl-8 pr-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#0052cc] focus:bg-white"
+                          />
+                        </div>
+
+                        {/* Members list */}
+                        <div className="max-h-52 overflow-y-auto space-y-0.5">
+                          {/* Option to Unassign */}
+                          <button
+                            onClick={() => handleAssigneeChange(null)}
+                            className={`w-full px-2.5 py-2 rounded-lg text-left text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                              !currentAssignee ? 'bg-indigo-50/70 text-[#0052cc] font-bold' : 'hover:bg-slate-50 text-slate-600'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                                <UserX className="w-3.5 h-3.5" />
+                              </div>
+                              <span>Unassigned</span>
+                            </div>
+                            {!currentAssignee && <Check className="w-3.5 h-3.5 text-[#0052cc]" />}
+                          </button>
+
+                          {filteredAssignees.map((member) => {
+                            const isSelected = currentAssignee && String(currentAssignee.id || currentAssignee._id) === String(member.id || member._id);
+                            return (
+                              <button
+                                key={member.id || member._id}
+                                onClick={() => handleAssigneeChange(member)}
+                                className={`w-full px-2.5 py-2 rounded-lg text-left text-xs flex items-center justify-between transition-colors cursor-pointer ${
+                                  isSelected ? 'bg-indigo-50/70 text-[#0052cc] font-bold' : 'hover:bg-slate-50 text-slate-800'
+                                }`}
+                              >
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                  <img
+                                    src={member.avatar}
+                                    alt=""
+                                    className="w-6 h-6 rounded-full object-cover ring-1 ring-slate-200 shrink-0"
+                                  />
+                                  <div className="min-w-0">
+                                    <p className="font-semibold truncate leading-tight">{member.name}</p>
+                                    {member.email && (
+                                      <p className="text-[10px] text-slate-400 truncate leading-tight">{member.email}</p>
+                                    )}
+                                  </div>
+                                </div>
+                                {isSelected && <Check className="w-3.5 h-3.5 text-[#0052cc] shrink-0" />}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
 
@@ -763,18 +1021,18 @@ export default function TaskView() {
                 </span>
                 <div className="flex-1 flex items-center gap-2">
                   <img
-                    src={reportingPerson.avatar}
+                    src={currentReporter.avatar}
                     alt=""
                     className="w-5 h-5 rounded-full object-cover ring-1 ring-slate-200"
                   />
                   <span className="font-semibold text-[#172b4d]">
-                    {reportingPerson.name}
+                    {currentReporter.name}
                   </span>
                 </div>
               </div>
 
               {/* Priority */}
-              <div className="flex items-center justify-between relative">
+              <div className="flex items-center justify-between relative" ref={priorityDropdownRef}>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-[#6b778c] w-24 shrink-0">
                   PRIORITY
                 </span>
@@ -782,26 +1040,43 @@ export default function TaskView() {
                   <button
                     type="button"
                     onClick={() => setPriorityDropdownOpen(!priorityDropdownOpen)}
-                    className="flex items-center gap-1.5 font-semibold text-[#172b4d] hover:bg-[#f4f5f7] px-1.5 py-0.5 rounded cursor-pointer transition-colors"
+                    className="flex items-center gap-1.5 font-semibold text-[#172b4d] hover:bg-[#f4f5f7] px-2 py-1 rounded-lg cursor-pointer transition-colors"
                   >
                     <currentPriority.icon className={`w-3.5 h-3.5 stroke-[2.5] ${currentPriority.color}`} />
                     <span>{currentPriority.label}</span>
+                    <ChevronDown className="w-3 h-3 text-slate-400 ml-1" />
                   </button>
 
-                  {priorityDropdownOpen && (
-                    <div className="absolute left-0 top-full mt-1 bg-white border border-[#dfe1e6] rounded-lg shadow-xl z-50 py-1 w-36">
-                      {PRIORITY_ITEMS.map(p => (
-                        <button
-                          key={p.id}
-                          onClick={() => handlePriorityChange(p.id)}
-                          className="w-full px-3 py-1.5 text-left text-xs font-semibold flex items-center gap-2 hover:bg-[#f4f5f7] cursor-pointer"
-                        >
-                          <p.icon className={`w-3.5 h-3.5 stroke-[2.5] ${p.color}`} />
-                          <span>{p.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  <AnimatePresence>
+                    {priorityDropdownOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 4, scale: 0.98 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute left-0 top-full mt-1.5 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1.5 w-40"
+                      >
+                        {PRIORITY_ITEMS.map(p => {
+                          const isSel = p.id.toLowerCase() === currentPriority.id.toLowerCase();
+                          return (
+                            <button
+                              key={p.id}
+                              onClick={() => handlePriorityChange(p.id)}
+                              className={`w-full px-3 py-2 text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                                isSel ? 'bg-indigo-50/70 text-[#0052cc] font-bold' : 'hover:bg-slate-50 text-[#172b4d]'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2">
+                                <p.icon className={`w-3.5 h-3.5 stroke-[2.5] ${p.color}`} />
+                                <span>{p.label}</span>
+                              </div>
+                              {isSel && <Check className="w-3.5 h-3.5 text-[#0052cc]" />}
+                            </button>
+                          );
+                        })}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
 
@@ -840,7 +1115,7 @@ export default function TaskView() {
                       />
                       <button
                         onClick={handleAddLabel}
-                        className="text-[10px] font-bold text-[#0052cc] hover:underline"
+                        className="text-[10px] font-bold text-[#0052cc] hover:underline cursor-pointer"
                       >
                         Add
                       </button>
@@ -891,7 +1166,7 @@ export default function TaskView() {
                       className="bg-[#f4f5f7] hover:bg-[#ebecf0] px-2.5 py-0.5 rounded text-xs font-bold text-[#172b4d] inline-block cursor-pointer transition-colors"
                       title="Click to change story points"
                     >
-                      {pointsVal}
+                      {pointsVal || 0}
                     </span>
                   )}
                 </div>
@@ -899,10 +1174,10 @@ export default function TaskView() {
             </div>
           </div>
 
-          {/* ── METADATA & AUDIT LOG CARD (Matching picture) ── */}
+          {/* ── METADATA & AUDIT LOG CARD ── */}
           <div className="bg-white border border-[#dfe1e6] rounded-xl p-4 shadow-xs space-y-2 text-xs text-[#6b778c]">
-            <p>Created Oct 12, 2023 10:45 AM</p>
-            <p>Updated 45 mins ago</p>
+            <p>Created: {new Date(activeTask.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+            <p>Updated recently</p>
             <div className="border-t border-[#dfe1e6] pt-2">
               <button
                 onClick={() => setActiveTab('history')}
@@ -914,14 +1189,14 @@ export default function TaskView() {
             </div>
           </div>
 
-          {/* ── SPRINT CARD (Matching picture) ── */}
+          {/* ── SPRINT CARD ── */}
           <div className="bg-white border border-[#dfe1e6] rounded-xl p-4 shadow-xs space-y-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#6b778c]">
               SPRINT
             </span>
             <div className="flex items-center gap-2 text-xs font-semibold text-[#172b4d]">
               <Zap className="w-3.5 h-3.5 text-[#0052cc] fill-[#0052cc]" />
-              <span>{teamName} Sprint 24 (Active)</span>
+              <span>{teamName} Sprint Active</span>
             </div>
           </div>
 

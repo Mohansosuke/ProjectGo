@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Task = require('../models/Task');
 const Comment = require('../models/Comment');
 const Workspace = require('../models/Workspace');
@@ -42,8 +43,11 @@ const getWorkspaceTasks = async (workspaceId, userId) => {
 const createTask = async (taskData, userId) => {
   await checkWorkspacePermission(taskData.workspaceId, userId, 'edit');
   
+  const validAssignee = taskData.assignee && mongoose.Types.ObjectId.isValid(taskData.assignee) ? taskData.assignee : null;
+
   const task = await Task.create({
     ...taskData,
+    assignee: validAssignee,
     reporter: userId,
     subtasks: [],
     checklist: [],
@@ -72,6 +76,9 @@ const updateTask = async (taskId, updates, userId) => {
     if (updates[field] !== undefined) {
       if (field === 'dueDate') {
         task[field] = updates[field] ? new Date(updates[field]) : null;
+      } else if (field === 'assignee') {
+        const isValid = updates[field] && mongoose.Types.ObjectId.isValid(updates[field]);
+        task.assignee = isValid ? updates[field] : null;
       } else {
         task[field] = updates[field];
       }
