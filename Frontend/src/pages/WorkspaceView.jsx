@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search, Plus, Folder, Clock, Users, CheckCircle, User,
-  Settings, LogOut, ChevronDown, ChevronRight, Star, Bell,
+  Settings, LogOut, ChevronDown, ChevronRight, ChevronLeft, Star, Bell,
   Activity, SlidersHorizontal, PlusCircle, Calendar, Grid,
   Sparkles, FileText, Mail, AlertTriangle, ArrowRight, TrendingUp,
   BarChart3, Target, Zap, Code, Megaphone, Lightbulb, Palette,
@@ -128,7 +128,7 @@ export const isTaskAssignedToUser = (task, user) => {
 
 const WorkspaceView = () => {
   const { workspaces, selectWorkspace, activeWorkspace, globalSearchQuery } = useWorkspace();
-  const { tasks, moveTask } = useTask();
+  const { tasks, moveTask, addTask } = useTask();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -165,6 +165,17 @@ const WorkspaceView = () => {
   const [teamFilterQuery, setTeamFilterQuery] = useState('');
   const [appliedTeamFilter, setAppliedTeamFilter] = useState(null); // { type: 'workspace'|'member', id, label }
   const [filterWorkspaceMembers, setFilterWorkspaceMembers] = useState(null); // members for filtered workspace
+
+  // Planner Calendar & Todo Task state
+  const [calendarDate, setCalendarDate] = useState(() => new Date());
+  const [plannerWorkspaceFilter, setPlannerWorkspaceFilter] = useState(''); // default blank / unselected
+  const [showPlannerWsDropdown, setShowPlannerWsDropdown] = useState(false);
+  const [showTodoModal, setShowTodoModal] = useState(false);
+  const [todoTitle, setTodoTitle] = useState('');
+  const [todoDate, setTodoDate] = useState('');
+  const [todoWorkspaceId, setTodoWorkspaceId] = useState('');
+  const [todoPriority, setTodoPriority] = useState('MEDIUM');
+  const [todoSubmitting, setTodoSubmitting] = useState(false);
 
   useEffect(() => {
     if (location.state?.initialTab) setActiveTab(location.state.initialTab);
@@ -219,6 +230,18 @@ const WorkspaceView = () => {
     const timer = setTimeout(() => { document.addEventListener('click', close); }, 0);
     return () => { clearTimeout(timer); document.removeEventListener('click', close); };
   }, [activeStatusDropdownTaskId]);
+
+  // Close planner workspace filter dropdown when clicking outside
+  useEffect(() => {
+    if (!showPlannerWsDropdown) return;
+    const close = (e) => {
+      if (!e.target.closest('#planner-ws-filter')) {
+        setShowPlannerWsDropdown(false);
+      }
+    };
+    const timer = setTimeout(() => { document.addEventListener('click', close); }, 0);
+    return () => { clearTimeout(timer); document.removeEventListener('click', close); };
+  }, [showPlannerWsDropdown]);
 
   // When filter workspace changes, fetch its members
   useEffect(() => {
@@ -358,12 +381,86 @@ const WorkspaceView = () => {
     },
   ], [totalTasks, completedT, inProgressT, urgentT, velocity]);
 
-  // Calendar helpers
-  const calMonth = now;
-  const firstDay = new Date(calMonth.getFullYear(), calMonth.getMonth(), 1).getDay();
-  const daysInMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0).getDate();
-  const todayDate = now.getDate();
-  const monthStr = `${calMonth.getFullYear()}-${String(calMonth.getMonth() + 1).padStart(2, '0')}`;
+  // Working Calendar Calculations
+  const calYear = calendarDate.getFullYear();
+  const calMonth = calendarDate.getMonth();
+  const monthName = calendarDate.toLocaleString('default', { month: 'long' });
+  const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay();
+  const daysInCurrentMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const daysInPrevMonth = new Date(calYear, calMonth, 0).getDate();
+  const monthStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}`;
+
+  const handlePrevMonth = () => {
+    setCalendarDate(new Date(calYear, calMonth - 1, 1));
+  };
+  const handleNextMonth = () => {
+    setCalendarDate(new Date(calYear, calMonth + 1, 1));
+  };
+  const handleTodayMonth = () => {
+    setCalendarDate(new Date());
+  };
+
+  const calendarCells = useMemo(() => {
+    const cells = [];
+    // Previous month padding days
+    for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+      const dayNum = daysInPrevMonth - i;
+      const prevMonthIdx = calMonth === 0 ? 11 : calMonth - 1;
+      const prevYear = calMonth === 0 ? calYear - 1 : calYear;
+      const dateStr = `${prevYear}-${String(prevMonthIdx + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+      cells.push({ dayNum, dateStr, isCurrentMonth: false, isToday: false, year: prevYear, month: prevMonthIdx });
+    }
+    // Current month days
+    for (let dayNum = 1; dayNum <= daysInCurrentMonth; dayNum++) {
+      const dateStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+      const isToday = calYear === now.getFullYear() && calMonth === now.getMonth() && dayNum === now.getDate();
+      cells.push({ dayNum, dateStr, isCurrentMonth: true, isToday, year: calYear, month: calMonth });
+    }
+    // Next month padding days to complete rows (multiple of 7)
+    const remaining = 7 - (cells.length % 7);
+    if (remaining < 7) {
+      for (let dayNum = 1; dayNum <= remaining; dayNum++) {
+        const nextMonthIdx = calMonth === 11 ? 0 : calMonth + 1;
+        const nextYear = calMonth === 11 ? calYear + 1 : calYear;
+        const dateStr = `${nextYear}-${String(nextMonthIdx + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+        cells.push({ dayNum, dateStr, isCurrentMonth: false, isToday: false, year: nextYear, month: nextMonthIdx });
+      }
+    }
+    return cells;
+  }, [calYear, calMonth, firstDayOfWeek, daysInCurrentMonth, daysInPrevMonth, now]);
+
+  const plannerTasks = useMemo(() => {
+    return tasks.filter(t => {
+      if (plannerWorkspaceFilter && t.workspaceId !== plannerWorkspaceFilter) return false;
+      return true;
+    });
+  }, [tasks, plannerWorkspaceFilter]);
+
+  const handleCreateTodoTask = async (e) => {
+    e?.preventDefault?.();
+    if (!todoTitle.trim()) return;
+    const targetWs = todoWorkspaceId || plannerWorkspaceFilter || activeWorkspace?.id || workspaces[0]?.id;
+    if (!targetWs) return;
+
+    setTodoSubmitting(true);
+    try {
+      if (addTask) {
+        await addTask({
+          title: todoTitle.trim(),
+          workspaceId: targetWs,
+          dueDate: todoDate || `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
+          priority: todoPriority,
+          status: 'TODO'
+        });
+      }
+      setTodoTitle('');
+      setShowTodoModal(false);
+    } catch (err) {
+      console.error("Failed to add todo task:", err);
+    } finally {
+      setTodoSubmitting(false);
+    }
+  };
 
   // Build a map of memberId -> avatarUrl from the real teamMembers API data
   const memberAvatars = useMemo(() => teamMembers.reduce((acc, m) => {
@@ -486,70 +583,355 @@ const WorkspaceView = () => {
 
           {/* ── PLANNER ── */}
           {activeTab === 'Planner' && (
-            <div className="p-5 space-y-4">
-              <div className="flex items-center justify-between">
+            <div className="p-5 space-y-4 max-w-full">
+              {/* Calendar Header with Navigation & Controls */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-card">
                 <div>
-                  <h1 className="text-lg font-black text-slate-900 tracking-tight">Sprint Calendar</h1>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-lg font-black text-slate-900 tracking-tight">Sprint Calendar</h1>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 uppercase tracking-wide">
+                      Working Calendar
+                    </span>
+                  </div>
                   <p className="text-xs text-slate-500 font-medium mt-0.5">
-                    {now.toLocaleString('default', { month: 'long', year: 'numeric' })} — {tasks.filter(t => t.dueDate?.startsWith(monthStr)).length} tasks scheduled
+                    {monthName} {calYear} — {plannerTasks.filter(t => t.dueDate?.startsWith(monthStr)).length} tasks scheduled {plannerWorkspaceFilter ? `(${workspaces.find(w => w.id === plannerWorkspaceFilter)?.name || ''})` : ''}
                   </p>
                 </div>
-                <Button size="sm" onClick={() => navigate(`/workspace/${activeWorkspace?.id || activeWorkspace?._id}/kanban`)}>
-                  <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Task
-                </Button>
+
+                <div className="flex flex-wrap items-center gap-2.5">
+                  {/* Month Navigation Controls */}
+                  <div className="flex items-center bg-slate-50 border border-slate-200/80 rounded-xl p-0.5">
+                    <button
+                      onClick={handlePrevMonth}
+                      className="p-1.5 rounded-lg hover:bg-white text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                      title="Previous Month"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+                    <span className="text-xs font-bold text-slate-800 px-3 min-w-[120px] text-center">
+                      {monthName} {calYear}
+                    </span>
+                    <button
+                      onClick={handleNextMonth}
+                      className="p-1.5 rounded-lg hover:bg-white text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                      title="Next Month"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={handleTodayMonth}
+                      className="text-[10px] font-bold px-2 py-1 rounded-lg hover:bg-white text-slate-600 hover:text-indigo-600 transition-colors cursor-pointer border-l border-slate-200/60 ml-0.5"
+                    >
+                      Today
+                    </button>
+                  </div>
+
+                  {/* Workspace Filter Button (LEFT of Todo Task, default blank/unselected) */}
+                  <div className="relative" id="planner-ws-filter">
+                    <button
+                      type="button"
+                      onClick={() => setShowPlannerWsDropdown(prev => !prev)}
+                      className={`h-9 px-3 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer shadow-xs ${
+                        plannerWorkspaceFilter
+                          ? 'bg-indigo-50/90 border-indigo-200 text-indigo-700 font-bold'
+                          : 'bg-white border-slate-200/80 text-slate-600 hover:border-indigo-300'
+                      }`}
+                      title="Filter by workspace"
+                    >
+                      <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
+                      <span className="truncate max-w-[140px]">
+                        {plannerWorkspaceFilter
+                          ? (workspaces.find(w => w.id === plannerWorkspaceFilter)?.name || 'Filtered')
+                          : 'Filter Workspace'}
+                      </span>
+                      {plannerWorkspaceFilter ? (
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPlannerWorkspaceFilter('');
+                          }}
+                          className="w-4 h-4 rounded-full bg-indigo-200/80 hover:bg-indigo-300 text-indigo-800 flex items-center justify-center text-[10px] font-bold cursor-pointer"
+                          title="Clear filter"
+                        >
+                          ×
+                        </span>
+                      ) : (
+                        <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${showPlannerWsDropdown ? 'rotate-180' : ''}`} />
+                      )}
+                    </button>
+
+                    {/* Floating Dropdown */}
+                    <AnimatePresence>
+                      {showPlannerWsDropdown && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 4, scale: 0.98 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: 4, scale: 0.98 }}
+                          className="absolute right-0 top-full mt-1.5 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 space-y-1"
+                        >
+                          <div className="px-2.5 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                            Switch Workspace Filter
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPlannerWorkspaceFilter('');
+                              setShowPlannerWsDropdown(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                              !plannerWorkspaceFilter
+                                ? 'bg-indigo-50 text-indigo-700 font-bold'
+                                : 'text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            <span>🌐 All Workspaces (Unselected)</span>
+                            {!plannerWorkspaceFilter && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
+                          </button>
+                          <div className="h-px bg-slate-100 my-1" />
+                          <div className="max-h-48 overflow-y-auto space-y-0.5">
+                            {workspaces.map(w => (
+                              <button
+                                key={w.id}
+                                type="button"
+                                onClick={() => {
+                                  setPlannerWorkspaceFilter(w.id);
+                                  setShowPlannerWsDropdown(false);
+                                }}
+                                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                                  plannerWorkspaceFilter === w.id
+                                    ? 'bg-indigo-50 text-indigo-700 font-bold'
+                                    : 'text-slate-700 hover:bg-slate-100'
+                                }`}
+                              >
+                                <span className="truncate">{w.name}</span>
+                                {plannerWorkspaceFilter === w.id && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
+                              </button>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+
+                  {/* Todo Task Button (Renamed from Add Task) */}
+                  <button
+                    onClick={() => {
+                      const todayStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                      setTodoDate(todayStr);
+                      setTodoWorkspaceId(plannerWorkspaceFilter || activeWorkspace?.id || workspaces[0]?.id || '');
+                      setShowTodoModal(true);
+                    }}
+                    className="h-9 px-3.5 bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-bold rounded-xl shadow-sm shadow-indigo-500/20 hover:shadow-indigo-500/30 flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Todo Task</span>
+                  </button>
+                </div>
               </div>
 
-              <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-                {/* Day headers */}
-                <div className="grid grid-cols-7 border-b border-slate-100">
-                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                    <div key={d} className="py-2.5 text-center text-[10px] font-extrabold text-slate-400 uppercase tracking-widest bg-slate-50">
+              {/* Working Calendar Grid Container */}
+              <div className="bg-white border border-slate-200/90 rounded-2xl shadow-card overflow-hidden">
+                {/* Day Headers (Sun - Sat) */}
+                <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/80">
+                  {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => (
+                    <div key={d} className={`py-2.5 text-center text-[11px] font-extrabold uppercase tracking-widest ${
+                      i === 0 || i === 6 ? 'text-slate-400' : 'text-slate-600'
+                    }`}>
                       {d}
                     </div>
                   ))}
                 </div>
-                {/* Calendar grid */}
+
+                {/* Calendar Full Month Cells Grid */}
                 <div className="grid grid-cols-7">
-                  {Array(firstDay).fill(null).map((_, i) => (
-                    <div key={`e${i}`} className="min-h-[90px] border-b border-r border-slate-50 bg-slate-50/30" />
-                  ))}
-                  {Array(daysInMonth).fill(null).map((_, i) => {
-                    const day = i + 1;
-                    const isToday = day === todayDate;
-                    const dateStr = `${monthStr}-${String(day).padStart(2, '0')}`;
-                    const dayTasks = tasks.filter(t => t.dueDate === dateStr);
+                  {calendarCells.map((cell) => {
+                    const dayTasks = plannerTasks.filter(t => t.dueDate === cell.dateStr);
+
                     return (
                       <div
-                        key={day}
-                        className={`min-h-[90px] p-1.5 border-b border-r border-slate-100 flex flex-col transition-colors hover:bg-slate-50/50 ${isToday ? 'bg-violet-50/30' : ''}`}
+                        key={cell.dateStr}
+                        className={`min-h-[110px] p-2 border-b border-r border-slate-100 flex flex-col justify-between transition-all group relative ${
+                          cell.isCurrentMonth
+                            ? (cell.isToday ? 'bg-indigo-50/20' : 'bg-white hover:bg-slate-50/60')
+                            : 'bg-slate-50/35 text-slate-300'
+                        }`}
                       >
-                        <span className={`text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full mb-1 ${isToday ? 'bg-[#5f35f5] text-white' : 'text-slate-500'
+                        {/* Day Header Inside Cell */}
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[11px] font-black w-6 h-6 flex items-center justify-center rounded-full transition-colors ${
+                            cell.isToday
+                              ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/30'
+                              : cell.isCurrentMonth
+                                ? 'text-slate-700 group-hover:text-indigo-600'
+                                : 'text-slate-300'
                           }`}>
-                          {day}
-                        </span>
-                        <div className="space-y-0.5 overflow-hidden flex-1">
+                            {cell.dayNum}
+                          </span>
+
+                          {/* Quick Add "+" on hover */}
+                          <button
+                            onClick={() => {
+                              setTodoDate(cell.dateStr);
+                              setTodoWorkspaceId(plannerWorkspaceFilter || activeWorkspace?.id || workspaces[0]?.id || '');
+                              setShowTodoModal(true);
+                            }}
+                            className="w-5 h-5 rounded-md hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                            title={`Add task for ${cell.dateStr}`}
+                          >
+                            <Plus className="w-3 h-3 stroke-[2.5]" />
+                          </button>
+                        </div>
+
+                        {/* Tasks List for the Day */}
+                        <div className="space-y-1 my-1 flex-1 overflow-hidden">
                           {dayTasks.slice(0, 3).map(task => {
-                            const pc = PRIORITY_CONFIG[task.priority];
+                            const pc = PRIORITY_CONFIG[getTaskPriorityKey(task.priority)];
                             return (
                               <div
-                                key={task.id}
-                                onClick={() => task.workspaceId && handleSelect(task.workspaceId)}
-                                className={`text-[9px] font-bold px-1 py-0.5 rounded truncate cursor-pointer transition-colors ${pc ? `border ${pc.chip}` : 'bg-violet-50 text-violet-700 border border-violet-100'
-                                  }`}
+                                key={task.id || task._id}
+                                onClick={() => {
+                                  const wsId = task.workspaceId || activeWorkspace?.id;
+                                  if (wsId) navigate(`/workspace/${wsId}/task/${task.id || task._id}`);
+                                }}
+                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-lg truncate cursor-pointer transition-all hover:scale-[1.02] flex items-center gap-1 ${
+                                  pc ? `border ${pc.chip}` : 'bg-violet-50 text-violet-700 border border-violet-100'
+                                }`}
+                                title={task.title}
                               >
-                                {task.title}
+                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pc?.dot || 'bg-indigo-500'}`} />
+                                <span className="truncate">{task.title}</span>
                               </div>
                             );
                           })}
                           {dayTasks.length > 3 && (
-                            <div className="text-[9px] text-slate-400 font-bold px-1">+{dayTasks.length - 3} more</div>
+                            <div className="text-[9px] text-slate-400 font-bold px-1">
+                              +{dayTasks.length - 3} more
+                            </div>
                           )}
                         </div>
+
+                        {/* Workspace indicator if multiple workspaces */}
+                        {dayTasks.length > 0 && !plannerWorkspaceFilter && (
+                          <div className="flex items-center gap-1 text-[9px] text-slate-400 font-medium truncate">
+                            <span className="truncate">{workspaces.find(w => w.id === dayTasks[0].workspaceId)?.name}</span>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
                 </div>
               </div>
+
+              {/* Todo Task Modal Dialog */}
+              <AnimatePresence>
+                {showTodoModal && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      onClick={() => setShowTodoModal(false)}
+                      className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs"
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                      className="relative w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-2xl z-50 p-6 space-y-4"
+                    >
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                            <CheckCircle2 className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <h3 className="text-base font-black text-slate-900">New Todo Task</h3>
+                            <p className="text-xs text-slate-400 font-medium">Add task to calendar schedule</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setShowTodoModal(false)}
+                          className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <form onSubmit={handleCreateTodoTask} className="space-y-4">
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">Task Title</label>
+                          <input
+                            type="text"
+                            placeholder="e.g., Deploy user auth updates"
+                            value={todoTitle}
+                            onChange={(e) => setTodoTitle(e.target.value)}
+                            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 text-sm font-medium text-slate-800 outline-none transition-all"
+                            autoFocus
+                            required
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-xs font-bold text-slate-700 block mb-1">Due Date</label>
+                            <input
+                              type="date"
+                              value={todoDate}
+                              onChange={(e) => setTodoDate(e.target.value)}
+                              className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-indigo-500 text-xs font-semibold text-slate-700 outline-none"
+                              required
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs font-bold text-slate-700 block mb-1">Priority</label>
+                            <select
+                              value={todoPriority}
+                              onChange={(e) => setTodoPriority(e.target.value)}
+                              className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-indigo-500 text-xs font-semibold text-slate-700 outline-none bg-white"
+                            >
+                              <option value="LOW">Low</option>
+                              <option value="MEDIUM">Medium</option>
+                              <option value="HIGH">High</option>
+                              <option value="CRITICAL">Critical</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">Workspace</label>
+                          <select
+                            value={todoWorkspaceId}
+                            onChange={(e) => setTodoWorkspaceId(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-indigo-500 text-xs font-semibold text-slate-700 outline-none bg-white"
+                            required
+                          >
+                            {workspaces.map(w => (
+                              <option key={w.id} value={w.id}>{w.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="pt-2 flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setShowTodoModal(false)}
+                            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={todoSubmitting || !todoTitle.trim()}
+                            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/25 disabled:opacity-50 transition-all cursor-pointer"
+                          >
+                            {todoSubmitting ? 'Creating...' : 'Create Todo'}
+                          </button>
+                        </div>
+                      </form>
+                    </motion.div>
+                  </div>
+                )}
+              </AnimatePresence>
             </div>
           )}
 

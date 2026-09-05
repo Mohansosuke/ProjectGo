@@ -85,6 +85,7 @@ const DashboardLayout = () => {
 
   /* ─── State ─── */
   const [activeTab, setActiveTab] = useState('Dashboard');
+  const [isLogoHovered, setIsLogoHovered] = useState(false);
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(() =>
     localStorage.getItem('projectgo_sidebar_collapsed') === 'true'
   );
@@ -253,46 +254,40 @@ const DashboardLayout = () => {
             <div className="w-full h-full flex items-center justify-center">
               <button
                 onClick={() => setIsSecondaryCollapsed(false)}
-                className="group relative w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer hover:bg-slate-100/90"
+                onMouseEnter={() => setIsLogoHovered(true)}
+                onMouseLeave={() => setIsLogoHovered(false)}
+                className="w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer hover:bg-indigo-50"
                 title="Expand sidebar"
                 aria-label="Expand sidebar"
               >
-                {/* Default state: Unique Application Logo (completely hidden on group hover) */}
-                <div className="flex group-hover:hidden items-center justify-center">
+                {isLogoHovered ? (
+                  <div className="w-8.5 h-8.5 rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-500/30 flex items-center justify-center transition-transform scale-100">
+                    <SidebarOpenIcon className="w-4.5 h-4.5" />
+                  </div>
+                ) : (
                   <div className="w-8.5 h-8.5 rounded-xl bg-gradient-to-br from-violet-600 via-indigo-600 to-indigo-700 shadow-md shadow-indigo-500/25 flex items-center justify-center">
                     <svg viewBox="0 0 24 24" fill="none" className="w-[18px] h-[18px]">
                       <path d="M5 9L9 12L5 15" stroke="rgba(255,255,255,0.5)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
                       <path d="M11 6L18 12L11 18" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                   </div>
-                </div>
-
-                {/* Hover state: Sidebar Expand/Open Icon shown INSTEAD of application logo */}
-                <div className="hidden group-hover:flex items-center justify-center">
-                  <div className="w-8.5 h-8.5 rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-500/30 flex items-center justify-center transition-transform hover:scale-105">
-                    <SidebarOpenIcon className="w-4.5 h-4.5" />
-                  </div>
-                </div>
+                )}
               </button>
             </div>
           )}
         </div>
 
-        {/* ── Workspace Switcher (Expanded) ── */}
-        {!isCollapsed ? (
+        {/* ── Workspace Switcher (Expanded only - no workspace icon) ── */}
+        {!isCollapsed && (
           <div className="px-3 pt-2.5 pb-2 border-b border-slate-100/80">
             <div className="relative">
               <button
                 onClick={() => setIsWorkspaceDropdownOpen(prev => !prev)}
                 className="w-full flex items-center gap-2.5 p-1.5 rounded-xl bg-slate-50/80 hover:bg-slate-100/80 border border-slate-200/60 text-left transition-colors cursor-pointer group"
               >
-                {activeWorkspace ? (
-                  <WorkspaceLogo workspace={activeWorkspace} size="xs" className="shrink-0 shadow-xs" />
-                ) : (
-                  <div className="w-6 h-6 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
-                    <Layers className="w-3.5 h-3.5" />
-                  </div>
-                )}
+                <div className="w-6 h-6 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                  <Layers className="w-3.5 h-3.5" />
+                </div>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">
@@ -321,6 +316,7 @@ const DashboardLayout = () => {
                           onClick={() => {
                             selectWorkspace(w.id);
                             setIsWorkspaceDropdownOpen(false);
+                            navigate(`/workspace/${w.id}/kanban`);
                           }}
                           className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                             w.id === activeWorkspace?.id
@@ -329,7 +325,7 @@ const DashboardLayout = () => {
                           }`}
                         >
                           <div className="flex items-center gap-2 truncate">
-                            <WorkspaceLogo workspace={w} size="xs" className="shrink-0" />
+                            <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
                             <span className="truncate">{w.name}</span>
                           </div>
                           {w.id === activeWorkspace?.id && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
@@ -352,13 +348,6 @@ const DashboardLayout = () => {
                 </>
               )}
             </div>
-          </div>
-        ) : (
-          /* Workspace in Collapsed mode */
-          <div className="py-2.5 flex justify-center border-b border-slate-100">
-            <Link to="/workspaces" className="p-1 rounded-xl hover:bg-slate-100 transition-colors" title={activeWorkspace?.name || 'Workspaces'}>
-              <WorkspaceLogo workspace={activeWorkspace} size="xs" />
-            </Link>
           </div>
         )}
 
