@@ -53,6 +53,106 @@ const formatLastSeen = (lastSeen) => {
   return `${diffDay} days ago`;
 };
 
+// Helper to match a task to the current user (by ID, full name, nickname, email, or u1/Mohan handle)
+export const isTaskAssignedToUser = (task, user) => {
+  if (!user || !task) return false;
+
+  const userIds = [
+    user.id,
+    user._id,
+    user.uid,
+  ].filter(Boolean).map(String);
+
+  // Normalize user names & handles
+  const userNames = [
+    user.fullName,
+    user.name,
+    user.nickname,
+    user.email,
+    user.email?.split('@')?.[0]
+  ].filter(Boolean).map(s => String(s).trim().toLowerCase());
+
+  // Check if user is Mohan / Mohanaprasanth / ProjectGo admin handle
+  const isMohanUser = userNames.some(n => n.includes('mohan') || n.includes('prasanth'));
+  if (isMohanUser) {
+    userIds.push('u1');
+    userNames.push('mohan');
+    userNames.push('mohanaprasanth');
+    userNames.push('mohana');
+  }
+
+  // 1. Direct ID matches on assignee
+  const taskAssigneeId = String(
+    task.assignee?._id ||
+    task.assignee?.id ||
+    task.assigneeId ||
+    task.assigneeUser?._id ||
+    task.assigneeUser?.id ||
+    (typeof task.assignee === 'string' && task.assignee.length > 20 ? task.assignee : '') ||
+    ''
+  ).trim();
+
+  if (taskAssigneeId && userIds.includes(taskAssigneeId)) return true;
+
+  // 2. Check assignee name / string (e.g. "mohanaprasanth", "Mohan", "u1")
+  const taskAssigneeStr = String(
+    task.assigneeUser?.fullName ||
+    task.assigneeUser?.name ||
+    task.assignee?.fullName ||
+    task.assignee?.name ||
+    task.assigneeName ||
+    (typeof task.assignee === 'string' ? task.assignee : '') ||
+    ''
+  ).trim().toLowerCase();
+
+  if (taskAssigneeStr) {
+    if (userIds.map(id => id.toLowerCase()).includes(taskAssigneeStr)) return true;
+    if (userNames.some(un => un === taskAssigneeStr || taskAssigneeStr.includes(un) || un.includes(taskAssigneeStr))) {
+      return true;
+    }
+  }
+
+  // 3. Check assignee email
+  const taskAssigneeEmail = String(
+    task.assigneeUser?.email ||
+    task.assignee?.email ||
+    ''
+  ).trim().toLowerCase();
+
+  if (taskAssigneeEmail && userNames.some(un => un === taskAssigneeEmail || taskAssigneeEmail.includes(un))) {
+    return true;
+  }
+
+  // 4. Check reporter
+  const taskReporterId = String(
+    task.reporter?._id ||
+    task.reporter?.id ||
+    task.reporterId ||
+    task.reporterUser?._id ||
+    task.reporterUser?.id ||
+    (typeof task.reporter === 'string' && task.reporter.length > 20 ? task.reporter : '') ||
+    ''
+  ).trim();
+
+  if (taskReporterId && userIds.includes(taskReporterId)) return true;
+
+  const taskReporterStr = String(
+    task.reporterUser?.fullName ||
+    task.reporterUser?.name ||
+    task.reporter?.fullName ||
+    task.reporter?.name ||
+    (typeof task.reporter === 'string' ? task.reporter : '') ||
+    ''
+  ).trim().toLowerCase();
+
+  if (taskReporterStr) {
+    if (userIds.map(id => id.toLowerCase()).includes(taskReporterStr)) return true;
+    if (userNames.some(un => un === taskReporterStr || taskReporterStr.includes(un))) return true;
+  }
+
+  return false;
+};
+
 const WorkspaceView = () => {
   const { workspaces, selectWorkspace, activeWorkspace, globalSearchQuery } = useWorkspace();
   const { tasks, moveTask } = useTask();
@@ -178,11 +278,19 @@ const WorkspaceView = () => {
     navigate(`/workspace/${id}/kanban`);
   }, [selectWorkspace, navigate]);
 
+  // Filter tasks based on current user mode (defaults to 'ME' for personal perspective)
+  const userFilteredTasks = useMemo(() => {
+    if (!currentUser) return tasks;
+    return tasks.filter(t => isTaskAssignedToUser(t, currentUser));
+  }, [tasks, currentUser]);
+
+  const activeModeTasks = dashboardUserMode === 'ME' ? userFilteredTasks : tasks;
+
   // Real computed stats from task data
-  const totalTasks = tasks.length;
-  const completedT = tasks.filter(t => t.status === 'COMPLETED').length;
-  const inProgressT = tasks.filter(t => t.status === 'IN_PROGRESS').length;
-  const urgentT = tasks.filter(t => t.priority === 'URGENT' || t.priority === 'HIGH').length;
+  const totalTasks = activeModeTasks.length;
+  const completedT = activeModeTasks.filter(t => t.status === 'COMPLETED').length;
+  const inProgressT = activeModeTasks.filter(t => t.status === 'IN_PROGRESS').length;
+  const urgentT = activeModeTasks.filter(t => t.priority === 'URGENT' || t.priority === 'HIGH').length;
   const velocity = totalTasks > 0 ? Math.round((completedT / totalTasks) * 100) : 0;
 
   const getWorkspaceStats = useCallback((wId) => {
@@ -217,7 +325,7 @@ const WorkspaceView = () => {
     return matchSearch && matchFilter;
   }), [workspaces, globalSearchQuery, searchQuery, filterType]);
 
-  const homeFilteredTasks = useMemo(() => tasks.filter(t => {
+  const homeFilteredTasks = useMemo(() => activeModeTasks.filter(t => {
     let matchTab = true;
     if (homeActiveTab === 'Primary') matchTab = t.status !== 'COMPLETED';
     else if (homeActiveTab === 'Other') matchTab = getTaskPriorityKey(t.priority) === 'LOW';
@@ -226,11 +334,11 @@ const WorkspaceView = () => {
     const matchPriority = priorityFilter === 'All' || getTaskPriorityKey(t.priority) === getTaskPriorityKey(priorityFilter);
     const matchSearch = !globalSearchQuery || (t.title || '').toLowerCase().includes(globalSearchQuery.toLowerCase());
     return matchTab && matchPriority && matchSearch;
-  }), [tasks, homeActiveTab, priorityFilter, globalSearchQuery]);
+  }), [activeModeTasks, homeActiveTab, priorityFilter, globalSearchQuery]);
 
-  const recentTasks = useMemo(() => [...tasks]
+  const recentTasks = useMemo(() => [...activeModeTasks]
     .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
-    .slice(0, 5), [tasks]);
+    .slice(0, 5), [activeModeTasks]);
 
   const STAT_CARDS = useMemo(() => [
     {
@@ -1263,14 +1371,9 @@ const WorkspaceView = () => {
               ? tasks.filter(t => userAccessibleWorkspaces.length === 0 || userAccessibleWorkspaces.some(w => w.id === t.workspaceId))
               : tasks.filter(t => t.workspaceId === dashboardScope);
 
-            // Filter tasks based on logged-in user by default
+            // Filter tasks based on logged-in user by default (only show all when Team View is explicitly selected)
             const activeScopeTasks = dashboardUserMode === 'ME'
-              ? baseTasks.filter(t => {
-                  if (!currentUserId) return true;
-                  const aId = String(t.assignee || t.assigneeId || t.assigneeUser?._id || t.assigneeUser?.id || '');
-                  const rId = String(t.reporter || t.reporterUser?._id || t.reporterUser?.id || '');
-                  return aId === currentUserId || rId === currentUserId;
-                })
+              ? baseTasks.filter(t => isTaskAssignedToUser(t, currentUser))
               : baseTasks;
 
             const activeScopeWs = workspaces.find(w => w.id === dashboardScope);
@@ -1308,6 +1411,8 @@ const WorkspaceView = () => {
               }
             };
 
+            const userDisplayName = currentUser?.fullName || currentUser?.name || 'Mohanaprasanth';
+
             return (
               <div className="p-6 space-y-6 max-w-full">
                 {/* ── Top Header & Scope Bar ── */}
@@ -1324,7 +1429,7 @@ const WorkspaceView = () => {
                     </div>
                     <p className="text-xs text-slate-500 font-medium mt-1">
                       {dashboardUserMode === 'ME'
-                        ? `Viewing metrics personalized for you (${currentUser?.fullName || currentUser?.name || 'Logged in user'}).`
+                        ? `Viewing metrics personalized for you (${userDisplayName}).`
                         : 'Viewing overall team workload across workspace tasks.'}
                     </p>
                   </div>
@@ -1335,25 +1440,31 @@ const WorkspaceView = () => {
                     <div className="flex items-center p-1 bg-slate-100/90 rounded-xl border border-slate-200/80">
                       <button
                         onClick={() => setDashboardUserMode('ME')}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                           dashboardUserMode === 'ME'
-                            ? 'bg-white text-indigo-700 shadow-xs'
+                            ? 'bg-white text-indigo-700 shadow-xs ring-1 ring-slate-200'
                             : 'text-slate-500 hover:text-slate-800'
                         }`}
                         title="Show tasks assigned to you"
                       >
-                        👤 My Tasks
+                        <span>👤 My Tasks</span>
+                        <span className="text-[10px] font-medium opacity-80">
+                          ({userDisplayName.split(' ')[0]})
+                        </span>
                       </button>
                       <button
                         onClick={() => setDashboardUserMode('ALL')}
-                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
                           dashboardUserMode === 'ALL'
-                            ? 'bg-white text-indigo-700 shadow-xs'
+                            ? 'bg-white text-indigo-700 shadow-xs ring-1 ring-slate-200'
                             : 'text-slate-500 hover:text-slate-800'
                         }`}
                         title="Show all workspace tasks"
                       >
-                        👥 Team View
+                        <span>👥 Team View</span>
+                        <span className="text-[10px] font-medium opacity-80">
+                          (All)
+                        </span>
                       </button>
                     </div>
 
@@ -1965,10 +2076,25 @@ const WorkspaceView = () => {
                         <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
                           <CheckCircle className="w-6 h-6" />
                         </div>
-                        <h4 className="text-sm font-bold text-slate-800">No tasks match your filter</h4>
+                        <h4 className="text-sm font-bold text-slate-800">
+                          {dashboardUserMode === 'ME'
+                            ? `No tasks assigned to ${userDisplayName}`
+                            : 'No tasks match your filter'}
+                        </h4>
                         <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                          Try resetting your filter parameters or create a new task in this workspace.
+                          {dashboardUserMode === 'ME'
+                            ? 'Switch to Team View to inspect all tasks across the workspace, or assign a task to yourself.'
+                            : 'Try resetting your filter parameters or create a new task in this workspace.'}
                         </p>
+                        {dashboardUserMode === 'ME' && (
+                          <button
+                            onClick={() => setDashboardUserMode('ALL')}
+                            className="mt-3.5 px-4 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                          >
+                            <span>👥 Switch to Team View</span>
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
