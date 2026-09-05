@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, useInView, useScroll, useTransform, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
 import {
   ChevronRight, Sparkles, CheckCircle2, Zap, Users, Shield,
   BarChart3, Globe, ArrowRight, Star, Quote, Play, Kanban, Bell,
@@ -88,6 +89,7 @@ const Logo = ({ variant = 'dark' }) => {
 
 /* ─── Navbar ─────────────────────────────────────────────── */
 function Navbar({ onNavClick, annHeight = 0 }) {
+  const { user } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [atHero, setAtHero] = useState(true);
   const [open, setOpen] = useState(false);
@@ -107,8 +109,6 @@ function Navbar({ onNavClick, annHeight = 0 }) {
     { label: 'Integrations', id: 'integrations' },
     { label: 'Pricing', id: 'pricing' },
   ];
-
-  const isLight = atHero; // navbar is transparent over the dark hero
 
   return (
     <>
@@ -141,21 +141,39 @@ function Navbar({ onNavClick, annHeight = 0 }) {
 
           {/* CTA */}
           <div className="hidden md:flex items-center gap-3">
-            <Link to="/login">
-              <button className="px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer">
-                Sign in
-              </button>
-            </Link>
-            <Link to="/signup">
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.97 }}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 transition-shadow cursor-pointer"
-              >
-                Get started free
-                <ChevronRight className="w-3.5 h-3.5" />
-              </motion.button>
-            </Link>
+            {user ? (
+              <Link to="/workspaces">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 transition-shadow cursor-pointer"
+                >
+                  <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold text-white uppercase">
+                    {user?.name?.[0] || 'U'}
+                  </span>
+                  <span>Open Workspace</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </motion.button>
+              </Link>
+            ) : (
+              <>
+                <Link to="/login">
+                  <button className="px-4 py-2 text-sm font-semibold text-slate-300 hover:text-white transition-colors cursor-pointer">
+                    Sign in
+                  </button>
+                </Link>
+                <Link to="/signup">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.97 }}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 transition-shadow cursor-pointer"
+                  >
+                    Get started free
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </motion.button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile menu */}
@@ -188,12 +206,26 @@ function Navbar({ onNavClick, annHeight = 0 }) {
               </button>
             ))}
             <div className="flex gap-3 mt-2 pt-4 border-t border-white/10">
-              <Link to="/login" className="flex-1"><Button variant="outline" size="sm" className="w-full text-white border-white/20 hover:bg-white/10">Sign in</Button></Link>
-              <Link to="/signup" className="flex-1">
-                <button className="w-full py-2 rounded-xl text-sm font-bold bg-gradient-to-r from-violet-600 to-indigo-600 text-white">
-                  Get started
-                </button>
-              </Link>
+              {user ? (
+                <Link to="/workspaces" className="w-full">
+                  <button className="w-full py-2.5 rounded-xl text-sm font-bold bg-gradient-to-r from-violet-600 to-indigo-600 text-white">
+                    Open Workspace →
+                  </button>
+                </Link>
+              ) : (
+                <>
+                  <Link to="/login" className="flex-1">
+                    <Button variant="outline" size="sm" className="w-full text-white border-white/20 hover:bg-white/10">
+                      Sign in
+                    </Button>
+                  </Link>
+                  <Link to="/signup" className="flex-1">
+                    <button className="w-full py-2 rounded-xl text-sm font-bold bg-gradient-to-r from-violet-600 to-indigo-600 text-white">
+                      Get started
+                    </button>
+                  </Link>
+                </>
+              )}
             </div>
           </motion.div>
         )}
@@ -226,7 +258,7 @@ function HeroMesh() {
   );
 }
 
-/* ─── Live Mini Kanban Board — Light Theme ───────────────── */
+/* ─── Interactive Multi-Tab Product Showcase ───────────────── */
 const boardTasks = [
   { col: 'To Do',       label: 'API Gateway Design',    tag: 'Backend',  tc: 'bg-blue-50 text-blue-600',     av: 'https://i.pravatar.cc/40?img=11', prog: 0   },
   { col: 'To Do',       label: 'Onboarding Flow v2',    tag: 'Design',   tc: 'bg-pink-50 text-pink-600',     av: 'https://i.pravatar.cc/40?img=47', prog: 0   },
@@ -234,87 +266,208 @@ const boardTasks = [
   { col: 'In Progress', label: 'Dashboard Analytics',   tag: 'Frontend', tc: 'bg-violet-50 text-violet-600',av: 'https://i.pravatar.cc/40?img=32', prog: 45  },
   { col: 'Done',        label: 'Design System v3',      tag: 'Design',   tc: 'bg-emerald-50 text-emerald-600', av: 'https://i.pravatar.cc/40?img=5', prog: 100 },
 ];
-function KanbanPreview() {
+
+function InteractiveProductShowcase() {
+  const [activeTab, setActiveTab] = useState('board'); // 'board' | 'pipeline' | 'team'
   const [pulse, setPulse] = useState(0);
+
   useEffect(() => {
     const t = setInterval(() => setPulse(p => (p + 1) % boardTasks.length), 2400);
     return () => clearInterval(t);
   }, []);
+
   const cols = ['To Do', 'In Progress', 'Done'];
+
   return (
-    <div className="w-full h-full bg-white rounded-xl border border-slate-200 flex flex-col overflow-hidden select-none">
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-4 h-10 border-b border-slate-100 bg-slate-50 shrink-0">
+    <div className="w-full h-full bg-white rounded-2xl border border-slate-200/90 flex flex-col overflow-hidden select-none shadow-2xl shadow-slate-900/10">
+      {/* Window Title Bar with View Tabs */}
+      <div className="flex items-center justify-between px-4 h-12 border-b border-slate-100 bg-slate-50/90 shrink-0">
+        {/* Window controls */}
         <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
-          <div className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
-          <div className="w-2.5 h-2.5 rounded-full bg-green-400" />
+          <div className="w-2.5 h-2.5 rounded-full bg-rose-400" />
+          <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+          <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
         </div>
-        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-medium">
-          <Kanban className="w-3 h-3" />
-          <span>Q4 Sprint · ProjectGo</span>
+
+        {/* View Switcher Tabs */}
+        <div className="flex items-center p-0.5 bg-slate-200/70 rounded-xl">
+          <button
+            onClick={() => setActiveTab('board')}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'board' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            📋 Sprint Board
+          </button>
+          <button
+            onClick={() => setActiveTab('pipeline')}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'pipeline' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            🍩 Pipeline Donut
+          </button>
+          <button
+            onClick={() => setActiveTab('team')}
+            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+              activeTab === 'team' ? 'bg-white text-indigo-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            👥 Live Team
+          </button>
         </div>
+
+        {/* Status Indicator */}
         <div className="flex gap-2 items-center">
-          <Activity className="w-3.5 h-3.5 text-emerald-500" />
-          <img src="https://i.pravatar.cc/40?img=5" alt="user" className="w-6 h-6 rounded-full object-cover border-2 border-white shadow-sm" />
+          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-[11px] font-bold text-slate-600 hidden sm:inline">Sprint Active</span>
         </div>
       </div>
-      {/* Columns */}
-      <div className="flex-1 flex gap-2.5 p-3 overflow-hidden bg-slate-50/60">
-        {cols.map(col => {
-          const tasks = boardTasks.filter(t => t.col === col);
-          const dotColor = col === 'To Do' ? 'bg-slate-400' : col === 'In Progress' ? 'bg-blue-500' : 'bg-emerald-500';
-          return (
-            <div key={col} className="flex-1 flex flex-col gap-2 min-w-0">
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <div className={`w-1.5 h-1.5 rounded-full ${dotColor}`} />
-                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{col}</span>
-                <span className="text-[9px] text-slate-500 bg-slate-200 px-1 rounded font-semibold">{tasks.length}</span>
-              </div>
-              {tasks.map((task, i) => {
-                const idx = boardTasks.indexOf(task);
-                const isActive = idx === pulse;
-                return (
-                  <motion.div key={i}
-                    animate={{ scale: isActive ? 1.03 : 1, boxShadow: isActive ? '0 4px 16px rgba(109,40,217,0.15)' : '0 1px 3px rgba(0,0,0,0.04)' }}
-                    transition={{ duration: 0.35 }}
-                    className="bg-white border border-slate-200 rounded-xl p-2.5 flex flex-col gap-1.5"
-                  >
-                    <p className="text-[9px] font-semibold text-slate-700 leading-snug">{task.label}</p>
-                    <div className="flex items-center justify-between">
-                      <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-md ${task.tc}`}>{task.tag}</span>
-                      <img src={task.av} alt="" className="w-4 h-4 rounded-full object-cover border border-white shadow-sm" />
+
+      {/* Tab Content Area */}
+      <div className="flex-1 overflow-hidden p-4 bg-slate-50/40">
+        {activeTab === 'board' && (
+          <div className="h-full flex gap-3 overflow-hidden">
+            {cols.map(col => {
+              const tasks = boardTasks.filter(t => t.col === col);
+              const dotColor = col === 'To Do' ? 'bg-slate-400' : col === 'In Progress' ? 'bg-indigo-500' : 'bg-emerald-500';
+              return (
+                <div key={col} className="flex-1 flex flex-col gap-2 min-w-0 bg-slate-100/50 p-2.5 rounded-xl">
+                  <div className="flex items-center justify-between px-1 mb-1">
+                    <div className="flex items-center gap-1.5">
+                      <div className={`w-2 h-2 rounded-full ${dotColor}`} />
+                      <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider">{col}</span>
                     </div>
-                    {task.prog > 0 && (
-                      <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+                    <span className="text-[10px] text-slate-500 bg-white px-1.5 py-0.2 rounded-md font-bold shadow-xs border border-slate-200/60">
+                      {tasks.length}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 flex-1 overflow-y-auto">
+                    {tasks.map((task, i) => {
+                      const idx = boardTasks.indexOf(task);
+                      const isActive = idx === pulse;
+                      return (
                         <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${task.prog}%` }}
-                          transition={{ duration: 1.2, delay: 0.3 }}
-                          className={`h-full rounded-full ${task.prog === 100 ? 'bg-emerald-400' : 'bg-violet-500'}`}
-                        />
-                      </div>
-                    )}
-                  </motion.div>
-                );
-              })}
-              {col === 'To Do' && (
-                <div className="border border-dashed border-slate-200 rounded-xl h-7 flex items-center justify-center">
-                  <span className="text-[9px] text-slate-400">+ Add task</span>
+                          key={i}
+                          animate={{
+                            scale: isActive ? 1.02 : 1,
+                            boxShadow: isActive ? '0 6px 20px rgba(99,102,241,0.15)' : '0 1px 3px rgba(0,0,0,0.04)',
+                            borderColor: isActive ? '#818cf8' : '#e2e8f0'
+                          }}
+                          transition={{ duration: 0.3 }}
+                          className="bg-white border rounded-xl p-3 flex flex-col gap-2 transition-all cursor-default"
+                        >
+                          <p className="text-xs font-bold text-slate-800 leading-snug">{task.label}</p>
+                          <div className="flex items-center justify-between">
+                            <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-md ${task.tc}`}>{task.tag}</span>
+                            <img src={task.av} alt="" className="w-5 h-5 rounded-full object-cover border-2 border-white shadow-xs" />
+                          </div>
+                          {task.prog > 0 && (
+                            <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden mt-0.5">
+                              <div
+                                className={`h-full rounded-full ${task.prog === 100 ? 'bg-emerald-500' : 'bg-indigo-600'}`}
+                                style={{ width: `${task.prog}%` }}
+                              />
+                            </div>
+                          )}
+                        </motion.div>
+                      );
+                    })}
+                  </div>
                 </div>
-              )}
+              );
+            })}
+          </div>
+        )}
+
+        {activeTab === 'pipeline' && (
+          <div className="h-full flex flex-col md:flex-row items-center justify-around gap-6 p-4 bg-white rounded-xl border border-slate-200/80">
+            {/* SVG Donut */}
+            <div className="relative w-44 h-44 shrink-0 flex items-center justify-center">
+              <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                <circle cx="50" cy="50" r="38" stroke="#f1f5f9" strokeWidth="16" fill="none" />
+                {/* Completed (40%) */}
+                <circle cx="50" cy="50" r="38" stroke="#10b981" strokeWidth="16" fill="none" strokeDasharray="95.5 238.7" strokeDashoffset="0" />
+                {/* In Progress (35%) */}
+                <circle cx="50" cy="50" r="38" stroke="#6366f1" strokeWidth="16" fill="none" strokeDasharray="83.5 238.7" strokeDashoffset="-95.5" />
+                {/* To Do (25%) */}
+                <circle cx="50" cy="50" r="38" stroke="#3b82f6" strokeWidth="16" fill="none" strokeDasharray="59.7 238.7" strokeDashoffset="-179" />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                <span className="text-2xl font-black text-slate-900 leading-none">24</span>
+                <span className="text-[10px] font-bold text-slate-400 mt-0.5">Sprint Tasks</span>
+                <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded-full mt-1">75% On Track</span>
+              </div>
             </div>
-          );
-        })}
+
+            {/* Stages Legend */}
+            <div className="flex-1 max-w-sm space-y-2.5 w-full">
+              {[
+                { label: 'Completed', count: '10 tasks', pct: '40%', color: 'bg-emerald-500', bar: '#10b981' },
+                { label: 'In Progress', count: '8 tasks', pct: '35%', color: 'bg-indigo-500', bar: '#6366f1' },
+                { label: 'To Do', count: '6 tasks', pct: '25%', color: 'bg-blue-400', bar: '#3b82f6' },
+              ].map(s => (
+                <div key={s.label} className="p-2.5 rounded-xl border border-slate-100 bg-slate-50/60 flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className={`w-2 h-2 rounded-full ${s.color}`} />
+                      <span className="font-bold text-slate-800">{s.label}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-slate-600">{s.count}</span>
+                      <span className="text-slate-400 text-[10px] font-bold">{s.pct}</span>
+                    </div>
+                  </div>
+                  <div className="h-1.5 w-full bg-slate-200/70 rounded-full overflow-hidden">
+                    <div className="h-full rounded-full" style={{ width: s.pct, backgroundColor: s.bar }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'team' && (
+          <div className="h-full grid grid-cols-1 md:grid-cols-3 gap-3 p-2 overflow-y-auto">
+            {[
+              { name: 'Alex Rivera', role: 'Staff Engineer', status: 'Active Now', tasks: 4, av: 'https://i.pravatar.cc/80?img=11', online: true },
+              { name: 'Elena Chen', role: 'Lead Product Designer', status: 'Active Now', tasks: 3, av: 'https://i.pravatar.cc/80?img=47', online: true },
+              { name: 'Marcus Vance', role: 'Fullstack Architect', status: '15m ago', tasks: 6, av: 'https://i.pravatar.cc/80?img=12', online: false },
+              { name: 'Sarah Jenkins', role: 'QA Lead', status: 'Active Now', tasks: 2, av: 'https://i.pravatar.cc/80?img=5', online: true },
+              { name: 'David Kim', role: 'DevOps & Cloud', status: 'Active Now', tasks: 5, av: 'https://i.pravatar.cc/80?img=33', online: true },
+              { name: 'Priya Sharma', role: 'Scrum Master', status: '1h ago', tasks: 1, av: 'https://i.pravatar.cc/80?img=25', online: false },
+            ].map(m => (
+              <div key={m.name} className="p-3.5 rounded-xl border border-slate-200/80 bg-white shadow-xs flex items-center gap-3">
+                <div className="relative shrink-0">
+                  <img src={m.av} alt="" className="w-10 h-10 rounded-xl object-cover" />
+                  {m.online && (
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-white" />
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-slate-800 truncate">{m.name}</p>
+                  <p className="text-[10px] text-slate-400 truncate">{m.role}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-indigo-50 text-indigo-700">
+                      {m.tasks} tasks
+                    </span>
+                    <span className="text-[9px] text-slate-400 font-medium">{m.status}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-      {/* Bottom bar */}
-      <div className="h-8 border-t border-slate-100 bg-white flex items-center px-4 gap-3">
-        <div className="flex items-center gap-1">
-          <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-[9px] text-slate-500">3 members online</span>
+
+      {/* Bottom Bar */}
+      <div className="h-10 border-t border-slate-100 bg-white flex items-center justify-between px-5 text-xs text-slate-400 font-semibold shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="text-slate-600">Enterprise Sync Connected</span>
         </div>
-        <div className="h-3 w-px bg-slate-200" />
-        <span className="text-[9px] text-slate-400">Last updated just now</span>
+        <span className="text-[10px] text-slate-400">Next sprint sync in 14m</span>
       </div>
     </div>
   );
@@ -497,6 +650,7 @@ function ScrollProgress() {
    MAIN LANDING COMPONENT
 ════════════════════════════════════════════════════════════ */
 export default function Landing() {
+  const { user } = useAuth();
   const scrollToSection = (id) => {
     const el = document.getElementById(id);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -619,27 +773,41 @@ export default function Landing() {
           transition={{ duration: 0.6, delay: 0.35 }}
           className="mt-9 flex flex-col sm:flex-row items-center gap-3.5"
         >
-          <Link to="/signup">
-            <motion.button
-              whileHover={{ scale: 1.02, boxShadow: '0 0 40px rgba(139,92,246,0.5)' }}
-              whileTap={{ scale: 0.97 }}
-              className="flex items-center gap-2.5 px-7 py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold text-sm shadow-xl shadow-violet-500/30 transition-all cursor-pointer"
-            >
-              <Rocket className="w-4 h-4" />
-              Start for free
-              <ChevronRight className="w-4 h-4 ml-1" />
-            </motion.button>
-          </Link>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.97 }}
+          {user ? (
+            <Link to="/workspaces">
+              <motion.button
+                whileHover={{ scale: 1.02, boxShadow: '0 0 40px rgba(139,92,246,0.5)' }}
+                whileTap={{ scale: 0.97 }}
+                className="flex items-center gap-2.5 px-7 py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold text-sm shadow-xl shadow-violet-500/30 transition-all cursor-pointer"
+              >
+                <Rocket className="w-4 h-4" />
+                Go to Workspace
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </motion.button>
+            </Link>
+          ) : (
+            <Link to="/signup">
+              <motion.button
+                whileHover={{ scale: 1.02, boxShadow: '0 0 40px rgba(139,92,246,0.5)' }}
+                whileTap={{ scale: 0.97 }}
+                className="flex items-center gap-2.5 px-7 py-3.5 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold text-sm shadow-xl shadow-violet-500/30 transition-all cursor-pointer"
+              >
+                <Rocket className="w-4 h-4" />
+                Start for free
+                <ChevronRight className="w-4 h-4 ml-1" />
+              </motion.button>
+            </Link>
+          )}
+          <a
+            href="#features"
+            onClick={(e) => { e.preventDefault(); scrollToSection('features'); }}
             className="flex items-center gap-2.5 px-6 py-3.5 rounded-xl bg-white/8 border border-white/12 text-slate-200 font-semibold text-sm hover:bg-white/12 hover:text-white transition-all backdrop-blur-sm cursor-pointer"
           >
             <div className="w-6 h-6 rounded-full bg-white/15 flex items-center justify-center">
               <Play className="w-2.5 h-2.5 text-white fill-white ml-0.5" />
             </div>
-            Watch 2-min demo
-          </motion.button>
+            Explore Interactive Demo
+          </a>
         </motion.div>
 
         {/* Social proof avatars */}
@@ -669,9 +837,8 @@ export default function Landing() {
           {/* Glow under card */}
           <div className="absolute inset-x-8 bottom-0 h-32 bg-violet-600/20 blur-3xl" />
           <div className="relative rounded-2xl border border-slate-200 overflow-hidden shadow-2xl shadow-slate-900/20 p-2.5 bg-white">
-            <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#030712] to-transparent z-10 pointer-events-none rounded-b-xl" />
-            <div className="h-[400px] md:h-[460px]">
-              <KanbanPreview />
+            <div className="h-[460px] md:h-[500px]">
+              <InteractiveProductShowcase />
             </div>
           </div>
         </motion.div>

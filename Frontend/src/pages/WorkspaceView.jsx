@@ -69,11 +69,13 @@ const WorkspaceView = () => {
 
   // Dashboard specific state
   const [dashboardScope, setDashboardScope] = useState('ALL'); // 'ALL' or workspaceId
+  const [dashboardUserMode, setDashboardUserMode] = useState('ME'); // 'ME' (logged in user default) or 'ALL'
   const [dashboardStatusFilter, setDashboardStatusFilter] = useState('ALL');
   const [dashboardPriorityFilter, setDashboardPriorityFilter] = useState('ALL');
   const [dashboardSearchQuery, setDashboardSearchQuery] = useState('');
   const [dashboardTimeRange, setDashboardTimeRange] = useState('sprint');
   const [movingTaskId, setMovingTaskId] = useState(null);
+  const [hoveredPieSlice, setHoveredPieSlice] = useState(null);
 
   // Real team members state
   const [teamMembers, setTeamMembers] = useState([]);
@@ -730,18 +732,25 @@ const WorkspaceView = () => {
                       onClick={() => setShowFilterPanel(p => !p)}
                       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
                         appliedTeamFilter
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-600/20'
                           : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-400 hover:text-indigo-600'
                       }`}
                       title="Filter members"
                     >
                       <SlidersHorizontal className="w-3.5 h-3.5" />
-                      {appliedTeamFilter ? appliedTeamFilter.label : 'Filter'}
+                      <span>{appliedTeamFilter ? appliedTeamFilter.label : 'Filter'}</span>
                       {appliedTeamFilter && (
                         <span
-                          onClick={(e) => { e.stopPropagation(); setAppliedTeamFilter(null); setTeamFilterQuery(''); }}
-                          className="ml-1 text-white/70 hover:text-white font-bold cursor-pointer"
-                        >×</span>
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAppliedTeamFilter(null);
+                            setTeamFilterQuery('');
+                          }}
+                          className="ml-1 w-4 h-4 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white font-bold cursor-pointer text-xs"
+                          title="Remove filter"
+                        >
+                          ×
+                        </span>
                       )}
                     </button>
 
@@ -749,10 +758,47 @@ const WorkspaceView = () => {
                     {showFilterPanel && (
                       <div
                         id="teams-filter-panel"
-                        className="absolute right-0 top-full mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 p-4"
+                        className="absolute right-0 top-full mt-2 w-84 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 p-4"
                         onClick={e => e.stopPropagation()}
                       >
-                        <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3">Filter Team</p>
+                        <div className="flex items-center justify-between mb-2.5">
+                          <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Filter Team Members</p>
+                          <button
+                            onClick={() => setShowFilterPanel(false)}
+                            className="text-slate-400 hover:text-slate-600 text-xs p-1"
+                          >
+                            ×
+                          </button>
+                        </div>
+
+                        {/* Currently Active Filter Badge */}
+                        {appliedTeamFilter ? (
+                          <div className="mb-3 p-2.5 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-between">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 bg-white px-1.5 py-0.5 rounded border border-indigo-100 shrink-0">
+                                {appliedTeamFilter.type === 'workspace' ? 'Workspace' : 'Member'}
+                              </span>
+                              <span className="text-xs font-bold text-indigo-900 truncate">
+                                {appliedTeamFilter.label}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setAppliedTeamFilter(null);
+                                setTeamFilterQuery('');
+                              }}
+                              className="ml-2 px-2 py-1 text-[11px] font-bold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors shrink-0 flex items-center gap-1 cursor-pointer"
+                              title="Remove this filter"
+                            >
+                              <span>Remove</span>
+                              <span className="text-sm font-bold leading-none">×</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="mb-2 text-[11px] text-slate-400 font-medium">
+                            Select a workspace or teammate to filter by:
+                          </div>
+                        )}
 
                         {/* Search input */}
                         <div className="relative mb-3">
@@ -763,52 +809,76 @@ const WorkspaceView = () => {
                             placeholder="Search workspace or member name…"
                             value={teamFilterQuery}
                             onChange={e => setTeamFilterQuery(e.target.value)}
-                            className="w-full pl-8 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
+                            className="w-full pl-8 pr-7 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all font-medium"
                           />
+                          {teamFilterQuery && (
+                            <button
+                              onClick={() => setTeamFilterQuery('')}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                            >
+                              ×
+                            </button>
+                          )}
                         </div>
 
-                        {/* Workspace suggestions */}
-                        {workspaces.filter(w =>
-                          teamFilterQuery.trim() &&
-                          w.name.toLowerCase().includes(teamFilterQuery.toLowerCase())
-                        ).length > 0 && (
-                          <div className="mb-3">
-                            <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">Workspaces</p>
-                            <div className="space-y-1">
-                              {workspaces
-                                .filter(w => w.name.toLowerCase().includes(teamFilterQuery.toLowerCase()))
-                                .slice(0, 4)
-                                .map(w => (
-                                  <button
-                                    key={w.id}
-                                    onClick={() => {
-                                      setAppliedTeamFilter({ type: 'workspace', id: w.id, label: w.name });
-                                      setShowFilterPanel(false);
-                                      setTeamFilterQuery('');
-                                    }}
-                                    className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700 transition-colors text-xs font-medium text-slate-700 cursor-pointer"
-                                  >
-                                    <Layers className="w-3 h-3 shrink-0 text-indigo-400" />
-                                    {w.name}
-                                  </button>
-                                ))}
+                        {/* Workspaces list */}
+                        {(() => {
+                          const filteredWs = workspaces.filter(w =>
+                            !teamFilterQuery.trim() || w.name.toLowerCase().includes(teamFilterQuery.toLowerCase())
+                          );
+                          if (filteredWs.length === 0) return null;
+                          return (
+                            <div className="mb-3">
+                              <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                                <span>Filter By Workspace</span>
+                                <span className="text-slate-300 font-normal">{filteredWs.length} available</span>
+                              </p>
+                              <div className="max-h-28 overflow-y-auto space-y-0.5 scrollbar-thin">
+                                {filteredWs.map(w => {
+                                  const isSelected = appliedTeamFilter?.type === 'workspace' && appliedTeamFilter.id === w.id;
+                                  return (
+                                    <button
+                                      key={w.id}
+                                      onClick={() => {
+                                        setAppliedTeamFilter({ type: 'workspace', id: w.id, label: w.name });
+                                        setShowFilterPanel(false);
+                                        setTeamFilterQuery('');
+                                      }}
+                                      className={`w-full text-left flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                                        isSelected
+                                          ? 'bg-indigo-50 text-indigo-700 font-bold'
+                                          : 'hover:bg-slate-100 text-slate-700'
+                                      }`}
+                                    >
+                                      <div className="flex items-center gap-2 truncate">
+                                        <Layers className="w-3.5 h-3.5 shrink-0 text-indigo-500" />
+                                        <span className="truncate">{w.name}</span>
+                                      </div>
+                                      {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
 
                         {/* Member suggestions */}
-                        {teamMembers.filter(m =>
-                          teamFilterQuery.trim() &&
-                          (m.name || m.email || '').toLowerCase().includes(teamFilterQuery.toLowerCase())
-                        ).length > 0 && (
-                          <div className="mb-3">
-                            <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5">Members</p>
-                            <div className="space-y-1">
-                              {teamMembers
-                                .filter(m => (m.name || m.email || '').toLowerCase().includes(teamFilterQuery.toLowerCase()))
-                                .slice(0, 5)
-                                .map(m => {
+                        {(() => {
+                          const filteredMem = teamMembers.filter(m =>
+                            !teamFilterQuery.trim() || (m.name || m.email || '').toLowerCase().includes(teamFilterQuery.toLowerCase())
+                          );
+                          if (filteredMem.length === 0) return null;
+                          return (
+                            <div className="mb-2">
+                              <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                                <span>Filter By Teammate</span>
+                                <span className="text-slate-300 font-normal">{filteredMem.length} members</span>
+                              </p>
+                              <div className="max-h-32 overflow-y-auto space-y-0.5 scrollbar-thin">
+                                {filteredMem.map(m => {
                                   const id = m.id || m._id;
+                                  const isSelected = appliedTeamFilter?.type === 'member' && appliedTeamFilter.id === id;
                                   return (
                                     <button
                                       key={id}
@@ -817,41 +887,65 @@ const WorkspaceView = () => {
                                         setShowFilterPanel(false);
                                         setTeamFilterQuery('');
                                       }}
-                                      className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-indigo-50 hover:text-indigo-700 transition-colors text-xs font-medium text-slate-700 cursor-pointer"
+                                      className={`w-full text-left flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
+                                        isSelected
+                                          ? 'bg-indigo-50 text-indigo-700 font-bold'
+                                          : 'hover:bg-slate-100 text-slate-700'
+                                      }`}
                                     >
-                                      {m.avatar
-                                        ? <img src={m.avatar} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" />
-                                        : <User className="w-3 h-3 shrink-0 text-slate-400" />
-                                      }
-                                      {m.name || m.email}
+                                      <div className="flex items-center gap-2 truncate">
+                                        {m.avatar ? (
+                                          <img src={m.avatar} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" />
+                                        ) : (
+                                          <div className="w-5 h-5 rounded-full bg-slate-200 flex items-center justify-center shrink-0">
+                                            <User className="w-3 h-3 text-slate-500" />
+                                          </div>
+                                        )}
+                                        <div className="truncate">
+                                          <span className="truncate block leading-tight">{m.name || m.email}</span>
+                                          {m.name && m.email && (
+                                            <span className="text-[10px] text-slate-400 font-normal truncate block">{m.email}</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
                                     </button>
                                   );
                                 })}
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
 
-                        {/* Empty state */}
+                        {/* Empty state when query matches nothing */}
                         {teamFilterQuery.trim() &&
                           workspaces.filter(w => w.name.toLowerCase().includes(teamFilterQuery.toLowerCase())).length === 0 &&
                           teamMembers.filter(m => (m.name || m.email || '').toLowerCase().includes(teamFilterQuery.toLowerCase())).length === 0 && (
-                          <p className="text-xs text-slate-400 text-center py-3">No results for "{teamFilterQuery}"</p>
+                          <div className="text-center py-4 text-xs text-slate-400">
+                            No workspaces or teammates matching "{teamFilterQuery}"
+                          </div>
                         )}
 
-                        {/* No query yet */}
-                        {!teamFilterQuery.trim() && (
-                          <p className="text-[11px] text-slate-400 text-center py-2">Type a workspace or member name to filter</p>
-                        )}
-
-                        <div className="border-t border-slate-100 mt-3 pt-3 flex justify-between items-center">
-                          <button
-                            onClick={() => { setAppliedTeamFilter(null); setTeamFilterQuery(''); setShowFilterPanel(false); }}
-                            className="text-[11px] text-slate-400 hover:text-slate-700 font-semibold cursor-pointer"
-                          >Clear filter</button>
+                        <div className="border-t border-slate-100 mt-2.5 pt-2.5 flex justify-between items-center">
+                          {appliedTeamFilter ? (
+                            <button
+                              onClick={() => {
+                                setAppliedTeamFilter(null);
+                                setTeamFilterQuery('');
+                              }}
+                              className="text-[11px] text-rose-600 hover:text-rose-700 font-bold cursor-pointer"
+                            >
+                              Clear filter
+                            </button>
+                          ) : (
+                            <span className="text-[11px] text-slate-400">No filter active</span>
+                          )}
                           <button
                             onClick={() => setShowFilterPanel(false)}
-                            className="text-[11px] px-3 py-1.5 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors cursor-pointer"
-                          >Done</button>
+                            className="text-[11px] px-3 py-1.5 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 transition-colors cursor-pointer"
+                          >
+                            Done
+                          </button>
                         </div>
                       </div>
                     )}
@@ -1155,10 +1249,29 @@ const WorkspaceView = () => {
 
           {/* ── DASHBOARD ── */}
           {activeTab === 'Dashboard' && (() => {
-            // Filter tasks by selected dashboard scope
-            const activeScopeTasks = dashboardScope === 'ALL'
-              ? tasks
+            // Accessible workspaces for logged-in user
+            const currentUserId = String(currentUser?.id || currentUser?._id || '');
+            const userAccessibleWorkspaces = workspaces.filter(w => {
+              if (!currentUserId) return true;
+              const isOwner = String(w.ownerId || w.owner?._id || w.owner || '') === currentUserId;
+              const isMember = (w.members || []).some(m => String(m.id || m._id || m) === currentUserId);
+              return isOwner || isMember;
+            });
+
+            // Tasks scoped by workspace
+            const baseTasks = dashboardScope === 'ALL'
+              ? tasks.filter(t => userAccessibleWorkspaces.length === 0 || userAccessibleWorkspaces.some(w => w.id === t.workspaceId))
               : tasks.filter(t => t.workspaceId === dashboardScope);
+
+            // Filter tasks based on logged-in user by default
+            const activeScopeTasks = dashboardUserMode === 'ME'
+              ? baseTasks.filter(t => {
+                  if (!currentUserId) return true;
+                  const aId = String(t.assignee || t.assigneeId || t.assigneeUser?._id || t.assigneeUser?.id || '');
+                  const rId = String(t.reporter || t.reporterUser?._id || t.reporterUser?.id || '');
+                  return aId === currentUserId || rId === currentUserId;
+                })
+              : baseTasks;
 
             const activeScopeWs = workspaces.find(w => w.id === dashboardScope);
 
@@ -1210,21 +1323,49 @@ const WorkspaceView = () => {
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 font-medium mt-1">
-                      Real-time velocity, workload balance, and task execution pipeline across your projects.
+                      {dashboardUserMode === 'ME'
+                        ? `Viewing metrics personalized for you (${currentUser?.fullName || currentUser?.name || 'Logged in user'}).`
+                        : 'Viewing overall team workload across workspace tasks.'}
                     </p>
                   </div>
 
                   {/* Scope & Quick Actions */}
                   <div className="flex flex-wrap items-center gap-2.5">
-                    {/* Workspace Scope dropdown */}
+                    {/* User Mode Toggle: My Tasks vs Team Tasks */}
+                    <div className="flex items-center p-1 bg-slate-100/90 rounded-xl border border-slate-200/80">
+                      <button
+                        onClick={() => setDashboardUserMode('ME')}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          dashboardUserMode === 'ME'
+                            ? 'bg-white text-indigo-700 shadow-xs'
+                            : 'text-slate-500 hover:text-slate-800'
+                        }`}
+                        title="Show tasks assigned to you"
+                      >
+                        👤 My Tasks
+                      </button>
+                      <button
+                        onClick={() => setDashboardUserMode('ALL')}
+                        className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          dashboardUserMode === 'ALL'
+                            ? 'bg-white text-indigo-700 shadow-xs'
+                            : 'text-slate-500 hover:text-slate-800'
+                        }`}
+                        title="Show all workspace tasks"
+                      >
+                        👥 Team View
+                      </button>
+                    </div>
+
+                    {/* Workspace Scope dropdown (filtered to user workspaces) */}
                     <div className="relative">
                       <select
                         value={dashboardScope}
                         onChange={(e) => setDashboardScope(e.target.value)}
                         className="h-9 pl-3 pr-8 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer appearance-none"
                       >
-                        <option value="ALL">🌐 All Workspaces ({workspaces.length})</option>
-                        {workspaces.map(w => (
+                        <option value="ALL">🌐 Your Workspaces ({userAccessibleWorkspaces.length})</option>
+                        {userAccessibleWorkspaces.map(w => (
                           <option key={w.id} value={w.id}>
                             📁 {w.name}
                           </option>
@@ -1237,7 +1378,7 @@ const WorkspaceView = () => {
                       size="sm"
                       icon={Plus}
                       onClick={() => {
-                        const targetId = dashboardScope !== 'ALL' ? dashboardScope : (activeWorkspace?.id || workspaces[0]?.id);
+                        const targetId = dashboardScope !== 'ALL' ? dashboardScope : (activeWorkspace?.id || userAccessibleWorkspaces[0]?.id);
                         if (targetId) navigate(`/workspace/${targetId}/kanban`);
                         else navigate('/create-workspace');
                       }}
@@ -1396,92 +1537,204 @@ const WorkspaceView = () => {
 
                 {/* ── Visual Pipelines: Status Flow & Priority Matrix ── */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Status Pipeline */}
+                  {/* ── Status Pipeline (Advance Pie / Donut Chart) ── */}
                   <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-card space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h3 className="text-sm font-black text-slate-900 tracking-tight">Execution Pipeline</h3>
-                        <p className="text-xs text-slate-400 font-medium">Task distribution across stages</p>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-sm font-black text-slate-900 tracking-tight">Execution Pipeline</h3>
+                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 uppercase tracking-wide">
+                            Interactive Donut
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 font-medium">Distribution across workflow stages</p>
                       </div>
-                      <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
-                        {total} Total
-                      </span>
-                    </div>
-
-                    {/* Proportional Segmented Bar */}
-                    <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
-                      {total > 0 ? (
-                        <>
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${(completed / total) * 100}%` }}
-                            transition={{ duration: 0.8 }}
-                            className="h-full bg-emerald-500 hover:bg-emerald-600 transition-colors cursor-pointer"
-                            title={`Completed: ${completed} (${Math.round((completed / total) * 100)}%)`}
-                            onClick={() => setDashboardStatusFilter(s => s === 'COMPLETED' ? 'ALL' : 'COMPLETED')}
-                          />
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${(inProgress / total) * 100}%` }}
-                            transition={{ duration: 0.8, delay: 0.05 }}
-                            className="h-full bg-indigo-500 hover:bg-indigo-600 transition-colors cursor-pointer"
-                            title={`In Progress: ${inProgress} (${Math.round((inProgress / total) * 100)}%)`}
-                            onClick={() => setDashboardStatusFilter(s => s === 'IN_PROGRESS' ? 'ALL' : 'IN_PROGRESS')}
-                          />
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${(todo / total) * 100}%` }}
-                            transition={{ duration: 0.8, delay: 0.1 }}
-                            className="h-full bg-blue-400 hover:bg-blue-500 transition-colors cursor-pointer"
-                            title={`To Do: ${todo} (${Math.round((todo / total) * 100)}%)`}
-                            onClick={() => setDashboardStatusFilter(s => s === 'TO_DO' ? 'ALL' : 'TO_DO')}
-                          />
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${(backlog / total) * 100}%` }}
-                            transition={{ duration: 0.8, delay: 0.15 }}
-                            className="h-full bg-slate-300 hover:bg-slate-400 transition-colors cursor-pointer"
-                            title={`Backlog: ${backlog} (${Math.round((backlog / total) * 100)}%)`}
-                            onClick={() => setDashboardStatusFilter(s => s === 'BACKLOG' ? 'ALL' : 'BACKLOG')}
-                          />
-                        </>
-                      ) : (
-                        <div className="w-full h-full bg-slate-200" />
-                      )}
-                    </div>
-
-                    {/* Status Legend Clickable Chips */}
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1">
-                      {[
-                        { key: 'COMPLETED', label: 'Completed', count: completed, dot: 'bg-emerald-500', bg: 'hover:bg-emerald-50/50' },
-                        { key: 'IN_PROGRESS', label: 'In Progress', count: inProgress, dot: 'bg-indigo-500', bg: 'hover:bg-indigo-50/50' },
-                        { key: 'TO_DO', label: 'To Do', count: todo, dot: 'bg-blue-400', bg: 'hover:bg-blue-50/50' },
-                        { key: 'BACKLOG', label: 'Backlog', count: backlog, dot: 'bg-slate-400', bg: 'hover:bg-slate-50' },
-                      ].map(s => {
-                        const isSelected = dashboardStatusFilter === s.key;
-                        const pct = total > 0 ? Math.round((s.count / total) * 100) : 0;
-                        return (
+                      <div className="flex items-center gap-2">
+                        {dashboardStatusFilter !== 'ALL' && (
                           <button
-                            key={s.key}
-                            onClick={() => setDashboardStatusFilter(curr => curr === s.key ? 'ALL' : s.key)}
-                            className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
-                              isSelected
-                                ? 'border-indigo-600 bg-indigo-50/50 ring-2 ring-indigo-500/10'
-                                : `border-slate-200/70 bg-white ${s.bg}`
-                            }`}
+                            onClick={() => setDashboardStatusFilter('ALL')}
+                            className="text-xs text-rose-600 font-bold hover:bg-rose-50 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
                           >
-                            <div className="flex items-center gap-1.5 mb-1">
-                              <span className={`w-2 h-2 rounded-full ${s.dot}`} />
-                              <span className="text-[11px] font-bold text-slate-700 truncate">{s.label}</span>
-                            </div>
-                            <div className="flex items-baseline justify-between">
-                              <span className="text-base font-black text-slate-900 leading-none">{s.count}</span>
-                              <span className="text-[10px] text-slate-400 font-semibold">{pct}%</span>
-                            </div>
+                            Reset Filter ×
                           </button>
-                        );
-                      })}
+                        )}
+                        <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">
+                          {total} Total
+                        </span>
+                      </div>
                     </div>
+
+                    {/* Interactive Donut & Legend Container */}
+                    {(() => {
+                      const pieItems = [
+                        { key: 'COMPLETED', label: 'Completed', count: completed, color: '#10b981', hoverColor: '#059669', dot: 'bg-emerald-500', border: 'border-emerald-500', lightBg: 'bg-emerald-50' },
+                        { key: 'IN_PROGRESS', label: 'In Progress', count: inProgress, color: '#6366f1', hoverColor: '#4f46e5', dot: 'bg-indigo-500', border: 'border-indigo-500', lightBg: 'bg-indigo-50' },
+                        { key: 'TO_DO', label: 'To Do', count: todo, color: '#3b82f6', hoverColor: '#2563eb', dot: 'bg-blue-400', border: 'border-blue-400', lightBg: 'bg-blue-50' },
+                        { key: 'BACKLOG', label: 'Backlog', count: backlog, color: '#94a3b8', hoverColor: '#64748b', dot: 'bg-slate-400', border: 'border-slate-400', lightBg: 'bg-slate-50' },
+                      ];
+
+                      // SVG Arc calculations
+                      const cx = 100;
+                      const cy = 100;
+                      const R = 80;
+                      const r = 54;
+                      let cumulativeAngle = -Math.PI / 2;
+
+                      const slices = pieItems.map(item => {
+                        if (total === 0 || item.count === 0) {
+                          return { ...item, path: '', pct: 0 };
+                        }
+                        const sliceAngle = (item.count / total) * 2 * Math.PI;
+                        const start = cumulativeAngle;
+                        const end = cumulativeAngle + sliceAngle;
+                        cumulativeAngle = end;
+
+                        // Slight gap padding between slices
+                        const gap = 0.03;
+                        const adjStart = start + gap;
+                        const adjEnd = Math.max(adjStart, end - gap);
+
+                        const x1 = cx + R * Math.cos(adjStart);
+                        const y1 = cy + R * Math.sin(adjStart);
+                        const x2 = cx + R * Math.cos(adjEnd);
+                        const y2 = cy + R * Math.sin(adjEnd);
+
+                        const ix1 = cx + r * Math.cos(adjEnd);
+                        const iy1 = cy + r * Math.sin(adjEnd);
+                        const ix2 = cx + r * Math.cos(adjStart);
+                        const iy2 = cy + r * Math.sin(adjStart);
+
+                        const largeArc = sliceAngle > Math.PI ? 1 : 0;
+
+                        const path = `M ${x1} ${y1} A ${R} ${R} 0 ${largeArc} 1 ${x2} ${y2} L ${ix1} ${iy1} A ${r} ${r} 0 ${largeArc} 0 ${ix2} ${iy2} Z`;
+
+                        return {
+                          ...item,
+                          path,
+                          pct: Math.round((item.count / total) * 100)
+                        };
+                      });
+
+                      const activeHover = hoveredPieSlice ? pieItems.find(p => p.key === hoveredPieSlice) : null;
+                      const activeFilter = dashboardStatusFilter !== 'ALL' ? pieItems.find(p => p.key === dashboardStatusFilter) : null;
+                      const displayTarget = activeHover || activeFilter;
+
+                      return (
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center pt-2">
+                          {/* Left: Interactive SVG Donut Chart */}
+                          <div className="md:col-span-6 flex flex-col items-center justify-center relative">
+                            <div className="relative w-[190px] h-[190px]">
+                              <svg viewBox="0 0 200 200" className="w-full h-full transform transition-transform duration-300">
+                                {/* Base track circle */}
+                                <circle
+                                  cx={cx}
+                                  cy={cy}
+                                  r={(R + r) / 2}
+                                  strokeWidth={R - r}
+                                  fill="none"
+                                  stroke="#f1f5f9"
+                                />
+
+                                {total > 0 && slices.map((slice) => {
+                                  if (!slice.path) return null;
+                                  const isHov = hoveredPieSlice === slice.key;
+                                  const isSelected = dashboardStatusFilter === slice.key;
+
+                                  return (
+                                    <path
+                                      key={slice.key}
+                                      d={slice.path}
+                                      fill={slice.color}
+                                      opacity={hoveredPieSlice && !isHov ? 0.45 : isSelected ? 1 : 0.9}
+                                      filter={isHov || isSelected ? 'drop-shadow(0 2px 6px rgba(0,0,0,0.25))' : undefined}
+                                      className="transition-all duration-200 cursor-pointer"
+                                      style={{
+                                        transformOrigin: `${cx}px ${cy}px`,
+                                        transform: isHov ? 'scale(1.04)' : isSelected ? 'scale(1.02)' : 'scale(1)',
+                                      }}
+                                      onMouseEnter={() => setHoveredPieSlice(slice.key)}
+                                      onMouseLeave={() => setHoveredPieSlice(null)}
+                                      onClick={() => setDashboardStatusFilter(curr => curr === slice.key ? 'ALL' : slice.key)}
+                                    />
+                                  );
+                                })}
+                              </svg>
+
+                              {/* Center Readout inside Donut Hole */}
+                              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none text-center px-2">
+                                <motion.span
+                                  key={displayTarget ? displayTarget.key : 'TOTAL'}
+                                  initial={{ scale: 0.85, opacity: 0 }}
+                                  animate={{ scale: 1, opacity: 1 }}
+                                  transition={{ duration: 0.2 }}
+                                  className="text-2xl font-black text-slate-900 leading-none"
+                                >
+                                  {displayTarget ? displayTarget.count : total}
+                                </motion.span>
+                                <span className="text-[10px] font-bold text-slate-400 mt-1 truncate max-w-[100px]">
+                                  {displayTarget ? displayTarget.label : 'Total Tasks'}
+                                </span>
+                                {total > 0 && (
+                                  <span className="text-[9px] font-extrabold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full mt-0.5">
+                                    {displayTarget ? `${displayTarget.pct || Math.round((displayTarget.count / total) * 100)}%` : `${rate}% done`}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-medium mt-1.5 text-center">
+                              Click any slice or card to filter
+                            </span>
+                          </div>
+
+                          {/* Right: Rich Interactive Legend with Progress Bars */}
+                          <div className="md:col-span-6 space-y-2">
+                            {pieItems.map((item) => {
+                              const isHov = hoveredPieSlice === item.key;
+                              const isSelected = dashboardStatusFilter === item.key;
+                              const pct = total > 0 ? Math.round((item.count / total) * 100) : 0;
+
+                              return (
+                                <div
+                                  key={item.key}
+                                  onMouseEnter={() => setHoveredPieSlice(item.key)}
+                                  onMouseLeave={() => setHoveredPieSlice(null)}
+                                  onClick={() => setDashboardStatusFilter(curr => curr === item.key ? 'ALL' : item.key)}
+                                  className={`p-2 rounded-xl border transition-all cursor-pointer ${
+                                    isSelected
+                                      ? 'border-indigo-600 bg-indigo-50/70 shadow-xs ring-1 ring-indigo-500/20'
+                                      : isHov
+                                        ? 'border-slate-300 bg-slate-50 shadow-xs'
+                                        : 'border-slate-200/70 bg-white hover:bg-slate-50/70'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between mb-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`w-2.5 h-2.5 rounded-full ${item.dot} shrink-0`} />
+                                      <span className="text-xs font-bold text-slate-800">{item.label}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-xs font-black text-slate-900">{item.count}</span>
+                                      <span className="text-[10px] text-slate-400 font-semibold w-7 text-right">{pct}%</span>
+                                    </div>
+                                  </div>
+
+                                  {/* Progress micro-bar */}
+                                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full rounded-full transition-all duration-500"
+                                      style={{
+                                        width: `${pct}%`,
+                                        backgroundColor: item.color,
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Priority Spectrum */}

@@ -134,13 +134,15 @@ const DashboardLayout = () => {
   };
 
   const primaryNavItems = [
-    { id: 'Home', label: 'Home', Icon: Home, route: '/workspaces' },
-    { id: 'Spaces', label: 'Spaces', Icon: Layers, route: '/workspaces' },
-    { id: 'Planner', label: 'Planner', Icon: CalendarDays, route: '/workspaces' },
-    { id: 'Teams', label: 'Teams', Icon: Users2, route: '/workspaces' },
-    { id: 'Docs', label: 'Docs', Icon: FileText, route: '/workspaces' },
-    { id: 'Dashboard', label: 'Dashboard', Icon: BarChart3, route: '/workspaces' },
+    { id: 'Home', label: 'Home', Icon: Home, route: '/workspaces', badge: null },
+    { id: 'Dashboard', label: 'Dashboard', Icon: BarChart3, route: '/workspaces', badge: null },
+    { id: 'Spaces', label: 'Spaces', Icon: Layers, route: '/workspaces', badge: workspaces.length },
+    { id: 'Planner', label: 'Planner', Icon: CalendarDays, route: '/workspaces', badge: null },
+    { id: 'Teams', label: 'Teams', Icon: Users2, route: '/workspaces', badge: null },
+    { id: 'Docs', label: 'Docs', Icon: FileText, route: '/workspaces', badge: null },
   ];
+
+  const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
 
   const handlePrimaryClick = (item) => {
     setActiveTab(item.id);
@@ -152,7 +154,7 @@ const DashboardLayout = () => {
   };
 
   const getBreadcrumbs = () => {
-    if (path === '/workspaces') return [{ label: activeTab === 'Home' ? 'Home' : 'Spaces' }, { label: activeTab === 'Home' ? 'Overview' : 'All Workspaces' }];
+    if (path === '/workspaces') return [{ label: activeTab }, { label: activeTab === 'Home' ? 'Overview' : activeTab }];
     if (path.includes('/kanban')) return [{ label: activeWorkspace?.name || 'Workspace' }, { label: 'Sprint Board' }];
     if (path.includes('/members')) return [{ label: activeWorkspace?.name || 'Workspace' }, { label: 'Team Members' }];
     if (path.includes('/invite')) return [{ label: activeWorkspace?.name || 'Workspace' }, { label: 'Invite Members' }];
@@ -163,252 +165,336 @@ const DashboardLayout = () => {
     return [{ label: 'Dashboard' }];
   };
 
+  const isCollapsed = isSecondaryCollapsed;
+  const toggleSidebar = () => setIsSecondaryCollapsed(prev => !prev);
+
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-gray-50 font-sans text-gray-900 antialiased relative">
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 font-sans text-slate-900 antialiased relative">
 
       {/* ═══════════════════════════════════════════════════════
-          SIDEBAR ZONE (hover group)
+          UNIFIED MODERN SIDEBAR
       ═══════════════════════════════════════════════════════ */}
-      <div
-        className="fixed left-0 top-0 h-screen z-40 flex shrink-0"
-        style={{ width: isSecondaryVisible ? '316px' : '64px' }}
-        onMouseLeave={() => setHoveredTab(null)}
+      <aside
+        className={`hidden md:flex flex-col fixed left-0 top-0 h-screen z-40 bg-white border-r border-slate-200/80 shadow-[1px_0_12px_rgba(0,0,0,0.03)] transition-[width] duration-300 ease-in-out select-none ${
+          isCollapsed ? 'w-[68px]' : 'w-[260px]'
+        }`}
       >
-        {/* ── PRIMARY SIDEBAR (64px) ── */}
-        <aside className="hidden md:flex flex-col w-16 shrink-0 h-full relative z-50"
-          style={{ background: 'linear-gradient(160deg, #1e1b4b 0%, #312e81 60%, #4c1d95 100%)' }}>
+        {/* ── Top Header / Workspace Switcher ── */}
+        <div className="h-16 px-3.5 border-b border-slate-100 flex items-center justify-between shrink-0 relative">
+          {!isCollapsed ? (
+            <div className="flex items-center justify-between w-full min-w-0">
+              {/* Workspace Switcher Trigger */}
+              <div className="relative flex-1 min-w-0 mr-1">
+                <button
+                  onClick={() => setIsWorkspaceDropdownOpen(prev => !prev)}
+                  className="w-full flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-slate-100/80 text-left transition-colors cursor-pointer group"
+                >
+                  <WorkspaceLogo workspace={activeWorkspace} size="sm" className="shrink-0 shadow-xs" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">
+                        {activeWorkspace?.name || 'Select Workspace'}
+                      </span>
+                    </div>
+                    <p className="text-[10px] font-medium text-slate-400 capitalize truncate">
+                      {activeWorkspace?.userRole || 'Workspace Space'}
+                    </p>
+                  </div>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 group-hover:text-slate-600 transition-transform duration-200" />
+                </button>
 
-          {/* Subtle grid pattern */}
-          <div className="absolute inset-0 opacity-[0.04]"
-            style={{
-              backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.6) 1px, transparent 1px)',
-              backgroundSize: '20px 20px',
-            }}
-          />
-
-          <div className="relative z-10 flex flex-col h-full items-center py-4 justify-between">
-            {/* Logo */}
-            <div className="flex flex-col items-center gap-5 w-full">
-              <Link to="/" className="relative w-9 h-9 flex-shrink-0 group block">
-                <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-lg shadow-violet-500/30" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <svg viewBox="0 0 24 24" fill="none" className="w-[18px] h-[18px]">
-                    <path d="M5 9L9 12L5 15" stroke="rgba(255,255,255,0.45)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M11 6L18 12L11 18" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                </div>
-              </Link>
-
-              {/* Nav items */}
-              <div className="flex flex-col items-center gap-1 w-full px-2">
-                {primaryNavItems.map((item) => {
-                  const isActive = activeTab === item.id;
-                  return (
-                    <div key={item.id} className="relative group w-full">
-                      <motion.button
-                        whileTap={{ scale: 0.92 }}
-                        onClick={() => handlePrimaryClick(item)}
-                        onMouseEnter={() => setHoveredTab(item.id)}
-                        className={`w-full h-11 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-200 cursor-pointer relative group/nav ${
-                          isActive
-                            ? 'bg-gradient-to-b from-white/20 to-white/10 text-white shadow-[0_2px_12px_rgba(0,0,0,0.25)] border border-white/20'
-                            : 'text-white/60 hover:text-white hover:bg-white/10'
-                        }`}
-                      >
-                        {/* Active left indicator */}
-                        {isActive && (
-                          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 bg-gradient-to-b from-indigo-300 via-sky-300 to-indigo-400 rounded-r-full shadow-[0_0_8px_rgba(165,180,252,0.8)]" />
-                        )}
-                        <item.Icon className={`w-[18px] h-[18px] transition-transform duration-200 group-hover/nav:scale-110 ${isActive ? 'text-white stroke-[2.2]' : 'stroke-[1.8]'}`} />
-                        <span className={`text-[9px] font-semibold leading-none tracking-tight transition-colors ${isActive ? 'text-white font-bold' : 'text-white/70'}`}>{item.label}</span>
-                      </motion.button>
-                      {/* Tooltip */}
-                      <div className="absolute left-[70px] top-1/2 -translate-y-1/2 bg-slate-900/95 backdrop-blur-md text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 z-50 whitespace-nowrap shadow-xl border border-white/10">
-                        {item.label}
-                        <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-900" />
+                {/* Switcher Dropdown */}
+                {isWorkspaceDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsWorkspaceDropdownOpen(false)} />
+                    <div className="absolute left-0 top-full mt-1.5 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 space-y-1">
+                      <div className="px-2.5 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                        Switch Workspace
                       </div>
+                      <div className="max-h-48 overflow-y-auto space-y-0.5">
+                        {workspaces.map(w => (
+                          <button
+                            key={w.id}
+                            onClick={() => {
+                              selectWorkspace(w.id);
+                              setIsWorkspaceDropdownOpen(false);
+                            }}
+                            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                              w.id === activeWorkspace?.id
+                                ? 'bg-indigo-50 text-indigo-700 font-bold'
+                                : 'text-slate-700 hover:bg-slate-100'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 truncate">
+                              <WorkspaceLogo workspace={w} size="xs" className="shrink-0" />
+                              <span className="truncate">{w.name}</span>
+                            </div>
+                            {w.id === activeWorkspace?.id && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
+                          </button>
+                        ))}
+                      </div>
+                      <div className="pt-1.5 border-t border-slate-100">
+                        <button
+                          onClick={() => {
+                            setIsWorkspaceDropdownOpen(false);
+                            navigate('/create-workspace');
+                          }}
+                          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold text-indigo-600 hover:bg-indigo-50/80 transition-colors cursor-pointer"
+                        >
+                          <PlusCircle className="w-4 h-4 text-indigo-500" />
+                          <span>Create New Workspace</span>
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="w-full flex justify-center">
+              <Link to="/workspaces" className="p-1 rounded-xl hover:bg-slate-100 transition-colors">
+                <WorkspaceLogo workspace={activeWorkspace} size="sm" />
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* ── Quick Action Button (Expanded) ── */}
+        {!isCollapsed && (
+          <div className="px-3 pt-3 pb-1">
+            <button
+              onClick={() => {
+                if (activeWorkspace?.id) navigate(`/workspace/${activeWorkspace.id}/kanban`);
+                else navigate('/create-workspace');
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-bold shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/30 transition-all cursor-pointer hover:scale-[1.01] active:scale-[0.99]"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+              <span>New Task</span>
+            </button>
+          </div>
+        )}
+
+        {/* ── Main Navigation Items (Exactly: Home, Dashboard, Spaces, Planner, Teams, Docs) ── */}
+        <div className="flex-1 overflow-y-auto px-2.5 py-3 space-y-1 scrollbar-thin">
+          {!isCollapsed && (
+            <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 px-2.5 py-1">
+              Main Menu
+            </p>
+          )}
+
+          {primaryNavItems.map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <div key={item.id} className="relative group">
+                <button
+                  onClick={() => handlePrimaryClick(item)}
+                  className={`w-full flex items-center rounded-xl transition-all cursor-pointer ${
+                    isCollapsed ? 'justify-center h-11' : 'gap-3 px-3 py-2.5 text-xs font-semibold'
+                  } ${
+                    isActive
+                      ? 'bg-indigo-600 text-white font-bold shadow-sm shadow-indigo-600/25'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                  }`}
+                  title={isCollapsed ? item.label : undefined}
+                >
+                  <item.Icon className={`shrink-0 ${isCollapsed ? 'w-5 h-5' : 'w-4 h-4'} ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-800'}`} />
+                  {!isCollapsed && (
+                    <span className="flex-1 text-left truncate">{item.label}</span>
+                  )}
+                  {!isCollapsed && item.badge !== null && item.badge > 0 && (
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                      isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+
+                {/* Tooltip in collapsed mode */}
+                {isCollapsed && (
+                  <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 bg-slate-900 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-150 z-50 whitespace-nowrap shadow-xl border border-white/10">
+                    {item.label}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+
+          {/* Expanded Spaces Sub-list (when Spaces is active or expanded) */}
+          {!isCollapsed && (
+            <div className="pt-3">
+              <div className="flex items-center justify-between px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                <span>Active Spaces</span>
+                <button
+                  onClick={() => navigate('/create-workspace')}
+                  className="hover:text-indigo-600 transition-colors p-0.5"
+                  title="Create Workspace"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              <div className="space-y-0.5 mt-1">
+                {workspaces.map(w => {
+                  const isCurrent = w.id === activeWorkspace?.id;
+                  const isExpanded = !!expandedWorkspaces[w.id];
+                  return (
+                    <div key={w.id} className="rounded-xl overflow-hidden">
+                      <div
+                        className={`flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
+                          isCurrent
+                            ? 'bg-slate-100/90 text-indigo-700'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                        }`}
+                        onClick={() => handleSelect(w.id)}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <WorkspaceLogo workspace={w} size="xs" className="shrink-0" />
+                          <span className="truncate">{w.name}</span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleWorkspaceAccordion(w.id);
+                          }}
+                          className="p-1 text-slate-400 hover:text-slate-600 rounded-md"
+                        >
+                          <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                        </button>
+                      </div>
+
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.15 }}
+                            className="pl-7 pr-2 py-1 space-y-0.5 bg-slate-50/50"
+                          >
+                            <button
+                              onClick={() => navigate(`/workspace/${w.id}/kanban`)}
+                              className="w-full flex items-center justify-between py-1.5 px-2 rounded-lg text-[11px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-white transition-all cursor-pointer"
+                            >
+                              <span className="flex items-center gap-1.5">
+                                <LayoutDashboard className="w-3 h-3 text-slate-400" />
+                                Sprint Board
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                {tasks.filter(t => t.workspaceId === w.id).length}
+                              </span>
+                            </button>
+                            <button
+                              onClick={() => navigate(`/workspace/${w.id}/members`)}
+                              className="w-full flex items-center justify-between py-1.5 px-2 rounded-lg text-[11px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-white transition-all cursor-pointer"
+                            >
+                              <span className="flex items-center gap-1.5">
+                                <Users className="w-3 h-3 text-slate-400" />
+                                Members
+                              </span>
+                            </button>
+                            <button
+                              onClick={() => navigate(`/workspace/${w.id}/settings`)}
+                              className="w-full flex items-center justify-between py-1.5 px-2 rounded-lg text-[11px] font-semibold text-slate-600 hover:text-indigo-600 hover:bg-white transition-all cursor-pointer"
+                            >
+                              <span className="flex items-center gap-1.5">
+                                <Settings className="w-3 h-3 text-slate-400" />
+                                Settings
+                              </span>
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   );
                 })}
               </div>
             </div>
+          )}
+        </div>
 
-            {/* Bottom section */}
-            <div className="flex flex-col items-center gap-3 w-full px-2">
-              <div className="relative group w-full">
-                <motion.button
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => navigate('/create-workspace')}
-                  className="w-full h-10 rounded-xl flex flex-col items-center justify-center gap-0.5 text-white/55 hover:text-white/90 hover:bg-white/08 transition-all cursor-pointer"
-                >
-                  <PlusCircle className="w-[17px] h-[17px]" />
-                  <span className="text-[9px] font-semibold leading-none tracking-tight">New</span>
-                </motion.button>
+        {/* ── Footer / User Profile Strip ── */}
+        <div className="p-3 border-t border-slate-100 bg-white shrink-0">
+          {!isCollapsed ? (
+            <div className="flex items-center justify-between p-2 rounded-2xl bg-slate-50 border border-slate-200/60 shadow-xs">
+              <div
+                onClick={() => setIsProfilePanelOpen(true)}
+                className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer group"
+              >
+                <div className="relative shrink-0">
+                  <img
+                    src={currentUser?.photoURL || currentUser?.avatar || "https://i.pravatar.cc/80?img=12"}
+                    alt=""
+                    className="w-8 h-8 rounded-xl object-cover ring-1 ring-slate-200"
+                  />
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">
+                    {currentUser?.fullName || currentUser?.name || 'Account'}
+                  </p>
+                  <p className="text-[10px] text-slate-400 truncate">
+                    {currentUser?.email || 'Logged in'}
+                  </p>
+                </div>
               </div>
 
-              <div className="w-8 border-t border-white/10" />
-
-              {currentUser && (
+              <div className="flex items-center gap-1 shrink-0">
                 <button
                   onClick={() => setIsProfilePanelOpen(true)}
-                  className="w-9 h-9 rounded-xl overflow-hidden ring-2 ring-white/0 hover:ring-white/30 transition-all cursor-pointer"
-                  title="Profile"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition-colors cursor-pointer"
+                  title="Profile settings"
                 >
-                  <img
-                    src={currentUser.photoURL || currentUser.avatar || "https://i.pravatar.cc/80?img=12"}
-                    alt={currentUser.fullName || currentUser.name || 'User'}
-                    className="w-full h-full object-cover"
-                  />
+                  <Settings className="w-3.5 h-3.5" />
                 </button>
-              )}
+                <button
+                  onClick={handleLogout}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                  title="Sign out"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
-          </div>
-        </aside>
+          ) : (
+            <div className="flex flex-col items-center gap-2">
+              <button
+                onClick={() => setIsProfilePanelOpen(true)}
+                className="relative rounded-xl overflow-hidden ring-2 ring-transparent hover:ring-indigo-500 transition-all cursor-pointer"
+                title="Profile settings"
+              >
+                <img
+                  src={currentUser?.photoURL || currentUser?.avatar || "https://i.pravatar.cc/80?img=12"}
+                  alt=""
+                  className="w-9 h-9 rounded-xl object-cover"
+                />
+                <span className="absolute bottom-0 right-0 w-2 h-2 bg-emerald-500 rounded-full ring-1 ring-white" />
+              </button>
+            </div>
+          )}
+        </div>
 
-        {/* ── SECONDARY SIDEBAR (252px) ── */}
-        <aside
-          className={`hidden lg:flex flex-col w-[252px] shrink-0 h-full bg-white border-r border-gray-200 transition-all duration-300 z-30 ${
-            isSecondaryVisible
-              ? 'translate-x-0 opacity-100 shadow-[4px_0_24px_rgb(0_0_0_/_0.06)]'
-              : 'translate-x-[-252px] pointer-events-none opacity-0'
-          }`}
+        {/* ── Collapse/Expand Floating Button ── */}
+        <button
+          onClick={toggleSidebar}
+          className="hidden md:flex items-center justify-center w-6 h-6 bg-white border border-slate-200 rounded-full absolute -right-3 top-20 shadow-md text-slate-400 hover:text-indigo-600 hover:scale-110 active:scale-95 transition-all cursor-pointer z-50"
+          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
-          {/* Header */}
-          <div className="px-4 py-3.5 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-10 shrink-0">
-            <span className="font-semibold text-gray-900 text-sm">{currentDisplayTab}</span>
-            <button
-              onClick={() => navigate('/create-workspace')}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-all cursor-pointer"
-            >
-              <Plus className="w-3 h-3" />
-              Create
-            </button>
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-3 scrollbar-thin">
-            {/* HOME */}
-            {currentDisplayTab === 'Home' && (
-              <div className="space-y-1">
-                <p className="eyebrow px-2 pt-2 pb-1">Inbox</p>
-                {[
-                  { name: 'Inbox', badge: 3, icon: Mail },
-                  { name: 'Assigned Comments', badge: 0, icon: AlertTriangle },
-                ].map(item => (
-                  <button key={item.name} className="w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all text-sm font-medium cursor-pointer">
-                    <div className="flex items-center gap-2.5">
-                      <item.icon className="w-4 h-4 text-gray-400" />
-                      <span>{item.name}</span>
-                    </div>
-                    {item.badge > 0 && (
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">{item.badge}</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* SPACES */}
-            {currentDisplayTab === 'Spaces' && (
-              <div className="space-y-1">
-                <div className="flex items-center justify-between px-2 pt-2 pb-1">
-                  <p className="eyebrow">Workspaces</p>
-                  <button onClick={() => navigate('/create-workspace')} className="p-0.5 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer">
-                    <Plus className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                {workspaces.map(w => (
-                  <div key={w.id}>
-                    <button
-                      onClick={() => toggleWorkspaceAccordion(w.id)}
-                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
-                        w.id === activeWorkspace?.id
-                          ? 'bg-indigo-50 text-indigo-700'
-                          : 'text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2.5 truncate" onClick={(e) => { e.stopPropagation(); handleSelect(w.id); }}>
-                        <WorkspaceLogo workspace={w} size="xs" className="shrink-0" />
-                        <span className="truncate">{w.name}</span>
-                      </div>
-                      <ChevronDown className={`w-3.5 h-3.5 shrink-0 text-gray-400 transition-transform ${expandedWorkspaces[w.id] ? 'rotate-180' : ''}`} />
-                    </button>
-
-                    <AnimatePresence>
-                      {expandedWorkspaces[w.id] && (
-                        <motion.div
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={{ duration: 0.15 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="pl-7 pr-1 py-0.5 space-y-0.5">
-                            {getNestedLists(w.id).map(list => (
-                              <button
-                                key={list.id}
-                                onClick={() => handleSelect(w.id)}
-                                className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs font-medium text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-all cursor-pointer"
-                              >
-                                <span>{list.name}</span>
-                                <span className="text-gray-400 text-[10px]">{list.count}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Other tabs */}
-            {!['Home', 'Spaces'].includes(currentDisplayTab) && (
-              <div className="space-y-1">
-                <p className="eyebrow px-2 pt-2 pb-1">View Options</p>
-                {['Timeline Grid', 'Analytics Reports', 'Archive Folder'].map(item => (
-                  <button key={item} className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-all cursor-pointer">
-                    <Grid className="w-4 h-4 text-gray-400" />
-                    <span>{item}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Footer */}
-          <div className="p-3 border-t border-gray-100 bg-white shrink-0">
-            <button className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-600 text-xs font-medium border border-gray-200 transition-all cursor-pointer">
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              Customize sidebar
-            </button>
-          </div>
-        </aside>
-      </div>
-
-      {/* Collapse toggle */}
-      <button
-        onClick={() => setIsSecondaryCollapsed(!isSecondaryCollapsed)}
-        className="hidden lg:flex items-center justify-center w-6 h-6 bg-white border border-gray-200 rounded-full fixed z-50 top-4 -translate-x-1/2 hover:bg-gray-50 hover:text-indigo-600 transition-all shadow-sm cursor-pointer hover:scale-105 active:scale-95"
-        style={{ left: isSecondaryVisible ? '316px' : '64px' }}
-        aria-label={isSecondaryCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-      >
-        <ChevronRight className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${isSecondaryCollapsed ? '' : 'rotate-180'}`} />
-      </button>
+          <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'}`} />
+        </button>
+      </aside>
 
       {/* ═══════════════════════════════════════════════════════
-          MAIN CONTENT AREA
+          MAIN CONTENT AREA (adjusted padding for new sidebar)
       ═══════════════════════════════════════════════════════ */}
       <div
         className="flex-1 flex flex-col h-full overflow-hidden transition-[padding] duration-300 w-full"
         style={{
-          paddingLeft: typeof window !== 'undefined' && window.innerWidth >= 1024
-            ? (isSecondaryCollapsed ? '64px' : '316px')
-            : typeof window !== 'undefined' && window.innerWidth >= 768
-              ? '64px'
-              : '0px',
+          paddingLeft: typeof window !== 'undefined' && window.innerWidth >= 768
+            ? (isCollapsed ? '68px' : '260px')
+            : '0px',
         }}
       >
         {/* ── TOPBAR ── */}
