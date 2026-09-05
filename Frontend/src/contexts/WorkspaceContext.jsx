@@ -40,13 +40,7 @@ export const WorkspaceProvider = ({ children }) => {
         const found = list.find(w => w.id === storedWorkspace);
         if (found) {
           setActiveWorkspace(found);
-        } else if (list.length > 0) {
-          setActiveWorkspace(list[0]);
-          localStorage.setItem('projectgo_active_workspace', list[0].id);
         }
-      } else if (list.length > 0) {
-        setActiveWorkspace(list[0]);
-        localStorage.setItem('projectgo_active_workspace', list[0].id);
       }
     } catch (error) {
       console.error("Error fetching workspaces from backend:", error);
@@ -128,10 +122,17 @@ export const WorkspaceProvider = ({ children }) => {
     }
   };
 
+  const clearActiveWorkspace = () => {
+    setActiveWorkspace(null);
+    localStorage.removeItem('projectgo_active_workspace');
+  };
+
   const value = {
     workspaces,
     activeWorkspace,
+    setActiveWorkspace,
     selectWorkspace,
+    clearActiveWorkspace,
     createWorkspace,
     updateWorkspace,
     deleteWorkspace,

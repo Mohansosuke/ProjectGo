@@ -23,7 +23,7 @@ import VerifyEmail from '../pages/VerifyEmail';
 const AppRoutes = () => {
   return (
     <Routes>
-      <Route path="/" element={<Landing />} />
+      <Route path="/" element={<Navigate to="/workspaces" replace />} />
 
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<Login />} />

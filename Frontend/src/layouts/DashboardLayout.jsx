@@ -76,7 +76,7 @@ const memberAvatars = {
 
 const DashboardLayout = () => {
   const { currentUser, loading, logout, updateProfile } = useAuth();
-  const { workspaces, activeWorkspace, selectWorkspace, globalSearchQuery, setGlobalSearchQuery, workspacesLoading } = useWorkspace();
+  const { workspaces, activeWorkspace, selectWorkspace, clearActiveWorkspace, globalSearchQuery, setGlobalSearchQuery, workspacesLoading } = useWorkspace();
   const { tasks } = useTask();
   const location = useLocation();
   const navigate = useNavigate();
@@ -84,7 +84,7 @@ const DashboardLayout = () => {
   const path = location.pathname;
 
   /* ─── State ─── */
-  const [activeTab, setActiveTab] = useState('Home');
+  const [activeTab, setActiveTab] = useState('Dashboard');
   const [isSecondaryCollapsed, setIsSecondaryCollapsed] = useState(() =>
     localStorage.getItem('projectgo_sidebar_collapsed') === 'true'
   );
@@ -142,15 +142,28 @@ const DashboardLayout = () => {
     }
   }, [activeWorkspace]);
 
-
+  // Sync workspace when on workspace page; disconnect when leaving workspace pages
+  useEffect(() => {
+    if (params.workspaceId) {
+      const found = workspaces.find(w => w.id === params.workspaceId);
+      if (found && activeWorkspace?.id !== found.id) {
+        selectWorkspace(found.id);
+      }
+    } else if (!path.includes('/workspace/')) {
+      // Leaving workspace - disconnect active workspace so it doesn't follow to next pages
+      if (activeWorkspace) {
+        clearActiveWorkspace?.();
+      }
+    }
+  }, [path, params.workspaceId, workspaces]);
 
   useEffect(() => {
     if (path === '/profile') {
-      setActiveTab('Home');
+      setActiveTab('Dashboard');
       setIsProfilePanelOpen(true);
       navigate('/workspaces', { replace: true });
     } else if (path === '/workspaces') {
-      setActiveTab(location.state?.initialTab || 'Home');
+      setActiveTab(location.state?.initialTab || 'Dashboard');
     } else if (path.includes('/workspace/')) {
       setActiveTab('Spaces');
     }
@@ -173,7 +186,6 @@ const DashboardLayout = () => {
   };
 
   const primaryNavItems = [
-    { id: 'Home', label: 'Home', Icon: Home, route: '/workspaces', badge: null },
     { id: 'Dashboard', label: 'Dashboard', Icon: BarChart3, route: '/workspaces', badge: null },
     { id: 'Spaces', label: 'Spaces', Icon: Layers, route: '/workspaces', badge: workspaces.length },
     { id: 'Planner', label: 'Planner', Icon: CalendarDays, route: '/workspaces', badge: null },
@@ -192,16 +204,15 @@ const DashboardLayout = () => {
     setExpandedWorkspaces(prev => ({ ...prev, [wId]: !prev[wId] }));
   };
 
-  const getBreadcrumbs = () => {
-    if (path === '/workspaces') return [{ label: activeTab }, { label: activeTab === 'Home' ? 'Overview' : activeTab }];
-    if (path.includes('/kanban')) return [{ label: activeWorkspace?.name || 'Workspace' }, { label: 'Sprint Board' }];
-    if (path.includes('/members')) return [{ label: activeWorkspace?.name || 'Workspace' }, { label: 'Team Members' }];
-    if (path.includes('/invite')) return [{ label: activeWorkspace?.name || 'Workspace' }, { label: 'Invite Members' }];
-    if (path.includes('/settings')) return [{ label: activeWorkspace?.name || 'Workspace' }, { label: 'Settings' }];
-    if (path.includes('/task/')) return [{ label: activeWorkspace?.name || 'Workspace' }, { label: 'Tasks' }, { label: (params.taskId || 't1').toUpperCase() }];
-    if (path === '/profile') return [{ label: 'Account' }, { label: 'Profile' }];
-    if (path === '/create-workspace') return [{ label: 'Workspaces' }, { label: 'New Workspace' }];
-    return [{ label: 'Dashboard' }];
+  const getPageTitle = () => {
+    if (path === '/workspaces') return activeTab;
+    if (path === '/create-workspace') return 'New Workspace';
+    if (path === '/profile') return 'Profile';
+    if (path.includes('/members')) return 'Team Members';
+    if (path.includes('/invite')) return 'Invite Members';
+    if (path.includes('/settings')) return 'Workspace Settings';
+    if (path.includes('/task/')) return `Task ${(params.taskId || '').toUpperCase()}`;
+    return 'Dashboard';
   };
 
   const isCollapsed = isSecondaryCollapsed;
@@ -238,7 +249,7 @@ const DashboardLayout = () => {
               </button>
             </div>
           ) : (
-            /* Collapsed Mode: Hover Application Logo to reveal Sidebar Expand Icon */
+            /* Collapsed Mode: Hover Application Logo to reveal Sidebar Expand Icon instead */
             <div className="w-full h-full flex items-center justify-center">
               <button
                 onClick={() => setIsSecondaryCollapsed(false)}
@@ -246,17 +257,19 @@ const DashboardLayout = () => {
                 title="Expand sidebar"
                 aria-label="Expand sidebar"
               >
-                {/* Default state: Unique Application Logo */}
-                <div className="relative w-8.5 h-8.5 rounded-xl bg-gradient-to-br from-violet-600 via-indigo-600 to-indigo-700 shadow-md shadow-indigo-500/25 flex items-center justify-center transition-all duration-200 group-hover:opacity-0 group-hover:scale-75">
-                  <svg viewBox="0 0 24 24" fill="none" className="w-[18px] h-[18px]">
-                    <path d="M5 9L9 12L5 15" stroke="rgba(255,255,255,0.5)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-                    <path d="M11 6L18 12L11 18" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
+                {/* Default state: Unique Application Logo (completely hidden on group hover) */}
+                <div className="flex group-hover:hidden items-center justify-center">
+                  <div className="w-8.5 h-8.5 rounded-xl bg-gradient-to-br from-violet-600 via-indigo-600 to-indigo-700 shadow-md shadow-indigo-500/25 flex items-center justify-center">
+                    <svg viewBox="0 0 24 24" fill="none" className="w-[18px] h-[18px]">
+                      <path d="M5 9L9 12L5 15" stroke="rgba(255,255,255,0.5)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M11 6L18 12L11 18" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
                 </div>
 
-                {/* Hover state: Sidebar Expand/Open Icon */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 scale-75 group-hover:scale-100">
-                  <div className="w-8.5 h-8.5 rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-500/30 flex items-center justify-center">
+                {/* Hover state: Sidebar Expand/Open Icon shown INSTEAD of application logo */}
+                <div className="hidden group-hover:flex items-center justify-center">
+                  <div className="w-8.5 h-8.5 rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-500/30 flex items-center justify-center transition-transform hover:scale-105">
                     <SidebarOpenIcon className="w-4.5 h-4.5" />
                   </div>
                 </div>
@@ -273,7 +286,13 @@ const DashboardLayout = () => {
                 onClick={() => setIsWorkspaceDropdownOpen(prev => !prev)}
                 className="w-full flex items-center gap-2.5 p-1.5 rounded-xl bg-slate-50/80 hover:bg-slate-100/80 border border-slate-200/60 text-left transition-colors cursor-pointer group"
               >
-                <WorkspaceLogo workspace={activeWorkspace} size="xs" className="shrink-0 shadow-xs" />
+                {activeWorkspace ? (
+                  <WorkspaceLogo workspace={activeWorkspace} size="xs" className="shrink-0 shadow-xs" />
+                ) : (
+                  <div className="w-6 h-6 rounded-lg bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                    <Layers className="w-3.5 h-3.5" />
+                  </div>
+                )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">
@@ -281,7 +300,7 @@ const DashboardLayout = () => {
                     </span>
                   </div>
                   <p className="text-[10px] font-medium text-slate-400 capitalize truncate">
-                    {activeWorkspace?.userRole || 'Workspace Space'}
+                    {activeWorkspace ? (activeWorkspace.userRole || 'Workspace Space') : 'Click to select'}
                   </p>
                 </div>
                 <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 group-hover:text-slate-600 transition-transform duration-200 ${isWorkspaceDropdownOpen ? 'rotate-180' : ''}`} />
@@ -585,12 +604,22 @@ const DashboardLayout = () => {
               <Menu className="w-4 h-4" />
             </button>
 
-            {/* Workspace avatar */}
-            <div className="hidden md:flex shrink-0">
-              <WorkspaceLogo workspace={activeWorkspace} size="sm" />
-            </div>
-
-            <Breadcrumb items={getBreadcrumbs()} />
+            {/* Left Topbar Content: Workspace Logo + Name ONLY on Kanban, otherwise Single Page Name Alone */}
+            {path.includes('/kanban') ? (
+              <div className="flex items-center gap-2.5">
+                <WorkspaceLogo workspace={activeWorkspace} size="sm" />
+                <span className="text-sm font-bold text-slate-900 truncate max-w-[200px]">
+                  {activeWorkspace?.name || 'Workspace'}
+                </span>
+                <span className="text-xs text-slate-400 font-medium">/ Sprint Board</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm font-bold text-slate-800 tracking-tight">
+                  {getPageTitle()}
+                </h1>
+              </div>
+            )}
           </div>
 
           {/* Search */}
