@@ -29,6 +29,45 @@ const DocsIcon = ({ className }) => (
   </svg>
 );
 
+/* ─── Sidebar Close / Open SVG Icons ───────────────────────── */
+const SidebarCloseIcon = ({ className = "w-4 h-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect width="18" height="18" x="3" y="3" rx="3" />
+    <path d="M9 3v18" />
+    <path d="m16 15-3-3 3-3" />
+  </svg>
+);
+
+const SidebarOpenIcon = ({ className = "w-4 h-4" }) => (
+  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect width="18" height="18" x="3" y="3" rx="3" />
+    <path d="M9 3v18" />
+    <path d="m13 9 3 3-3 3" />
+  </svg>
+);
+
+/* ─── Unique Application Logo Component ─────────────────────── */
+const ProjectGoAppLogo = ({ size = "md", showWordmark = true }) => (
+  <div className="flex items-center gap-2.5 select-none">
+    <div className={`relative ${size === 'sm' ? 'w-8 h-8' : 'w-8.5 h-8.5'} flex-shrink-0 group`}>
+      <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-violet-600 via-indigo-600 to-indigo-700 shadow-md shadow-indigo-500/25 transition-transform duration-200 group-hover:scale-105" />
+      <div className="absolute inset-0 flex items-center justify-center">
+        <svg viewBox="0 0 24 24" fill="none" className={size === 'sm' ? 'w-4 h-4' : 'w-[18px] h-[18px]'}>
+          <path d="M5 9L9 12L5 15" stroke="rgba(255,255,255,0.5)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M11 6L18 12L11 18" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </div>
+    </div>
+    {showWordmark && (
+      <div className="flex items-baseline gap-0.5 min-w-0">
+        <span className="font-black text-[17px] tracking-tight text-slate-900 leading-none">
+          Project<span className="text-indigo-600">Go</span>
+        </span>
+      </div>
+    )}
+  </div>
+);
+
 const memberAvatars = {
   u1: "https://i.pravatar.cc/80?img=12",
   u2: "https://i.pravatar.cc/80?img=47",
@@ -179,85 +218,130 @@ const DashboardLayout = () => {
           isCollapsed ? 'w-[68px]' : 'w-[260px]'
         }`}
       >
-        {/* ── Top Header / Workspace Switcher ── */}
-        <div className="h-16 px-3.5 border-b border-slate-100 flex items-center justify-between shrink-0 relative">
+        {/* ── Top Header: Unique Application Logo & Sidebar Close/Expand Controls ── */}
+        <div className="h-16 px-3 border-b border-slate-100 flex items-center justify-between shrink-0 relative">
           {!isCollapsed ? (
             <div className="flex items-center justify-between w-full min-w-0">
-              {/* Workspace Switcher Trigger */}
-              <div className="relative flex-1 min-w-0 mr-1">
-                <button
-                  onClick={() => setIsWorkspaceDropdownOpen(prev => !prev)}
-                  className="w-full flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-slate-100/80 text-left transition-colors cursor-pointer group"
-                >
-                  <WorkspaceLogo workspace={activeWorkspace} size="sm" className="shrink-0 shadow-xs" />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">
-                        {activeWorkspace?.name || 'Select Workspace'}
-                      </span>
-                    </div>
-                    <p className="text-[10px] font-medium text-slate-400 capitalize truncate">
-                      {activeWorkspace?.userRole || 'Workspace Space'}
-                    </p>
-                  </div>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0 group-hover:text-slate-600 transition-transform duration-200" />
-                </button>
+              {/* Left: Unique Application Logo */}
+              <Link to="/" className="flex items-center gap-2 group cursor-pointer" title="ProjectGo Home">
+                <ProjectGoAppLogo />
+              </Link>
 
-                {/* Switcher Dropdown */}
-                {isWorkspaceDropdownOpen && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setIsWorkspaceDropdownOpen(false)} />
-                    <div className="absolute left-0 top-full mt-1.5 w-64 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 space-y-1">
-                      <div className="px-2.5 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                        Switch Workspace
-                      </div>
-                      <div className="max-h-48 overflow-y-auto space-y-0.5">
-                        {workspaces.map(w => (
-                          <button
-                            key={w.id}
-                            onClick={() => {
-                              selectWorkspace(w.id);
-                              setIsWorkspaceDropdownOpen(false);
-                            }}
-                            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                              w.id === activeWorkspace?.id
-                                ? 'bg-indigo-50 text-indigo-700 font-bold'
-                                : 'text-slate-700 hover:bg-slate-100'
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 truncate">
-                              <WorkspaceLogo workspace={w} size="xs" className="shrink-0" />
-                              <span className="truncate">{w.name}</span>
-                            </div>
-                            {w.id === activeWorkspace?.id && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
-                          </button>
-                        ))}
-                      </div>
-                      <div className="pt-1.5 border-t border-slate-100">
-                        <button
-                          onClick={() => {
-                            setIsWorkspaceDropdownOpen(false);
-                            navigate('/create-workspace');
-                          }}
-                          className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold text-indigo-600 hover:bg-indigo-50/80 transition-colors cursor-pointer"
-                        >
-                          <PlusCircle className="w-4 h-4 text-indigo-500" />
-                          <span>Create New Workspace</span>
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+              {/* Right: Sidebar Close Icon Button (at the top end of the left sidebar) */}
+              <button
+                onClick={() => setIsSecondaryCollapsed(true)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-slate-100/80 transition-all cursor-pointer shrink-0"
+                title="Collapse sidebar"
+                aria-label="Collapse sidebar"
+              >
+                <SidebarCloseIcon className="w-4 h-4" />
+              </button>
             </div>
           ) : (
-            <div className="w-full flex justify-center">
-              <Link to="/workspaces" className="p-1 rounded-xl hover:bg-slate-100 transition-colors">
-                <WorkspaceLogo workspace={activeWorkspace} size="sm" />
-              </Link>
+            /* Collapsed Mode: Hover Application Logo to reveal Sidebar Expand Icon */
+            <div className="w-full h-full flex items-center justify-center">
+              <button
+                onClick={() => setIsSecondaryCollapsed(false)}
+                className="group relative w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer hover:bg-slate-100/90"
+                title="Expand sidebar"
+                aria-label="Expand sidebar"
+              >
+                {/* Default state: Unique Application Logo */}
+                <div className="relative w-8.5 h-8.5 rounded-xl bg-gradient-to-br from-violet-600 via-indigo-600 to-indigo-700 shadow-md shadow-indigo-500/25 flex items-center justify-center transition-all duration-200 group-hover:opacity-0 group-hover:scale-75">
+                  <svg viewBox="0 0 24 24" fill="none" className="w-[18px] h-[18px]">
+                    <path d="M5 9L9 12L5 15" stroke="rgba(255,255,255,0.5)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M11 6L18 12L11 18" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+
+                {/* Hover state: Sidebar Expand/Open Icon */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-200 scale-75 group-hover:scale-100">
+                  <div className="w-8.5 h-8.5 rounded-xl bg-indigo-600 text-white shadow-md shadow-indigo-500/30 flex items-center justify-center">
+                    <SidebarOpenIcon className="w-4.5 h-4.5" />
+                  </div>
+                </div>
+              </button>
             </div>
           )}
         </div>
+
+        {/* ── Workspace Switcher (Expanded) ── */}
+        {!isCollapsed ? (
+          <div className="px-3 pt-2.5 pb-2 border-b border-slate-100/80">
+            <div className="relative">
+              <button
+                onClick={() => setIsWorkspaceDropdownOpen(prev => !prev)}
+                className="w-full flex items-center gap-2.5 p-1.5 rounded-xl bg-slate-50/80 hover:bg-slate-100/80 border border-slate-200/60 text-left transition-colors cursor-pointer group"
+              >
+                <WorkspaceLogo workspace={activeWorkspace} size="xs" className="shrink-0 shadow-xs" />
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">
+                      {activeWorkspace?.name || 'Select Workspace'}
+                    </span>
+                  </div>
+                  <p className="text-[10px] font-medium text-slate-400 capitalize truncate">
+                    {activeWorkspace?.userRole || 'Workspace Space'}
+                  </p>
+                </div>
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 shrink-0 group-hover:text-slate-600 transition-transform duration-200 ${isWorkspaceDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Switcher Dropdown */}
+              {isWorkspaceDropdownOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsWorkspaceDropdownOpen(false)} />
+                  <div className="absolute left-0 top-full mt-1.5 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 space-y-1">
+                    <div className="px-2.5 py-1.5 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                      Switch Workspace
+                    </div>
+                    <div className="max-h-48 overflow-y-auto space-y-0.5">
+                      {workspaces.map(w => (
+                        <button
+                          key={w.id}
+                          onClick={() => {
+                            selectWorkspace(w.id);
+                            setIsWorkspaceDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                            w.id === activeWorkspace?.id
+                              ? 'bg-indigo-50 text-indigo-700 font-bold'
+                              : 'text-slate-700 hover:bg-slate-100'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <WorkspaceLogo workspace={w} size="xs" className="shrink-0" />
+                            <span className="truncate">{w.name}</span>
+                          </div>
+                          {w.id === activeWorkspace?.id && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="pt-1.5 border-t border-slate-100">
+                      <button
+                        onClick={() => {
+                          setIsWorkspaceDropdownOpen(false);
+                          navigate('/create-workspace');
+                        }}
+                        className="w-full flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs font-bold text-indigo-600 hover:bg-indigo-50/80 transition-colors cursor-pointer"
+                      >
+                        <PlusCircle className="w-4 h-4 text-indigo-500" />
+                        <span>Create New Workspace</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        ) : (
+          /* Workspace in Collapsed mode */
+          <div className="py-2.5 flex justify-center border-b border-slate-100">
+            <Link to="/workspaces" className="p-1 rounded-xl hover:bg-slate-100 transition-colors" title={activeWorkspace?.name || 'Workspaces'}>
+              <WorkspaceLogo workspace={activeWorkspace} size="xs" />
+            </Link>
+          </div>
+        )}
 
         {/* ── Quick Action Button (Expanded) ── */}
         {!isCollapsed && (
@@ -476,14 +560,7 @@ const DashboardLayout = () => {
           )}
         </div>
 
-        {/* ── Collapse/Expand Floating Button ── */}
-        <button
-          onClick={toggleSidebar}
-          className="hidden md:flex items-center justify-center w-6 h-6 bg-white border border-slate-200 rounded-full absolute -right-3 top-20 shadow-md text-slate-400 hover:text-indigo-600 hover:scale-110 active:scale-95 transition-all cursor-pointer z-50"
-          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          <ChevronRight className={`w-3.5 h-3.5 transition-transform duration-200 ${isCollapsed ? '' : 'rotate-180'}`} />
-        </button>
+
       </aside>
 
       {/* ═══════════════════════════════════════════════════════
