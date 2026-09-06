@@ -8,6 +8,19 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(() => {
     try {
+      if (typeof window !== 'undefined') {
+        const urlParams = new URLSearchParams(window.location.search);
+        const userParam = urlParams.get('user');
+        if (userParam) {
+          const parsed = JSON.parse(decodeURIComponent(userParam));
+          localStorage.setItem('projectgo_current_user', JSON.stringify(parsed));
+          urlParams.delete('user');
+          const newSearch = urlParams.toString();
+          const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash;
+          window.history.replaceState({}, '', newUrl);
+          return parsed;
+        }
+      }
       const cached = localStorage.getItem('projectgo_current_user');
       return cached ? JSON.parse(cached) : null;
     } catch {

@@ -29,14 +29,21 @@ router.get(
   })
 );
 
-router.get(
-  '/google/callback',
-  passport.authenticate('google', {
-    session: false,
-    failureRedirect: `${process.env.CLIENT_URL}/login?error=Google auth failed`
-  }),
-  googleCallback
-);
+router.get('/google/callback', (req, res, next) => {
+  passport.authenticate('google', { session: false }, (err, user, info) => {
+    const clientUrl = process.env.CLIENT_URL || 'https://project-go-lilac.vercel.app';
+    if (err) {
+      console.error('Google OAuth Authentication Error:', err);
+      return res.redirect(`${clientUrl}/login?error=${encodeURIComponent(err.message || 'Google authentication failed')}`);
+    }
+    if (!user) {
+      console.error('Google OAuth No User Returned:', info);
+      return res.redirect(`${clientUrl}/login?error=${encodeURIComponent(info?.message || 'Google authentication failed')}`);
+    }
+    req.user = user;
+    return googleCallback(req, res, next);
+  })(req, res, next);
+});
 
 router.post('/signup', signupValidator, validate, signup);
 router.get('/verify/:token', verifyEmail);

@@ -156,7 +156,23 @@ const googleCallback = asyncHandler(async (req, res) => {
     maxAge: 7 * 24 * 60 * 60 * 1000
   });
 
-  res.redirect(`${process.env.CLIENT_URL || 'http://localhost:5173'}/workspaces`);
+  const userData = {
+    uid: req.user._id,
+    id: req.user._id,
+    fullName: req.user.fullName,
+    name: req.user.fullName,
+    email: req.user.email,
+    photoURL: getAbsoluteUrl(req.user.photoURL),
+    bio: req.user.bio || '',
+    phone: req.user.phone || '',
+    nickname: req.user.nickname || '',
+    cover: getAbsoluteUrl(req.user.cover),
+    coverPhoto: getAbsoluteUrl(req.user.coverPhoto)
+  };
+
+  const clientUrl = process.env.CLIENT_URL || 'https://project-go-lilac.vercel.app';
+  const userPayload = encodeURIComponent(JSON.stringify(userData));
+  res.redirect(`${clientUrl}/workspaces?user=${userPayload}`);
 });
 
 const deleteAccount = asyncHandler(async (req, res) => {
