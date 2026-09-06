@@ -47,7 +47,7 @@ export const AuthProvider = ({ children }) => {
         // Fetch users list
         const usersRes = await apiClient.get('/auth/users');
         setUsers(usersRes.data);
-      } catch (error) {
+      } catch (_error) {
         console.log('No active session found.');
         setCurrentUser(null);
       } finally {
@@ -144,7 +144,22 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {loading ? (
+        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-lg shadow-violet-500/30 flex items-center justify-center">
+              <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
+                <path d="M5 9L9 12L5 15" stroke="rgba(255,255,255,0.45)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M11 6L18 12L11 18" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </div>
+            <span className="text-white font-black text-xl tracking-tight">Project<span className="text-violet-400">Go</span></span>
+          </div>
+          <div className="w-6 h-6 border-2 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" />
+        </div>
+      ) : (
+        children
+      )}
     </AuthContext.Provider>
   );
 };

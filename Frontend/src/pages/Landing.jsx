@@ -15,7 +15,7 @@ import Button from '../components/ui/Button';
 /* ─── Animation Variants ─────────────────────────────────── */
 const fadeUp = {
   hidden: { opacity: 0, y: 28 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.65, ease: [0.22, 1, 0.36, 1] } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.65 } },
 };
 const fadeIn = {
   hidden: { opacity: 0 },
@@ -27,7 +27,7 @@ const stagger = {
 };
 
 /* ─── Helpers ─────────────────────────────────────────────── */
-function Section({ id, children, className = '' }) {
+function Section({ id = '', children, className = '' }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: '-72px' });
   return (
@@ -89,7 +89,8 @@ const Logo = ({ variant = 'dark' }) => {
 
 /* ─── Navbar ─────────────────────────────────────────────── */
 function Navbar({ onNavClick, annHeight = 0 }) {
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
+  const user = currentUser;
   const [scrolled, setScrolled] = useState(false);
   const [atHero, setAtHero] = useState(true);
   const [open, setOpen] = useState(false);
@@ -507,7 +508,7 @@ const integrations = [
 ];
 
 /* ─── How-it-works Step ─────────────────────────────────── */
-function WorkStep({ number, title, description, features, icon: Icon, visual, delay = 0, flip = false }) {
+function WorkStep({ number, title, description, features, icon: Icon = Rocket, visual, delay = 0, flip = false }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: '-60px' });
   return (
@@ -585,7 +586,7 @@ function SmallTestimonialCard({ quote, author, role, company, initials, avatarIm
 }
 
 /* ─── Pricing Card ───────────────────────────────────────── */
-function PricingCard({ name, price, period, desc, features, cta, highlight, delay = 0 }) {
+function PricingCard({ name, price, period = '', desc, features, cta, highlight = false, delay = 0 }) {
   return (
     <motion.div
       variants={fadeUp}
@@ -863,7 +864,7 @@ export default function Landing() {
                 src={`https://logo.clearbit.com/${domain}`}
                 alt={name}
                 className="h-7 w-auto object-contain opacity-30 hover:opacity-60 grayscale hover:grayscale-0 transition-all duration-300 cursor-default"
-                onError={e => { e.target.style.display='none'; }}
+                onError={e => { e.currentTarget.style.display = 'none'; }}
               />
             ))}
           </div>
@@ -1241,7 +1242,7 @@ export default function Landing() {
                     <p className="text-slate-400 text-sm">VP of Engineering · Vercel</p>
                   </div>
                   <div className="ml-auto hidden md:block">
-                    <img src="https://logo.clearbit.com/vercel.com" alt="Vercel" className="h-6 opacity-40 grayscale" onError={e => { e.target.style.display='none'; }} />
+                    <img src="https://logo.clearbit.com/vercel.com" alt="Vercel" className="h-6 opacity-40 grayscale" onError={e => { e.currentTarget.style.display = 'none'; }} />
                   </div>
                 </div>
               </div>
