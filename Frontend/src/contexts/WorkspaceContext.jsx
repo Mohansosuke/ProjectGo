@@ -8,17 +8,35 @@ export const useWorkspace = () => useContext(WorkspaceContext);
 
 export const WorkspaceProvider = ({ children }) => {
   const { currentUser } = useAuth();
-  const [workspaces, setWorkspaces] = useState([]);
-  const [activeWorkspace, setActiveWorkspace] = useState(null);
+  const [workspaces, setWorkspaces] = useState(() => {
+    try {
+      const cached = localStorage.getItem('projectgo_workspaces_cache');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [activeWorkspace, setActiveWorkspace] = useState(() => {
+    try {
+      const storedWorkspace = localStorage.getItem('projectgo_active_workspace');
+      const cachedList = localStorage.getItem('projectgo_workspaces_cache');
+      if (storedWorkspace && cachedList) {
+        const list = JSON.parse(cachedList);
+        return list.find(w => w.id === storedWorkspace) || null;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  });
   const [globalSearchQuery, setGlobalSearchQuery] = useState('');
-  const [workspacesLoading, setWorkspacesLoading] = useState(true);
+  const [workspacesLoading, setWorkspacesLoading] = useState(false);
 
   const fetchWorkspaces = async () => {
     if (!currentUser) {
       setWorkspacesLoading(false);
       return;
     }
-    setWorkspacesLoading(true);
     try {
       const pendingInviteToken = localStorage.getItem('pendingInviteToken');
       if (pendingInviteToken) {
@@ -31,9 +49,10 @@ export const WorkspaceProvider = ({ children }) => {
         }
       }
 
-      const response = await apiClient.get('/workspaces');
+      const response = await apiClient.get('/workspaces', { timeout: 6000 });
       const list = Array.isArray(response.data) ? response.data : (response.data?.data || []);
       setWorkspaces(list);
+      localStorage.setItem('projectgo_workspaces_cache', JSON.stringify(list));
 
       const storedWorkspace = localStorage.getItem('projectgo_active_workspace');
       if (storedWorkspace) {

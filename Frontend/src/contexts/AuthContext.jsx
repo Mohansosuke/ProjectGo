@@ -6,9 +6,16 @@ const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const cached = localStorage.getItem('projectgo_current_user');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  });
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const heartbeatRef = useRef(null);
 
   // Send a lightweight presence ping
@@ -37,35 +44,47 @@ export const AuthProvider = ({ children }) => {
     };
   }, [currentUser]);
 
-  // Fetch current user session on mount
+  // Fetch current user session on mount (non-blocking revalidation)
   useEffect(() => {
+    let isMounted = true;
     const fetchMe = async () => {
       try {
-        const response = await apiClient.get('/auth/me');
+        const response = await apiClient.get('/auth/me', { timeout: 4000 });
+        if (!isMounted) return;
         setCurrentUser(response.data);
+        localStorage.setItem('projectgo_current_user', JSON.stringify(response.data));
         
-        // Fetch users list
-        const usersRes = await apiClient.get('/auth/users');
-        setUsers(usersRes.data);
-      } catch (_error) {
-        console.log('No active session found.');
-        setCurrentUser(null);
-      } finally {
-        setLoading(false);
+        // Fetch users list in background
+        apiClient.get('/auth/users', { timeout: 5000 })
+          .then(usersRes => {
+            if (isMounted) setUsers(usersRes.data);
+          })
+          .catch(() => {});
+      } catch (err) {
+        if (!isMounted) return;
+        // If 401 Unauthorized or 403 Forbidden, invalidate cached user
+        if (err?.response?.status === 401 || err?.response?.status === 403) {
+          console.log('No active session found.');
+          setCurrentUser(null);
+          localStorage.removeItem('projectgo_current_user');
+        }
       }
     };
 
     fetchMe();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const login = async (email, password) => {
     try {
       const response = await apiClient.post('/auth/login', { email, password });
       setCurrentUser(response.data);
+      localStorage.setItem('projectgo_current_user', JSON.stringify(response.data));
       
-      // Refresh user list
-      const usersRes = await apiClient.get('/auth/users');
-      setUsers(usersRes.data);
+      // Refresh user list in background
+      apiClient.get('/auth/users').then(usersRes => setUsers(usersRes.data)).catch(() => {});
       
       return response.data;
     } catch (err) {
@@ -74,27 +93,29 @@ export const AuthProvider = ({ children }) => {
   };
 
   const signup = async (name, email, password, confirmPassword) => {
-  try {
-    await apiClient.post('/auth/signup', {
-      fullName: name,
-      email,
-      password,
-      confirmPassword
-    });
+    try {
+      await apiClient.post('/auth/signup', {
+        fullName: name,
+        email,
+        password,
+        confirmPassword
+      });
 
-    return true;
-  } catch (err) {
-    throw new Error(
-      err?.response?.data?.message ||
-      err?.message ||
-      'Signup failed'
-    );
-  }
-};
+      return true;
+    } catch (err) {
+      throw new Error(
+        err?.response?.data?.message ||
+        err?.message ||
+        'Signup failed'
+      );
+    }
+  };
 
- const googleLogin = () => {
-  window.location.href = `${import.meta.env.VITE_API_URL}/api/auth/google`;
-};
+  const googleLogin = () => {
+    const base = import.meta.env.VITE_API_URL || 'https://projectgo-backend.onrender.com';
+    window.location.href = `${base.replace(/\/+$/, '')}/api/auth/google`;
+  };
+
   const logout = async () => {
     try {
       await apiClient.post('/auth/logout');
@@ -103,6 +124,9 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setCurrentUser(null);
       setUsers([]);
+      localStorage.removeItem('projectgo_current_user');
+      localStorage.removeItem('projectgo_active_workspace');
+      localStorage.removeItem('projectgo_workspaces_cache');
     }
   };
 
@@ -119,6 +143,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await apiClient.put('/auth/profile', updates);
       setCurrentUser(response.data);
+      localStorage.setItem('projectgo_current_user', JSON.stringify(response.data));
       
       // Refresh users list
       const usersRes = await apiClient.get('/auth/users');
@@ -144,22 +169,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={value}>
-      {loading ? (
-        <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-lg shadow-violet-500/30 flex items-center justify-center">
-              <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5">
-                <path d="M5 9L9 12L5 15" stroke="rgba(255,255,255,0.45)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M11 6L18 12L11 18" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <span className="text-white font-black text-xl tracking-tight">Project<span className="text-violet-400">Go</span></span>
-          </div>
-          <div className="w-6 h-6 border-2 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" />
-        </div>
-      ) : (
-        children
-      )}
+      {children}
     </AuthContext.Provider>
   );
 };

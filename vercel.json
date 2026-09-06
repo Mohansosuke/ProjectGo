@@ -2,8 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "http://localhost:5000/api/$1"
+      "source": "/api/:path*",
+      "destination": "https://projectgo-backend.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",

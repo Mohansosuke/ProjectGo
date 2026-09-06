@@ -1,13 +1,14 @@
 import axios from 'axios';
 
-const rawApiUrl = (import.meta.env.VITE_API_URL || '').trim().replace(/\/+$/, '');
+const rawApiUrl = (import.meta.env.VITE_API_URL || 'https://projectgo-backend.onrender.com').trim().replace(/\/+$/, '');
 const baseURL = rawApiUrl
   ? (rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`)
-  : (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? '/api' : 'http://localhost:5000/api');
+  : 'https://projectgo-backend.onrender.com/api';
 
 const apiClient = axios.create({
   baseURL,
   withCredentials: true,
+  timeout: 8000,
   headers: {
     'Content-Type': 'application/json'
   }
