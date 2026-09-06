@@ -12,6 +12,7 @@ const callbackURL =
     : 'http://localhost:5000/api/auth/google/callback'
   );
 
+  
 passport.use(
   new GoogleStrategy(
     {
