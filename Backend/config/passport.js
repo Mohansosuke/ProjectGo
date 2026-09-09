@@ -12,23 +12,10 @@ const clientSecret = process.env.GOOGLE_CLIENT_SECRET
 
 const isProduction = process.env.NODE_ENV === 'production' || Boolean(process.env.RENDER);
 
-// Resolve callback URL defensively so production never accidentally inherits a localhost URL from .env
-const resolveCallbackURL = () => {
-  const envUrl = process.env.GOOGLE_CALLBACK_URL
-    ? process.env.GOOGLE_CALLBACK_URL.trim().replace(/\/+$/, '')
-    : '';
-
-  if (isProduction) {
-    if (!envUrl || envUrl.includes('localhost') || envUrl.includes('127.0.0.1')) {
-      return 'https://projectgo-backend.onrender.com/api/auth/google/callback';
-    }
-    return envUrl;
-  }
-
-  return envUrl || 'http://localhost:5000/api/auth/google/callback';
-};
-
-const callbackURL = resolveCallbackURL();
+// In production / Render, strictly use the registered production callback URL to prevent any misconfiguration
+const callbackURL = isProduction
+  ? 'https://projectgo-backend.onrender.com/api/auth/google/callback'
+  : (process.env.GOOGLE_CALLBACK_URL ? process.env.GOOGLE_CALLBACK_URL.trim().replace(/\/+$/, '') : 'http://localhost:5000/api/auth/google/callback');
 
 // Safe temporary diagnostic logging (DO NOT log client secret, tokens, JWT, passwords)
 console.log('[Google OAuth Strategy Init]', {
