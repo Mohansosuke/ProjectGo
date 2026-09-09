@@ -21,6 +21,9 @@ const validate = require('../middleware/validateMiddleware');
 const { signupValidator, loginValidator, forgotPasswordValidator, resetPasswordValidator } = require('../validators/authValidator');
 
 
+// In-memory set to guard against duplicate callback redemption causing invalid_grant
+const processedCodes = new Set();
+
 router.get(
   '/google',
   passport.authenticate('google', {
@@ -30,6 +33,33 @@ router.get(
 );
 
 router.get('/google/callback', (req, res, next) => {
+  const code = req.query && typeof req.query.code === 'string' ? req.query.code : null;
+
+  // Safe temporary diagnostic logging (DO NOT log secret, code, tokens, JWT, passwords)
+  console.log('[Google OAuth Callback Invoked]', {
+    NODE_ENV: process.env.NODE_ENV || 'undefined',
+    configuredCallbackURL: passport.googleCallbackURL || 'https://projectgo-backend.onrender.com/api/auth/google/callback',
+    hasGoogleClientId: Boolean(process.env.GOOGLE_CLIENT_ID),
+    hasGoogleClientSecret: Boolean(process.env.GOOGLE_CLIENT_SECRET),
+    hasCodeParam: Boolean(code),
+    isDuplicateAttempt: code ? processedCodes.has(code) : false
+  });
+
+  // Guard against duplicate callback executions (e.g. browser double-fetch, extension prefetch, or page refresh)
+  if (code && processedCodes.has(code)) {
+    console.warn('[Google OAuth Callback] Duplicate code exchange detected. Preventing re-exchange to avoid invalid_grant.');
+    const clientUrl = process.env.CLIENT_URL || 'https://project-go-lilac.vercel.app';
+    return res.redirect(`${clientUrl}/login?error=${encodeURIComponent('Login session already processed. Please sign in again.')}`);
+  }
+
+  if (code) {
+    processedCodes.add(code);
+    // Keep in set for 60 seconds to prevent double exchange, then clean up memory
+    setTimeout(() => {
+      processedCodes.delete(code);
+    }, 60000);
+  }
+
   passport.authenticate('google', { session: false }, (err, user, info) => {
     const clientUrl = process.env.CLIENT_URL || 'https://project-go-lilac.vercel.app';
     if (err) {

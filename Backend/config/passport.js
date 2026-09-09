@@ -1,18 +1,44 @@
+require('dotenv').config();
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const User = require('../models/User');
 
-const clientID = process.env.GOOGLE_CLIENT_ID;
-const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+const clientID = process.env.GOOGLE_CLIENT_ID
+  ? process.env.GOOGLE_CLIENT_ID.trim().replace(/^["']|["']$/g, '')
+  : undefined;
+const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+  ? process.env.GOOGLE_CLIENT_SECRET.trim().replace(/^["']|["']$/g, '')
+  : undefined;
 
-const callbackURL =
-  process.env.GOOGLE_CALLBACK_URL ||
-  (process.env.NODE_ENV === 'production' || process.env.RENDER
-    ? 'https://projectgo-backend.onrender.com/api/auth/google/callback'
-    : 'http://localhost:5000/api/auth/google/callback'
-  );
+const isProduction = process.env.NODE_ENV === 'production' || Boolean(process.env.RENDER);
 
-  
+// Resolve callback URL defensively so production never accidentally inherits a localhost URL from .env
+const resolveCallbackURL = () => {
+  const envUrl = process.env.GOOGLE_CALLBACK_URL
+    ? process.env.GOOGLE_CALLBACK_URL.trim().replace(/\/+$/, '')
+    : '';
+
+  if (isProduction) {
+    if (!envUrl || envUrl.includes('localhost') || envUrl.includes('127.0.0.1')) {
+      return 'https://projectgo-backend.onrender.com/api/auth/google/callback';
+    }
+    return envUrl;
+  }
+
+  return envUrl || 'http://localhost:5000/api/auth/google/callback';
+};
+
+const callbackURL = resolveCallbackURL();
+
+// Safe temporary diagnostic logging (DO NOT log client secret, tokens, JWT, passwords)
+console.log('[Google OAuth Strategy Init]', {
+  NODE_ENV: process.env.NODE_ENV || 'undefined',
+  isRender: Boolean(process.env.RENDER),
+  configuredCallbackURL: callbackURL,
+  hasGoogleClientId: Boolean(clientID),
+  hasGoogleClientSecret: Boolean(clientSecret)
+});
+
 passport.use(
   new GoogleStrategy(
     {
@@ -76,4 +102,5 @@ passport.deserializeUser(async (id, done) => {
   }
 });
 
+passport.googleCallbackURL = callbackURL;
 module.exports = passport;
