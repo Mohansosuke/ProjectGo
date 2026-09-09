@@ -91,6 +91,15 @@ app.get('/', (req, res) => {
 const errorHandler = require('./middleware/errorMiddleware');
 app.use(errorHandler);
 
+// Safety logging for uncaught process errors
+process.on('uncaughtException', (err) => {
+  console.error('[Process Uncaught Exception]:', err.name, err.message, err.stack);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[Process Unhandled Rejection]:', reason);
+});
+
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);

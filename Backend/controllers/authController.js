@@ -5,7 +5,7 @@ const ApiResponse = require('../utils/ApiResponse');
 const asyncHandler = require('../utils/asyncHandler');
 
 const generateToken = require('../utils/generateToken');
-const isProduction = process.env.NODE_ENV === 'production';
+const isProduction = process.env.NODE_ENV === 'production' || Boolean(process.env.RENDER);
 
 const getAbsoluteUrl = (pathStr) => {
   if (!pathStr) return '';
@@ -17,7 +17,7 @@ const getAbsoluteUrl = (pathStr) => {
     return pathStr;
   }
   // Legacy: relative file path stored before base64-in-DB fix
-  return `${process.env.SERVER_URL}${pathStr}`;
+  return `${process.env.SERVER_URL || 'http://localhost:5000'}${pathStr}`;
 };
 
 const signup = asyncHandler(async (req, res) => {
@@ -136,6 +136,8 @@ const getMe = asyncHandler(async (req, res) => {
 });
 
 const googleCallback = asyncHandler(async (req, res) => {
+  console.log('GOOGLE CALLBACK CONTROLLER ENTERED');
+
   if (!req.user) {
     throw new ApiError(401, 'Google authentication failed');
   }
@@ -148,6 +150,7 @@ const googleCallback = asyncHandler(async (req, res) => {
   }
 
   const token = generateToken(req.user._id);
+  console.log('JWT GENERATED');
 
   res.cookie('token', token, {
     httpOnly: true,
@@ -155,24 +158,37 @@ const googleCallback = asyncHandler(async (req, res) => {
     sameSite: isProduction ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000
   });
+  console.log('COOKIE CONFIGURED');
+
+  // Sanitize photoURL: Never put raw base64 data URIs into redirect query parameters to avoid 502 Bad Gateway (header buffer overflow in Envoy/Cloudflare)
+  const safePhoto = (req.user.photoURL && !req.user.photoURL.startsWith('data:'))
+    ? getAbsoluteUrl(req.user.photoURL)
+    : '';
 
   const userData = {
-    uid: req.user._id,
-    id: req.user._id,
-    fullName: req.user.fullName,
-    name: req.user.fullName,
-    email: req.user.email,
-    photoURL: getAbsoluteUrl(req.user.photoURL),
+    uid: String(req.user._id),
+    id: String(req.user._id),
+    fullName: req.user.fullName || '',
+    name: req.user.fullName || '',
+    email: req.user.email || '',
+    photoURL: safePhoto,
     bio: req.user.bio || '',
     phone: req.user.phone || '',
-    nickname: req.user.nickname || '',
-    cover: getAbsoluteUrl(req.user.cover),
-    coverPhoto: getAbsoluteUrl(req.user.coverPhoto)
+    nickname: req.user.nickname || ''
   };
 
-  const clientUrl = process.env.CLIENT_URL || 'https://project-go-lilac.vercel.app';
+  const clientUrl = (process.env.CLIENT_URL || 'https://project-go-lilac.vercel.app').replace(/\/+$/, '');
   const userPayload = encodeURIComponent(JSON.stringify(userData));
-  res.redirect(`${clientUrl}/workspaces?user=${userPayload}`);
+  const redirectUrl = `${clientUrl}/workspaces?user=${userPayload}`;
+
+  console.log('FINAL REDIRECT URL:', redirectUrl.split('?')[0]);
+
+  if (!res.headersSent) {
+    res.redirect(redirectUrl);
+    console.log('REDIRECT SENT');
+  } else {
+    console.warn('[Google OAuth Callback] Headers already sent, redirect skipped.');
+  }
 });
 
 const deleteAccount = asyncHandler(async (req, res) => {

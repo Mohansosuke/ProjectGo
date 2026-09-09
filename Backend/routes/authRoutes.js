@@ -34,6 +34,7 @@ router.get(
 );
 
 router.get('/google/callback', (req, res, next) => {
+  console.log('GOOGLE CALLBACK ROUTE ENTERED');
   const code = req.query && typeof req.query.code === 'string' ? req.query.code : null;
 
   // Safe temporary diagnostic logging: Log when callback route starts (NO codes, secrets, tokens, passwords)
@@ -98,6 +99,7 @@ router.get('/google/callback', (req, res, next) => {
         }
 
         // Safe temporary diagnostic logging: Log when Passport authentication succeeds
+        console.log('PASSPORT AUTH SUCCESS');
         console.log('[Google OAuth Callback Succeeded]', {
           userId: user._id ? String(user._id) : undefined
         });
