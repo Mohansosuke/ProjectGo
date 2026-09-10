@@ -41,6 +41,102 @@ const STATUS_CONFIG = {
   BACKLOG: { label: 'Backlog', color: 'bg-gray-100 text-gray-500 border border-gray-200' },
 };
 
+// 6 Random / Curated aesthetic colors for Todo tasks and pipe indicators
+export const TODO_PALETTE = [
+  {
+    id: 'indigo',
+    name: 'Electric Indigo',
+    bg: 'bg-indigo-500',
+    lightBg: 'bg-indigo-50/90 hover:bg-indigo-100/90',
+    border: 'border-indigo-200/90',
+    text: 'text-indigo-900',
+    pipe: 'bg-indigo-500',
+    dot: 'bg-indigo-500',
+    ring: 'ring-indigo-400',
+    badge: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+    hex: '#6366f1'
+  },
+  {
+    id: 'emerald',
+    name: 'Emerald Mint',
+    bg: 'bg-emerald-500',
+    lightBg: 'bg-emerald-50/90 hover:bg-emerald-100/90',
+    border: 'border-emerald-200/90',
+    text: 'text-emerald-900',
+    pipe: 'bg-emerald-500',
+    dot: 'bg-emerald-500',
+    ring: 'ring-emerald-400',
+    badge: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    hex: '#10b981'
+  },
+  {
+    id: 'violet',
+    name: 'Royal Violet',
+    bg: 'bg-violet-500',
+    lightBg: 'bg-violet-50/90 hover:bg-violet-100/90',
+    border: 'border-violet-200/90',
+    text: 'text-violet-900',
+    pipe: 'bg-violet-500',
+    dot: 'bg-violet-500',
+    ring: 'ring-violet-400',
+    badge: 'bg-violet-100 text-violet-800 border-violet-200',
+    hex: '#8b5cf6'
+  },
+  {
+    id: 'amber',
+    name: 'Sunset Amber',
+    bg: 'bg-amber-500',
+    lightBg: 'bg-amber-50/90 hover:bg-amber-100/90',
+    border: 'border-amber-200/90',
+    text: 'text-amber-950',
+    pipe: 'bg-amber-500',
+    dot: 'bg-amber-500',
+    ring: 'ring-amber-400',
+    badge: 'bg-amber-100 text-amber-900 border-amber-200',
+    hex: '#f59e0b'
+  },
+  {
+    id: 'rose',
+    name: 'Crimson Rose',
+    bg: 'bg-rose-500',
+    lightBg: 'bg-rose-50/90 hover:bg-rose-100/90',
+    border: 'border-rose-200/90',
+    text: 'text-rose-900',
+    pipe: 'bg-rose-500',
+    dot: 'bg-rose-500',
+    ring: 'ring-rose-400',
+    badge: 'bg-rose-100 text-rose-800 border-rose-200',
+    hex: '#f43f5e'
+  },
+  {
+    id: 'cyan',
+    name: 'Ocean Cyan',
+    bg: 'bg-cyan-500',
+    lightBg: 'bg-cyan-50/90 hover:bg-cyan-100/90',
+    border: 'border-cyan-200/90',
+    text: 'text-cyan-950',
+    pipe: 'bg-cyan-500',
+    dot: 'bg-cyan-500',
+    ring: 'ring-cyan-400',
+    badge: 'bg-cyan-100 text-cyan-900 border-cyan-200',
+    hex: '#06b6d4'
+  }
+];
+
+export const getTodoColor = (todo) => {
+  if (todo?.color) {
+    const found = TODO_PALETTE.find(c => c.id === todo.color);
+    if (found) return found;
+  }
+  const str = String(todo?.id || todo?.title || 'task');
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+  }
+  const idx = Math.abs(hash) % TODO_PALETTE.length;
+  return TODO_PALETTE[idx];
+};
+
 const formatLastSeen = (lastSeen) => {
   if (!lastSeen) return 'Never';
   const diffMs = Date.now() - new Date(lastSeen).getTime();
@@ -176,6 +272,7 @@ const WorkspaceView = () => {
   const [todoFromDate, setTodoFromDate] = useState('');
   const [todoToDate, setTodoToDate] = useState('');
   const [todoPriority, setTodoPriority] = useState('MEDIUM');
+  const [todoColor, setTodoColor] = useState('indigo');
   const [todoDescription, setTodoDescription] = useState('');
   const [selectedCalendarTask, setSelectedCalendarTask] = useState(null); // { taskId, workspaceId }
   const [selectedTodo, setSelectedTodo] = useState(null); // todo object for floating modal
@@ -472,6 +569,7 @@ const WorkspaceView = () => {
       fromDate: from,
       toDate: to,
       priority: todoPriority || 'MEDIUM',
+      color: todoColor || TODO_PALETTE[Math.floor(Math.random() * TODO_PALETTE.length)].id,
       completed: false,
       createdAt: new Date().toISOString()
     };
@@ -735,12 +833,19 @@ const WorkspaceView = () => {
                     </AnimatePresence>
                   </div>
 
+                  {/* Total Todo Counter Pill */}
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100/90 text-slate-700 text-xs font-bold border border-slate-200/60 shadow-xs">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>{plannerTodos.length} Todo Tasks</span>
+                  </div>
+
                   {/* Todo Task Button */}
                   <button
                     onClick={() => {
                       const todayStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
                       setTodoFromDate(todayStr);
                       setTodoToDate(todayStr);
+                      setTodoColor(TODO_PALETTE[plannerTodos.length % TODO_PALETTE.length].id);
                       setShowTodoModal(true);
                     }}
                     className="h-9 px-3.5 bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-bold rounded-xl shadow-sm shadow-indigo-500/20 hover:shadow-indigo-500/30 flex items-center gap-1.5 transition-all cursor-pointer"
@@ -764,35 +869,34 @@ const WorkspaceView = () => {
                   ))}
                 </div>
 
-                {/* Calendar Full Month Cells Grid */}
+                {/* Calendar Full Month Cells Grid - SHOWING ONLY TODO TASKS WITH MULTI-DAY PIPE INDICATORS */}
                 <div className="grid grid-cols-7">
                   {calendarCells.map((cell) => {
-                    // Pending workspace tasks (due on cell date & not completed)
-                    const dayPendingTasks = plannerTasks.filter(t => {
-                      const d = t.dueDate ? (t.dueDate.length >= 10 ? t.dueDate.slice(0, 10) : t.dueDate) : '';
-                      return d === cell.dateStr && t.status !== 'COMPLETED' && t.status !== 'DONE';
-                    });
-
-                    // Decoupled planner todos active on this date range
+                    // Decoupled planner todos active on this date range (NO workspace tasks)
                     const dayTodos = plannerTodos.filter(todo => {
                       const from = todo.fromDate;
                       const to = todo.toDate || todo.fromDate;
                       return cell.dateStr >= from && cell.dateStr <= to;
                     });
 
-                    const totalItems = dayPendingTasks.length + dayTodos.length;
+                    // Stable sort so multi-day bars line up at the same vertical slot across cells
+                    const sortedDayTodos = [...dayTodos].sort((a, b) => {
+                      const cmp = (a.fromDate || '').localeCompare(b.fromDate || '');
+                      if (cmp !== 0) return cmp;
+                      return (a.id || '').localeCompare(b.id || '');
+                    });
 
                     return (
                       <div
                         key={cell.dateStr}
-                        className={`min-h-[110px] p-2 border-b border-r border-slate-100 flex flex-col justify-between transition-all group relative ${
+                        className={`min-h-[110px] p-1.5 border-b border-r border-slate-100 flex flex-col justify-between transition-all group relative ${
                           cell.isCurrentMonth
                             ? (cell.isToday ? 'bg-indigo-50/20' : 'bg-white hover:bg-slate-50/60')
                             : 'bg-slate-50/35 text-slate-300'
                         }`}
                       >
                         {/* Day Header Inside Cell */}
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between px-1 mb-1">
                           <span className={`text-[11px] font-black w-6 h-6 flex items-center justify-center rounded-full transition-colors ${
                             cell.isToday
                               ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/30'
@@ -808,6 +912,7 @@ const WorkspaceView = () => {
                             onClick={() => {
                               setTodoFromDate(cell.dateStr);
                               setTodoToDate(cell.dateStr);
+                              setTodoColor(TODO_PALETTE[plannerTodos.length % TODO_PALETTE.length].id);
                               setShowTodoModal(true);
                             }}
                             className="w-5 h-5 rounded-md hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
@@ -817,64 +922,81 @@ const WorkspaceView = () => {
                           </button>
                         </div>
 
-                        {/* Tasks & Todos List for the Day */}
-                        <div className="space-y-1 my-1 flex-1 overflow-hidden">
-                          {/* Pending Workspace Tasks */}
-                          {dayPendingTasks.slice(0, 2).map(task => {
-                            const pc = PRIORITY_CONFIG[getTaskPriorityKey(task.priority)];
-                            return (
-                              <div
-                                key={task.id || task._id}
-                                onClick={() => {
-                                  setSelectedCalendarTask({
-                                    taskId: task.id || task._id,
-                                    workspaceId: task.workspaceId || activeWorkspace?.id
-                                  });
-                                }}
-                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-lg truncate cursor-pointer transition-all hover:scale-[1.02] flex items-center gap-1 ${
-                                  pc ? `border ${pc.chip}` : 'bg-violet-50 text-violet-700 border border-violet-100'
-                                }`}
-                                title={`[Pending Task] ${task.title}`}
-                              >
-                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pc?.dot || 'bg-indigo-500'}`} />
-                                <span className="truncate">{task.title}</span>
-                              </div>
-                            );
-                          })}
+                        {/* Only Todo Tasks rendered with multi-day pipe indicator lines with gap */}
+                        <div className="space-y-1 my-0.5 flex-1 overflow-hidden">
+                          {sortedDayTodos.slice(0, 3).map(todo => {
+                            const fromDate = todo.fromDate;
+                            const toDate = todo.toDate || todo.fromDate;
+                            const isStart = cell.dateStr === fromDate;
+                            const isEnd = cell.dateStr === toDate;
+                            const isSingle = isStart && isEnd;
+                            const cellDate = new Date(cell.dateStr + 'T00:00:00');
+                            const cellDayOfWeek = cellDate.getDay();
+                            const isRowStart = cellDayOfWeek === 0 && !isStart;
+                            const isRowEnd = cellDayOfWeek === 6 && !isEnd;
+                            const colorObj = getTodoColor(todo);
 
-                          {/* Decoupled Todo Tasks */}
-                          {dayTodos.slice(0, 2).map(todo => {
-                            const pc = PRIORITY_CONFIG[getTaskPriorityKey(todo.priority)];
                             return (
                               <div
                                 key={todo.id}
                                 onClick={() => setSelectedTodo(todo)}
-                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-lg truncate cursor-pointer transition-all hover:scale-[1.02] flex items-center gap-1 ${
-                                  todo.completed
-                                    ? 'bg-slate-100 text-slate-400 line-through border border-slate-200'
-                                    : 'bg-emerald-50 text-emerald-800 border border-emerald-200/80 shadow-2xs'
+                                className={`group/bar relative text-[10px] font-bold py-1 px-1.5 cursor-pointer transition-all hover:brightness-95 flex flex-col justify-between select-none ${
+                                  colorObj.lightBg
+                                } ${colorObj.text} ${colorObj.border} ${
+                                  todo.completed ? 'opacity-60 line-through' : ''
+                                } ${
+                                  isSingle
+                                    ? 'rounded-lg border mx-1 my-0.5 shadow-2xs'
+                                    : isStart
+                                      ? 'rounded-l-lg border-y border-l ml-1 mr-0 my-0.5 shadow-2xs'
+                                      : isEnd
+                                        ? 'rounded-r-lg border-y border-r mr-1 ml-0 my-0.5 shadow-2xs'
+                                        : (isRowStart && !isEnd)
+                                          ? 'rounded-l-lg border-y border-l ml-1 mr-0 my-0.5 shadow-2xs'
+                                          : (isRowEnd && !isStart)
+                                            ? 'rounded-r-lg border-y border-r mr-1 ml-0 my-0.5 shadow-2xs'
+                                            : 'rounded-none border-y mx-0 my-0.5 border-x-0'
                                 }`}
-                                title={`[Todo Task] ${todo.title}${todo.completed ? ' (Completed)' : ''}`}
+                                title={`${todo.title} (${fromDate} → ${toDate})`}
                               >
-                                <Check className={`w-2.5 h-2.5 shrink-0 ${todo.completed ? 'text-slate-400' : 'text-emerald-600'}`} />
-                                <span className="truncate">{todo.title}</span>
+                                {/* Top: Title on start date or row start or single date */}
+                                <div className="flex items-center gap-1 min-w-0 h-3.5">
+                                  {(isStart || isSingle || isRowStart) ? (
+                                    <>
+                                      <span className={`w-1.5 h-1.5 rounded-full ${colorObj.dot} shrink-0`} />
+                                      <span className="truncate leading-tight font-extrabold">{todo.title}</span>
+                                    </>
+                                  ) : (
+                                    <span className="text-[8px] font-mono tracking-widest opacity-40 select-none pl-0.5 leading-none">
+                                      •••••
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Bottom: The continuous pipe / line indicator drawn with gap */}
+                                <div className="w-full pt-0.5">
+                                  <div
+                                    className={`h-1 w-full ${colorObj.pipe} ${
+                                      isSingle
+                                        ? 'rounded-full'
+                                        : isStart || isRowStart
+                                          ? 'rounded-l-full'
+                                          : isEnd || isRowEnd
+                                            ? 'rounded-r-full'
+                                            : 'rounded-none'
+                                    }`}
+                                  />
+                                </div>
                               </div>
                             );
                           })}
 
-                          {totalItems > 4 && (
+                          {sortedDayTodos.length > 3 && (
                             <div className="text-[9px] text-slate-400 font-bold px-1">
-                              +{totalItems - 4} more
+                              +{sortedDayTodos.length - 3} more
                             </div>
                           )}
                         </div>
-
-                        {/* Workspace indicator if multiple workspaces */}
-                        {dayPendingTasks.length > 0 && !plannerWorkspaceFilter && (
-                          <div className="flex items-center gap-1 text-[9px] text-slate-400 font-medium truncate">
-                            <span className="truncate">{workspaces.find(w => w.id === dayPendingTasks[0].workspaceId)?.name}</span>
-                          </div>
-                        )}
                       </div>
                     );
                   })}
@@ -955,6 +1077,26 @@ const WorkspaceView = () => {
                           </div>
                         </div>
 
+                        {/* 6 Random / Curated Color Selection */}
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1.5">Task Color Theme (6 Options)</label>
+                          <div className="flex items-center gap-2">
+                            {TODO_PALETTE.map((pal) => (
+                              <button
+                                key={pal.id}
+                                type="button"
+                                onClick={() => setTodoColor(pal.id)}
+                                className={`w-7 h-7 rounded-full transition-all cursor-pointer flex items-center justify-center ${pal.bg} ${
+                                  todoColor === pal.id ? 'ring-3 ring-offset-2 ring-indigo-500 scale-110 shadow-sm' : 'hover:scale-105 opacity-80 hover:opacity-100'
+                                }`}
+                                title={pal.name}
+                              >
+                                {todoColor === pal.id && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
                         <div>
                           <label className="text-xs font-bold text-slate-700 block mb-1">Priority</label>
                           <select
@@ -1004,79 +1146,85 @@ const WorkspaceView = () => {
 
               {/* Floating Todo Task View Modal */}
               <AnimatePresence>
-                {selectedTodo && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      onClick={() => setSelectedTodo(null)}
-                      className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs"
-                    />
-                    <motion.div
-                      initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                      className="relative w-full max-w-lg bg-white border border-slate-200 rounded-3xl shadow-2xl z-50 p-6 space-y-4"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                        <div className="flex items-center gap-2">
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            Todo Task
-                          </span>
-                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wide ${PRIORITY_CONFIG[getTaskPriorityKey(selectedTodo.priority)]?.chip || 'bg-slate-100 text-slate-600'}`}>
-                            {selectedTodo.priority}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => setSelectedTodo(null)}
-                          className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer"
-                        >
-                          ✕
-                        </button>
-                      </div>
-
-                      <div className="space-y-3">
-                        <div className="flex items-start gap-3">
+                {selectedTodo && (() => {
+                  const colorObj = getTodoColor(selectedTodo);
+                  return (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setSelectedTodo(null)}
+                        className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs"
+                      />
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                        className="relative w-full max-w-lg bg-white border border-slate-200 rounded-3xl shadow-2xl z-50 p-6 space-y-4"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wide border flex items-center gap-1.5 ${colorObj.badge}`}>
+                              <span className={`w-2 h-2 rounded-full ${colorObj.dot}`} />
+                              <span>{colorObj.name}</span>
+                            </span>
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wide ${PRIORITY_CONFIG[getTaskPriorityKey(selectedTodo.priority)]?.chip || 'bg-slate-100 text-slate-600'}`}>
+                              {selectedTodo.priority}
+                            </span>
+                          </div>
                           <button
-                            onClick={() => {
-                              setPlannerTodos(prev => prev.map(item => item.id === selectedTodo.id ? { ...item, completed: !item.completed } : item));
-                              setSelectedTodo(prev => prev ? { ...prev, completed: !prev.completed } : null);
-                            }}
-                            className={`mt-0.5 w-6 h-6 rounded-lg border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
-                              selectedTodo.completed
-                                ? 'bg-emerald-600 border-emerald-600 text-white'
-                                : 'border-slate-300 hover:border-indigo-600 text-transparent'
-                            }`}
-                            title={selectedTodo.completed ? 'Mark pending' : 'Mark completed'}
+                            onClick={() => setSelectedTodo(null)}
+                            className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer"
                           >
-                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                            ✕
                           </button>
-                          <div className="flex-1">
-                            <h2 className={`text-base font-bold text-slate-900 ${selectedTodo.completed ? 'line-through text-slate-400' : ''}`}>
-                              {selectedTodo.title}
-                            </h2>
-                            <p className="text-xs text-slate-500 mt-0.5">
-                              {selectedTodo.completed ? 'Status: Completed' : 'Status: In Progress / Pending'}
-                            </p>
-                          </div>
                         </div>
 
-                        <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 space-y-2">
-                          <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-                            <CalendarRange className="w-4 h-4 text-indigo-600 shrink-0" />
-                            <span>From: <strong className="text-slate-800">{selectedTodo.fromDate}</strong></span>
-                            <span className="text-slate-300">→</span>
-                            <span>To: <strong className="text-slate-800">{selectedTodo.toDate || selectedTodo.fromDate}</strong></span>
-                          </div>
-                          {selectedTodo.description && (
-                            <div className="pt-2 border-t border-slate-200/60 text-xs text-slate-600 font-medium whitespace-pre-wrap">
-                              {selectedTodo.description}
+                        <div className="space-y-3">
+                          {/* Pipe indicator banner */}
+                          <div className={`h-1.5 w-full rounded-full ${colorObj.pipe}`} />
+
+                          <div className="flex items-start gap-3">
+                            <button
+                              onClick={() => {
+                                setPlannerTodos(prev => prev.map(item => item.id === selectedTodo.id ? { ...item, completed: !item.completed } : item));
+                                setSelectedTodo(prev => prev ? { ...prev, completed: !prev.completed } : null);
+                              }}
+                              className={`mt-0.5 w-6 h-6 rounded-lg border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                                selectedTodo.completed
+                                  ? 'bg-emerald-600 border-emerald-600 text-white'
+                                  : 'border-slate-300 hover:border-indigo-600 text-transparent'
+                              }`}
+                              title={selectedTodo.completed ? 'Mark pending' : 'Mark completed'}
+                            >
+                              <Check className="w-3.5 h-3.5 stroke-[3]" />
+                            </button>
+                            <div className="flex-1">
+                              <h2 className={`text-base font-bold text-slate-900 ${selectedTodo.completed ? 'line-through text-slate-400' : ''}`}>
+                                {selectedTodo.title}
+                              </h2>
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                {selectedTodo.completed ? 'Status: Completed' : 'Status: In Progress / Pending'}
+                              </p>
                             </div>
-                          )}
+                          </div>
+
+                          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 space-y-2">
+                            <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                              <CalendarRange className="w-4 h-4 text-indigo-600 shrink-0" />
+                              <span>From: <strong className="text-slate-800">{selectedTodo.fromDate}</strong></span>
+                              <span className="text-slate-300">→</span>
+                              <span>To: <strong className="text-slate-800">{selectedTodo.toDate || selectedTodo.fromDate}</strong></span>
+                            </div>
+                            {selectedTodo.description && (
+                              <div className="pt-2 border-t border-slate-200/60 text-xs text-slate-600 font-medium whitespace-pre-wrap">
+                                {selectedTodo.description}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
 
                       <div className="pt-2 flex items-center justify-between border-t border-slate-100">
                         <button
@@ -1117,7 +1265,8 @@ const WorkspaceView = () => {
                       </div>
                     </motion.div>
                   </div>
-                )}
+                );
+              })()}
               </AnimatePresence>
 
               {/* Floating Workspace Task View Modal */}
