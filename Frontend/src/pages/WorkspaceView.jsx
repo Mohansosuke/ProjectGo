@@ -10,8 +10,9 @@ import {
   Check, Circle, AlertCircle, BookOpen, Hash, ExternalLink,
   MoreHorizontal, Layers, Globe, Lock, UserPlus, Flame,
   CheckCircle2, PlayCircle, AlertOctagon, ArrowUpRight,
-  Filter, CheckCheck, RefreshCw
+  Filter, CheckCheck, RefreshCw, Trash2, CalendarRange, X
 } from 'lucide-react';
+import TaskView from './TaskView';
 import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useTask } from '../contexts/TaskContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -166,16 +167,36 @@ const WorkspaceView = () => {
   const [appliedTeamFilter, setAppliedTeamFilter] = useState(null); // { type: 'workspace'|'member', id, label }
   const [filterWorkspaceMembers, setFilterWorkspaceMembers] = useState(null); // members for filtered workspace
 
-  // Planner Calendar & Todo Task state
+  // Planner Calendar & Decoupled Todo Task state
   const [calendarDate, setCalendarDate] = useState(() => new Date());
   const [plannerWorkspaceFilter, setPlannerWorkspaceFilter] = useState(''); // default blank / unselected
   const [showPlannerWsDropdown, setShowPlannerWsDropdown] = useState(false);
   const [showTodoModal, setShowTodoModal] = useState(false);
   const [todoTitle, setTodoTitle] = useState('');
-  const [todoDate, setTodoDate] = useState('');
-  const [todoWorkspaceId, setTodoWorkspaceId] = useState('');
+  const [todoFromDate, setTodoFromDate] = useState('');
+  const [todoToDate, setTodoToDate] = useState('');
   const [todoPriority, setTodoPriority] = useState('MEDIUM');
-  const [todoSubmitting, setTodoSubmitting] = useState(false);
+  const [todoDescription, setTodoDescription] = useState('');
+  const [selectedCalendarTask, setSelectedCalendarTask] = useState(null); // { taskId, workspaceId }
+  const [selectedTodo, setSelectedTodo] = useState(null); // todo object for floating modal
+
+  // Decoupled planner todos persisted in localStorage
+  const [plannerTodos, setPlannerTodos] = useState(() => {
+    try {
+      const stored = localStorage.getItem('projectgo_planner_todos');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('projectgo_planner_todos', JSON.stringify(plannerTodos));
+    } catch (e) {
+      console.error('Failed to save planner todos:', e);
+    }
+  }, [plannerTodos]);
 
   useEffect(() => {
     if (location.state?.initialTab) setActiveTab(location.state.initialTab);
@@ -436,30 +457,31 @@ const WorkspaceView = () => {
     });
   }, [tasks, plannerWorkspaceFilter]);
 
-  const handleCreateTodoTask = async (e) => {
+  const handleCreateTodoTask = (e) => {
     e?.preventDefault?.();
     if (!todoTitle.trim()) return;
-    const targetWs = todoWorkspaceId || plannerWorkspaceFilter || activeWorkspace?.id || workspaces[0]?.id;
-    if (!targetWs) return;
 
-    setTodoSubmitting(true);
-    try {
-      if (addTask) {
-        await addTask({
-          title: todoTitle.trim(),
-          workspaceId: targetWs,
-          dueDate: todoDate || `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`,
-          priority: todoPriority,
-          status: 'TODO'
-        });
-      }
-      setTodoTitle('');
-      setShowTodoModal(false);
-    } catch (err) {
-      console.error("Failed to add todo task:", err);
-    } finally {
-      setTodoSubmitting(false);
-    }
+    const todayStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const from = todoFromDate || todayStr;
+    const to = todoToDate || from;
+
+    const newTodo = {
+      id: 'todo_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8),
+      title: todoTitle.trim(),
+      description: todoDescription?.trim() || '',
+      fromDate: from,
+      toDate: to,
+      priority: todoPriority || 'MEDIUM',
+      completed: false,
+      createdAt: new Date().toISOString()
+    };
+
+    setPlannerTodos(prev => [newTodo, ...prev]);
+    setTodoTitle('');
+    setTodoDescription('');
+    setTodoFromDate('');
+    setTodoToDate('');
+    setShowTodoModal(false);
   };
 
   // Build a map of memberId -> avatarUrl from the real teamMembers API data
@@ -713,12 +735,12 @@ const WorkspaceView = () => {
                     </AnimatePresence>
                   </div>
 
-                  {/* Todo Task Button (Renamed from Add Task) */}
+                  {/* Todo Task Button */}
                   <button
                     onClick={() => {
                       const todayStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-                      setTodoDate(todayStr);
-                      setTodoWorkspaceId(plannerWorkspaceFilter || activeWorkspace?.id || workspaces[0]?.id || '');
+                      setTodoFromDate(todayStr);
+                      setTodoToDate(todayStr);
                       setShowTodoModal(true);
                     }}
                     className="h-9 px-3.5 bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-xs font-bold rounded-xl shadow-sm shadow-indigo-500/20 hover:shadow-indigo-500/30 flex items-center gap-1.5 transition-all cursor-pointer"
@@ -745,7 +767,20 @@ const WorkspaceView = () => {
                 {/* Calendar Full Month Cells Grid */}
                 <div className="grid grid-cols-7">
                   {calendarCells.map((cell) => {
-                    const dayTasks = plannerTasks.filter(t => t.dueDate === cell.dateStr);
+                    // Pending workspace tasks (due on cell date & not completed)
+                    const dayPendingTasks = plannerTasks.filter(t => {
+                      const d = t.dueDate ? (t.dueDate.length >= 10 ? t.dueDate.slice(0, 10) : t.dueDate) : '';
+                      return d === cell.dateStr && t.status !== 'COMPLETED' && t.status !== 'DONE';
+                    });
+
+                    // Decoupled planner todos active on this date range
+                    const dayTodos = plannerTodos.filter(todo => {
+                      const from = todo.fromDate;
+                      const to = todo.toDate || todo.fromDate;
+                      return cell.dateStr >= from && cell.dateStr <= to;
+                    });
+
+                    const totalItems = dayPendingTasks.length + dayTodos.length;
 
                     return (
                       <div
@@ -771,49 +806,73 @@ const WorkspaceView = () => {
                           {/* Quick Add "+" on hover */}
                           <button
                             onClick={() => {
-                              setTodoDate(cell.dateStr);
-                              setTodoWorkspaceId(plannerWorkspaceFilter || activeWorkspace?.id || workspaces[0]?.id || '');
+                              setTodoFromDate(cell.dateStr);
+                              setTodoToDate(cell.dateStr);
                               setShowTodoModal(true);
                             }}
                             className="w-5 h-5 rounded-md hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
-                            title={`Add task for ${cell.dateStr}`}
+                            title={`Add todo task for ${cell.dateStr}`}
                           >
                             <Plus className="w-3 h-3 stroke-[2.5]" />
                           </button>
                         </div>
 
-                        {/* Tasks List for the Day */}
+                        {/* Tasks & Todos List for the Day */}
                         <div className="space-y-1 my-1 flex-1 overflow-hidden">
-                          {dayTasks.slice(0, 3).map(task => {
+                          {/* Pending Workspace Tasks */}
+                          {dayPendingTasks.slice(0, 2).map(task => {
                             const pc = PRIORITY_CONFIG[getTaskPriorityKey(task.priority)];
                             return (
                               <div
                                 key={task.id || task._id}
                                 onClick={() => {
-                                  const wsId = task.workspaceId || activeWorkspace?.id;
-                                  if (wsId) navigate(`/workspace/${wsId}/task/${task.id || task._id}`);
+                                  setSelectedCalendarTask({
+                                    taskId: task.id || task._id,
+                                    workspaceId: task.workspaceId || activeWorkspace?.id
+                                  });
                                 }}
                                 className={`text-[10px] font-bold px-1.5 py-0.5 rounded-lg truncate cursor-pointer transition-all hover:scale-[1.02] flex items-center gap-1 ${
                                   pc ? `border ${pc.chip}` : 'bg-violet-50 text-violet-700 border border-violet-100'
                                 }`}
-                                title={task.title}
+                                title={`[Pending Task] ${task.title}`}
                               >
                                 <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${pc?.dot || 'bg-indigo-500'}`} />
                                 <span className="truncate">{task.title}</span>
                               </div>
                             );
                           })}
-                          {dayTasks.length > 3 && (
+
+                          {/* Decoupled Todo Tasks */}
+                          {dayTodos.slice(0, 2).map(todo => {
+                            const pc = PRIORITY_CONFIG[getTaskPriorityKey(todo.priority)];
+                            return (
+                              <div
+                                key={todo.id}
+                                onClick={() => setSelectedTodo(todo)}
+                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-lg truncate cursor-pointer transition-all hover:scale-[1.02] flex items-center gap-1 ${
+                                  todo.completed
+                                    ? 'bg-slate-100 text-slate-400 line-through border border-slate-200'
+                                    : 'bg-emerald-50 text-emerald-800 border border-emerald-200/80 shadow-2xs'
+                                }`}
+                                title={`[Todo Task] ${todo.title}${todo.completed ? ' (Completed)' : ''}`}
+                              >
+                                <Check className={`w-2.5 h-2.5 shrink-0 ${todo.completed ? 'text-slate-400' : 'text-emerald-600'}`} />
+                                <span className="truncate">{todo.title}</span>
+                              </div>
+                            );
+                          })}
+
+                          {totalItems > 4 && (
                             <div className="text-[9px] text-slate-400 font-bold px-1">
-                              +{dayTasks.length - 3} more
+                              +{totalItems - 4} more
                             </div>
                           )}
                         </div>
 
                         {/* Workspace indicator if multiple workspaces */}
-                        {dayTasks.length > 0 && !plannerWorkspaceFilter && (
+                        {dayPendingTasks.length > 0 && !plannerWorkspaceFilter && (
                           <div className="flex items-center gap-1 text-[9px] text-slate-400 font-medium truncate">
-                            <span className="truncate">{workspaces.find(w => w.id === dayTasks[0].workspaceId)?.name}</span>
+                            <span className="truncate">{workspaces.find(w => w.id === dayPendingTasks[0].workspaceId)?.name}</span>
                           </div>
                         )}
                       </div>
@@ -838,15 +897,16 @@ const WorkspaceView = () => {
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: 10 }}
                       className="relative w-full max-w-md bg-white border border-slate-200 rounded-3xl shadow-2xl z-50 p-6 space-y-4"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                         <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                          <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                             <CheckCircle2 className="w-4 h-4" />
                           </div>
                           <div>
                             <h3 className="text-base font-black text-slate-900">New Todo Task</h3>
-                            <p className="text-xs text-slate-400 font-medium">Add task to calendar schedule</p>
+                            <p className="text-xs text-slate-400 font-medium">Personal planner schedule item</p>
                           </div>
                         </div>
                         <button
@@ -862,7 +922,7 @@ const WorkspaceView = () => {
                           <label className="text-xs font-bold text-slate-700 block mb-1">Task Title</label>
                           <input
                             type="text"
-                            placeholder="e.g., Deploy user auth updates"
+                            placeholder="e.g., Prepare slide deck / Review sprint tasks"
                             value={todoTitle}
                             onChange={(e) => setTodoTitle(e.target.value)}
                             className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 text-sm font-medium text-slate-800 outline-none transition-all"
@@ -873,42 +933,51 @@ const WorkspaceView = () => {
 
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="text-xs font-bold text-slate-700 block mb-1">Due Date</label>
+                            <label className="text-xs font-bold text-slate-700 block mb-1">From Date</label>
                             <input
                               type="date"
-                              value={todoDate}
-                              onChange={(e) => setTodoDate(e.target.value)}
+                              value={todoFromDate}
+                              onChange={(e) => setTodoFromDate(e.target.value)}
                               className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-indigo-500 text-xs font-semibold text-slate-700 outline-none"
                               required
                             />
                           </div>
                           <div>
-                            <label className="text-xs font-bold text-slate-700 block mb-1">Priority</label>
-                            <select
-                              value={todoPriority}
-                              onChange={(e) => setTodoPriority(e.target.value)}
-                              className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-indigo-500 text-xs font-semibold text-slate-700 outline-none bg-white"
-                            >
-                              <option value="LOW">Low</option>
-                              <option value="MEDIUM">Medium</option>
-                              <option value="HIGH">High</option>
-                              <option value="CRITICAL">Critical</option>
-                            </select>
+                            <label className="text-xs font-bold text-slate-700 block mb-1">To Date</label>
+                            <input
+                              type="date"
+                              value={todoToDate}
+                              onChange={(e) => setTodoToDate(e.target.value)}
+                              min={todoFromDate}
+                              className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-indigo-500 text-xs font-semibold text-slate-700 outline-none"
+                              required
+                            />
                           </div>
                         </div>
 
                         <div>
-                          <label className="text-xs font-bold text-slate-700 block mb-1">Workspace</label>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">Priority</label>
                           <select
-                            value={todoWorkspaceId}
-                            onChange={(e) => setTodoWorkspaceId(e.target.value)}
+                            value={todoPriority}
+                            onChange={(e) => setTodoPriority(e.target.value)}
                             className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-indigo-500 text-xs font-semibold text-slate-700 outline-none bg-white"
-                            required
                           >
-                            {workspaces.map(w => (
-                              <option key={w.id} value={w.id}>{w.name}</option>
-                            ))}
+                            <option value="LOW">Low</option>
+                            <option value="MEDIUM">Medium</option>
+                            <option value="HIGH">High</option>
+                            <option value="CRITICAL">Critical</option>
                           </select>
+                        </div>
+
+                        <div>
+                          <label className="text-xs font-bold text-slate-700 block mb-1">Notes / Description (Optional)</label>
+                          <textarea
+                            rows={2}
+                            placeholder="Add any extra details or reminders..."
+                            value={todoDescription}
+                            onChange={(e) => setTodoDescription(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-indigo-500 text-xs font-medium text-slate-700 outline-none resize-none"
+                          />
                         </div>
 
                         <div className="pt-2 flex items-center justify-end gap-2">
@@ -921,10 +990,10 @@ const WorkspaceView = () => {
                           </button>
                           <button
                             type="submit"
-                            disabled={todoSubmitting || !todoTitle.trim()}
+                            disabled={!todoTitle.trim()}
                             className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/25 disabled:opacity-50 transition-all cursor-pointer"
                           >
-                            {todoSubmitting ? 'Creating...' : 'Create Todo'}
+                            Create Todo
                           </button>
                         </div>
                       </form>
@@ -932,6 +1001,134 @@ const WorkspaceView = () => {
                   </div>
                 )}
               </AnimatePresence>
+
+              {/* Floating Todo Task View Modal */}
+              <AnimatePresence>
+                {selectedTodo && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      onClick={() => setSelectedTodo(null)}
+                      className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs"
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                      className="relative w-full max-w-lg bg-white border border-slate-200 rounded-3xl shadow-2xl z-50 p-6 space-y-4"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            Todo Task
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wide ${PRIORITY_CONFIG[getTaskPriorityKey(selectedTodo.priority)]?.chip || 'bg-slate-100 text-slate-600'}`}>
+                            {selectedTodo.priority}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => setSelectedTodo(null)}
+                          className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3">
+                          <button
+                            onClick={() => {
+                              setPlannerTodos(prev => prev.map(item => item.id === selectedTodo.id ? { ...item, completed: !item.completed } : item));
+                              setSelectedTodo(prev => prev ? { ...prev, completed: !prev.completed } : null);
+                            }}
+                            className={`mt-0.5 w-6 h-6 rounded-lg border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+                              selectedTodo.completed
+                                ? 'bg-emerald-600 border-emerald-600 text-white'
+                                : 'border-slate-300 hover:border-indigo-600 text-transparent'
+                            }`}
+                            title={selectedTodo.completed ? 'Mark pending' : 'Mark completed'}
+                          >
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          </button>
+                          <div className="flex-1">
+                            <h2 className={`text-base font-bold text-slate-900 ${selectedTodo.completed ? 'line-through text-slate-400' : ''}`}>
+                              {selectedTodo.title}
+                            </h2>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              {selectedTodo.completed ? 'Status: Completed' : 'Status: In Progress / Pending'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 space-y-2">
+                          <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                            <CalendarRange className="w-4 h-4 text-indigo-600 shrink-0" />
+                            <span>From: <strong className="text-slate-800">{selectedTodo.fromDate}</strong></span>
+                            <span className="text-slate-300">→</span>
+                            <span>To: <strong className="text-slate-800">{selectedTodo.toDate || selectedTodo.fromDate}</strong></span>
+                          </div>
+                          {selectedTodo.description && (
+                            <div className="pt-2 border-t border-slate-200/60 text-xs text-slate-600 font-medium whitespace-pre-wrap">
+                              {selectedTodo.description}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="pt-2 flex items-center justify-between border-t border-slate-100">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPlannerTodos(prev => prev.filter(item => item.id !== selectedTodo.id));
+                            setSelectedTodo(null);
+                          }}
+                          className="px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-1 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete</span>
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPlannerTodos(prev => prev.map(item => item.id === selectedTodo.id ? { ...item, completed: !item.completed } : item));
+                              setSelectedTodo(prev => prev ? { ...prev, completed: !prev.completed } : null);
+                            }}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                              selectedTodo.completed
+                                ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                            }`}
+                          >
+                            {selectedTodo.completed ? 'Mark as Incomplete' : 'Mark as Done'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedTodo(null)}
+                            className="px-4 py-1.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                          >
+                            Close
+                          </button>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </div>
+                )}
+              </AnimatePresence>
+
+              {/* Floating Workspace Task View Modal */}
+              {selectedCalendarTask && (
+                <TaskView
+                  isModal
+                  workspaceId={selectedCalendarTask.workspaceId}
+                  taskId={selectedCalendarTask.taskId}
+                  onClose={() => setSelectedCalendarTask(null)}
+                />
+              )}
             </div>
           )}
 

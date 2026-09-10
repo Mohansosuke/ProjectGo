@@ -27,14 +27,30 @@ const PRIORITY_ITEMS = [
   { id: 'Low', label: 'Low', icon: ArrowDown, color: 'text-blue-500' }
 ];
 
-export default function TaskView() {
-  const { workspaceId, taskId } = useParams();
+/**
+ * @param {{
+ *   workspaceId?: any;
+ *   taskId?: any;
+ *   isModal?: boolean;
+ *   onClose?: () => void;
+ * }} [props]
+ */
+export default function TaskView(props = {}) {
+  const {
+    workspaceId: propWorkspaceId,
+    taskId: propTaskId,
+    isModal = false,
+    onClose
+  } = props;
+  const params = useParams();
+  const workspaceId = propWorkspaceId || params.workspaceId;
+  const taskId = propTaskId || params.taskId;
   const navigate = useNavigate();
   const { tasks, updateTask, moveTask, deleteTask } = useTask();
   const { users, currentUser } = useAuth();
   const { activeWorkspace, workspaces } = useWorkspace();
 
-  const workspace = workspaces.find(w => w.id === workspaceId) || activeWorkspace;
+  const workspace = workspaces.find(w => w.id === workspaceId || w._id === workspaceId) || activeWorkspace;
 
   // Find task or fallback
   const found = tasks.find(t => t.id === taskId || t._id === taskId);
@@ -89,9 +105,13 @@ export default function TaskView() {
   const priorityDropdownRef = useRef(null);
   const commentInputRef = useRef(null);
 
-  // Keyboard shortcut M to focus comment box
+  // Keyboard shortcut M to focus comment box & Escape to close modal
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if (isModal && e.key === 'Escape') {
+        onClose?.();
+        return;
+      }
       if (e.key === 'm' || e.key === 'M') {
         if (document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
           e.preventDefault();
@@ -101,7 +121,7 @@ export default function TaskView() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isModal, onClose]);
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -432,17 +452,17 @@ export default function TaskView() {
   const taskKey = activeTask.key || (typeof activeTask.id === 'string' && activeTask.id.startsWith('PROJ') ? activeTask.id : 'PROJ-123');
   const teamName = workspace?.name || 'Phoenix Team';
 
-  return (
-    <div className="min-h-screen bg-white font-sans text-[#172b4d] select-text">
+  const mainContent = (
+    <div className={isModal ? "bg-white font-sans text-[#172b4d] select-text flex flex-col h-full overflow-hidden" : "min-h-screen bg-white font-sans text-[#172b4d] select-text"}>
       
       {/* ════════════════════════════════════════════════════════
           TOP HEADER BAR
       ════════════════════════════════════════════════════════ */}
-      <header className="h-14 border-b border-[#ebecf0] px-6 flex items-center justify-between bg-white sticky top-0 z-30">
+      <header className="h-14 border-b border-[#ebecf0] px-6 flex items-center justify-between bg-white sticky top-0 z-30 shrink-0">
         {/* Left: App Icon + Breadcrumbs */}
         <div className="flex items-center gap-3">
-          <Link to="/workspaces" className="p-1 hover:opacity-90 transition-opacity">
-            <div className="w-7 h-7 rounded-md bg-[#0052cc] p-1.5 flex items-center justify-center shadow-xs">
+          {isModal ? (
+            <div className="w-7 h-7 rounded-md bg-[#0052cc] p-1.5 flex items-center justify-center shadow-xs shrink-0">
               <div className="grid grid-cols-2 gap-0.5 w-full h-full">
                 <div className="bg-white rounded-[1.5px]" />
                 <div className="bg-white rounded-[1.5px]" />
@@ -450,20 +470,39 @@ export default function TaskView() {
                 <div className="bg-white rounded-[1.5px]" />
               </div>
             </div>
-          </Link>
+          ) : (
+            <Link to="/workspaces" className="p-1 hover:opacity-90 transition-opacity">
+              <div className="w-7 h-7 rounded-md bg-[#0052cc] p-1.5 flex items-center justify-center shadow-xs">
+                <div className="grid grid-cols-2 gap-0.5 w-full h-full">
+                  <div className="bg-white rounded-[1.5px]" />
+                  <div className="bg-white rounded-[1.5px]" />
+                  <div className="bg-white rounded-[1.5px]" />
+                  <div className="bg-white rounded-[1.5px]" />
+                </div>
+              </div>
+            </Link>
+          )}
 
           {/* Breadcrumb Trail */}
           <nav className="flex items-center gap-2 text-sm text-[#6b778c]">
-            <Link to="/workspaces" className="hover:text-[#172b4d] transition-colors">
-              Projects
-            </Link>
+            {isModal ? (
+              <span className="font-semibold text-slate-700">Planner</span>
+            ) : (
+              <Link to="/workspaces" className="hover:text-[#172b4d] transition-colors">
+                Projects
+              </Link>
+            )}
             <span className="text-[#8993a4]">/</span>
-            <Link
-              to={workspaceId ? `/workspace/${workspaceId}/kanban` : '/workspaces'}
-              className="hover:text-[#172b4d] transition-colors"
-            >
-              {teamName}
-            </Link>
+            {isModal ? (
+              <span className="text-[#6b778c]">{teamName}</span>
+            ) : (
+              <Link
+                to={workspaceId ? `/workspace/${workspaceId}/kanban` : '/workspaces'}
+                className="hover:text-[#172b4d] transition-colors"
+              >
+                {teamName}
+              </Link>
+            )}
             <span className="text-[#8993a4]">/</span>
             <span className="font-bold text-[#172b4d]">
               {taskKey}
@@ -471,8 +510,8 @@ export default function TaskView() {
           </nav>
         </div>
 
-        {/* Right: Notifications, Settings, User Avatar */}
-        <div className="flex items-center gap-4">
+        {/* Right: Notifications, Settings, User Avatar & Close button */}
+        <div className="flex items-center gap-3">
           <button className="text-[#6b778c] hover:text-[#172b4d] p-1.5 rounded-md hover:bg-[#f4f5f7] transition-colors cursor-pointer" title="Notifications">
             <Bell className="w-4 h-4" />
           </button>
@@ -486,13 +525,23 @@ export default function TaskView() {
               className="w-full h-full object-cover"
             />
           </div>
+          {isModal && (
+            <button
+              onClick={onClose}
+              className="ml-2 w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+              title="Close floating task view"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4 stroke-[2.5]" />
+            </button>
+          )}
         </div>
       </header>
 
       {/* ════════════════════════════════════════════════════════
           MAIN CONTENT AREA: 2-COLUMN GRID
       ════════════════════════════════════════════════════════ */}
-      <main className="max-w-[1400px] mx-auto px-8 py-8 grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+      <main className={`max-w-[1400px] w-full mx-auto px-6 sm:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-10 items-start ${isModal ? 'overflow-y-auto flex-1' : ''}`}>
         
         {/* ────────────────────────────────────────────────────────
             LEFT COLUMN: Task Title, Actions, Description, Attachments, Comments (~68%)
@@ -1206,4 +1255,24 @@ export default function TaskView() {
 
     </div>
   );
+
+  if (isModal) {
+    return (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose?.();
+        }}
+      >
+        <div
+          className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[88vh] max-h-[90vh] overflow-hidden border border-slate-200/90 flex flex-col relative animate-in zoom-in-95 duration-150"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {mainContent}
+        </div>
+      </div>
+    );
+  }
+
+  return mainContent;
 }
