@@ -889,14 +889,14 @@ const WorkspaceView = () => {
                     return (
                       <div
                         key={cell.dateStr}
-                        className={`min-h-[110px] p-1.5 border-b border-r border-slate-100 flex flex-col justify-between transition-all group relative ${
+                        className={`min-h-[110px] pb-1.5 border-b border-r border-slate-100 flex flex-col justify-between transition-all group relative overflow-visible ${
                           cell.isCurrentMonth
                             ? (cell.isToday ? 'bg-indigo-50/20' : 'bg-white hover:bg-slate-50/60')
                             : 'bg-slate-50/35 text-slate-300'
                         }`}
                       >
                         {/* Day Header Inside Cell */}
-                        <div className="flex items-center justify-between px-1 mb-1">
+                        <div className="flex items-center justify-between px-2 pt-1.5 mb-1">
                           <span className={`text-[11px] font-black w-6 h-6 flex items-center justify-center rounded-full transition-colors ${
                             cell.isToday
                               ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/30'
@@ -922,8 +922,8 @@ const WorkspaceView = () => {
                           </button>
                         </div>
 
-                        {/* Only Todo Tasks rendered with multi-day pipe indicator lines with gap */}
-                        <div className="space-y-1 my-0.5 flex-1 overflow-hidden">
+                        {/* Todo Tasks rendered continuous across date columns without gap */}
+                        <div className="space-y-1 my-0.5 flex-1 w-full px-0 overflow-visible">
                           {sortedDayTodos.slice(0, 3).map(todo => {
                             const fromDate = todo.fromDate;
                             const toDate = todo.toDate || todo.fromDate;
@@ -936,55 +936,52 @@ const WorkspaceView = () => {
                             const isRowEnd = cellDayOfWeek === 6 && !isEnd;
                             const colorObj = getTodoColor(todo);
 
+                            // Determine continuous styling classes for duration bars across date columns
+                            let shapeClasses = '';
+                            let pipeShape = '';
+
+                            if (isSingle) {
+                              shapeClasses = 'rounded-lg border mx-1.5 my-0.5 shadow-2xs';
+                              pipeShape = 'rounded-full';
+                            } else if (isStart || (isRowStart && !isEnd)) {
+                              shapeClasses = 'rounded-l-lg border-y border-l ml-1.5 -mr-[1px] my-0.5 border-r-0 relative z-10 shadow-2xs';
+                              pipeShape = 'rounded-l-full rounded-r-none';
+                            } else if (isEnd || (isRowEnd && !isStart)) {
+                              shapeClasses = 'rounded-r-lg border-y border-r mr-1.5 ml-0 my-0.5 border-l-0 relative z-10 shadow-2xs';
+                              pipeShape = 'rounded-r-full rounded-l-none';
+                            } else {
+                              // Middle segment across date columns (continuous with no gaps)
+                              shapeClasses = 'rounded-none border-y mx-0 -mr-[1px] my-0.5 border-x-0 relative z-10';
+                              pipeShape = 'rounded-none';
+                            }
+
                             return (
                               <div
                                 key={todo.id}
                                 onClick={() => setSelectedTodo(todo)}
-                                className={`group/bar relative text-[10px] font-bold py-1 px-1.5 cursor-pointer transition-all hover:brightness-95 flex flex-col justify-between select-none ${
+                                className={`group/bar relative text-[10px] font-bold py-1 cursor-pointer transition-all hover:brightness-95 flex flex-col justify-between select-none ${
                                   colorObj.lightBg
                                 } ${colorObj.text} ${colorObj.border} ${
                                   todo.completed ? 'opacity-60 line-through' : ''
-                                } ${
-                                  isSingle
-                                    ? 'rounded-lg border mx-1 my-0.5 shadow-2xs'
-                                    : isStart
-                                      ? 'rounded-l-lg border-y border-l ml-1 mr-0 my-0.5 shadow-2xs'
-                                      : isEnd
-                                        ? 'rounded-r-lg border-y border-r mr-1 ml-0 my-0.5 shadow-2xs'
-                                        : (isRowStart && !isEnd)
-                                          ? 'rounded-l-lg border-y border-l ml-1 mr-0 my-0.5 shadow-2xs'
-                                          : (isRowEnd && !isStart)
-                                            ? 'rounded-r-lg border-y border-r mr-1 ml-0 my-0.5 shadow-2xs'
-                                            : 'rounded-none border-y mx-0 my-0.5 border-x-0'
-                                }`}
+                                } ${shapeClasses}`}
                                 title={`${todo.title} (${fromDate} → ${toDate})`}
                               >
                                 {/* Top: Title on start date or row start or single date */}
-                                <div className="flex items-center gap-1 min-w-0 h-3.5">
+                                <div className="flex items-center gap-1 min-w-0 h-3.5 px-1.5">
                                   {(isStart || isSingle || isRowStart) ? (
                                     <>
                                       <span className={`w-1.5 h-1.5 rounded-full ${colorObj.dot} shrink-0`} />
                                       <span className="truncate leading-tight font-extrabold">{todo.title}</span>
                                     </>
                                   ) : (
-                                    <span className="text-[8px] font-mono tracking-widest opacity-40 select-none pl-0.5 leading-none">
-                                      •••••
-                                    </span>
+                                    <div className="w-full h-full" />
                                   )}
                                 </div>
 
-                                {/* Bottom: The continuous pipe / line indicator drawn with gap */}
-                                <div className="w-full pt-0.5">
+                                {/* Bottom: The continuous duration color pipe / line indicator */}
+                                <div className="w-full pt-0.5 px-0">
                                   <div
-                                    className={`h-1 w-full ${colorObj.pipe} ${
-                                      isSingle
-                                        ? 'rounded-full'
-                                        : isStart || isRowStart
-                                          ? 'rounded-l-full'
-                                          : isEnd || isRowEnd
-                                            ? 'rounded-r-full'
-                                            : 'rounded-none'
-                                    }`}
+                                    className={`h-1 w-full ${colorObj.pipe} ${pipeShape}`}
                                   />
                                 </div>
                               </div>
@@ -992,7 +989,7 @@ const WorkspaceView = () => {
                           })}
 
                           {sortedDayTodos.length > 3 && (
-                            <div className="text-[9px] text-slate-400 font-bold px-1">
+                            <div className="text-[9px] text-slate-400 font-bold px-2">
                               +{sortedDayTodos.length - 3} more
                             </div>
                           )}
