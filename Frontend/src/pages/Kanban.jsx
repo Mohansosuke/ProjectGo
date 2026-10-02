@@ -49,6 +49,30 @@ const PRIORITY_DOT = {
   LOW: 'bg-gray-400',
 };
 
+const PRIORITY_PIPE = {
+  Critical: 'bg-red-500',
+  CRITICAL: 'bg-red-500',
+  Urgent: 'bg-red-500',
+  High: 'bg-orange-500',
+  HIGH: 'bg-orange-500',
+  Medium: 'bg-blue-500',
+  MEDIUM: 'bg-blue-500',
+  Low: 'bg-gray-400',
+  LOW: 'bg-gray-400',
+};
+
+const PRIORITY_LIGHT = {
+  Critical: 'bg-red-50 text-red-700 border-red-200',
+  CRITICAL: 'bg-red-50 text-red-700 border-red-200',
+  Urgent: 'bg-red-50 text-red-700 border-red-200',
+  High: 'bg-orange-50 text-orange-700 border-orange-200',
+  HIGH: 'bg-orange-50 text-orange-700 border-orange-200',
+  Medium: 'bg-blue-50 text-blue-700 border-blue-200',
+  MEDIUM: 'bg-blue-50 text-blue-700 border-blue-200',
+  Low: 'bg-gray-100 text-gray-600 border-gray-200',
+  LOW: 'bg-gray-100 text-gray-600 border-gray-200',
+};
+
 const memberAvatars = {
   u1: 'https://i.pravatar.cc/80?img=12',
   u2: 'https://i.pravatar.cc/80?img=47',
@@ -790,16 +814,21 @@ export default function Kanban() {
                         return null;
                       })
                       .filter(Boolean)
-                      .sort((a, b) => b.duration - a.duration);
+                      .sort((a, b) => {
+                        const aStart = new Date(a.start || 0).getTime();
+                        const bStart = new Date(b.start || 0).getTime();
+                        if (aStart !== bStart) return aStart - bStart;
+                        return (a.task?.id || '').localeCompare(b.task?.id || '');
+                      });
 
                     return (
                       <div
                         key={day}
-                        className={`min-h-[100px] p-1 border-b border-r border-slate-100 flex flex-col justify-between transition-colors overflow-visible group relative ${isToday ? 'bg-indigo-50/30' : 'hover:bg-slate-50/50'
+                        className={`min-h-[100px] py-1 px-0 border-b border-r border-slate-100 flex flex-col justify-between transition-colors overflow-visible group relative ${isToday ? 'bg-indigo-50/30' : 'hover:bg-slate-50/50'
                           }`}
                       >
                         <div className="w-full">
-                          <div className="flex items-center justify-between mb-1 px-1">
+                          <div className="flex items-center justify-between mb-1 px-2">
                             <span className={`text-[10px] font-black w-5 h-5 flex items-center justify-center rounded-full ${isToday ? 'bg-[#5f35f5] text-white shadow-xs' : 'text-slate-600'
                               }`}>
                               {day}
@@ -825,55 +854,44 @@ export default function Kanban() {
                           <div className="space-y-1.5 w-full overflow-visible">
                             {dayTasksWithMeta.slice(0, 3).map(({ task: t, isStart, isEnd, isMiddle }) => {
                               const pDot = PRIORITY_DOT[t.priority] || 'bg-indigo-500';
+                              const pPipe = PRIORITY_PIPE[t.priority] || 'bg-indigo-500';
+                              const pLight = PRIORITY_LIGHT[t.priority] || 'bg-indigo-50 text-indigo-800 border-indigo-200';
                               const assignee = getUser(t.assignee);
-
-                              // Bar styling depending on start/middle/end position
-                              let posClasses = 'rounded-lg ml-1 mr-1';
-                              let pipeClasses = 'rounded-full';
-
-                              if (isStart && !isEnd) {
-                                posClasses = 'rounded-l-lg rounded-r-none border-r-0 ml-1 -mr-[1px]';
-                                pipeClasses = 'rounded-l-full rounded-r-none';
-                              } else if (isMiddle) {
-                                posClasses = 'rounded-none border-x-0 ml-0 -mr-[1px]';
-                                pipeClasses = 'rounded-none';
-                              } else if (isEnd && !isStart) {
-                                posClasses = 'rounded-r-lg rounded-l-none border-l-0 ml-0 mr-1';
-                                pipeClasses = 'rounded-r-full rounded-l-none';
-                              }
-
-                              const priorityStyle = t.priority === 'Critical' || t.priority === 'High'
-                                ? 'bg-rose-50/90 text-rose-800 border-rose-200 hover:bg-rose-100'
-                                : t.priority === 'Medium'
-                                  ? 'bg-indigo-50/90 text-indigo-800 border-indigo-200 hover:bg-indigo-100'
-                                  : 'bg-slate-100/90 text-slate-700 border-slate-200 hover:bg-slate-200';
+                              const isSingle = isStart && isEnd;
+                              // Show title ONLY on created date (isStart or isSingle), not on next rows
+                              const showTitle = isStart || isSingle;
 
                               return (
                                 <div
                                   key={t.id}
                                   onClick={() => setSelectedTask(t)}
-                                  className={`relative z-10 text-[9px] font-bold px-1.5 py-1 border transition-all cursor-pointer shadow-2xs flex flex-col justify-center ${posClasses} ${priorityStyle}`}
+                                  className="group/bar relative flex items-center w-full h-5 my-0.5 cursor-pointer select-none"
                                   title={`${t.title} (${t.priority})`}
                                 >
-                                  {/* Top Duration Color Line */}
-                                  <div className="w-full flex items-center mb-1">
-                                    <div className={`h-1.5 w-full ${pDot} ${pipeClasses} shadow-2xs`} />
-                                  </div>
+                                  {showTitle ? (
+                                    <>
+                                      {/* Left line cap */}
+                                      <div className={`h-[3px] ${pPipe} w-2 rounded-l-full shrink-0`} />
 
-                                  {/* Task Content with Small User Profile Icon */}
-                                  <div className="flex items-center justify-between gap-1.5 min-w-0">
-                                    <span className="truncate text-[9px] font-bold leading-tight">
-                                      {isStart || (!isMiddle && !isEnd) ? t.title : (isEnd ? t.title : '')}
-                                    </span>
-                                    {(isStart || (!isMiddle && !isEnd) || isEnd) && (
-                                      <img
-                                        src={assignee.avatar || memberAvatars.u1 || `https://i.pravatar.cc/40?u=${t.assignee}`}
-                                        alt=""
-                                        title={assignee.name || 'Assignee'}
-                                        className="w-4 h-4 rounded-full object-cover shrink-0 border border-white shadow-2xs"
-                                      />
-                                    )}
-                                  </div>
+                                      {/* Embedded modern task name pill on created date only */}
+                                      <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-extrabold shadow-2xs border shrink-0 mx-0.5 transition-transform group-hover/bar:scale-[1.03] ${pLight}`}>
+                                        <span className={`w-1.5 h-1.5 rounded-full ${pDot} shrink-0`} />
+                                        <span className="truncate max-w-[75px] leading-none">{t.title}</span>
+                                        <img
+                                          src={assignee.avatar || memberAvatars.u1 || `https://i.pravatar.cc/40?u=${t.assignee}`}
+                                          alt=""
+                                          title={assignee.name || 'Assignee'}
+                                          className="w-3.5 h-3.5 rounded-full object-cover shrink-0 border border-white"
+                                        />
+                                      </div>
+
+                                      {/* Right line extension (continues to next cell unless end of task or single day) */}
+                                      <div className={`h-[3px] flex-1 ${pPipe} ${isSingle ? 'rounded-r-full mr-1.5' : '-mr-[1px]'}`} />
+                                    </>
+                                  ) : (
+                                    /* Continuation line spanning across middle and end cells with zero gap */
+                                    <div className={`h-[3px] w-full ${pPipe} ${isEnd ? 'rounded-r-full mr-1.5 -ml-[1px]' : '-mx-[1px]'}`} />
+                                  )}
                                 </div>
                               );
                             })}

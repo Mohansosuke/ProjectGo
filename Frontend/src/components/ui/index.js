@@ -14,3 +14,5 @@ export { default as Switch } from './Switch';
 export { default as Tabs } from './Tabs';
 export { default as WorkspaceLogo, getWorkspaceSymbolConfig } from './WorkspaceLogo';
 export { ToastProvider, useToast } from './Toast';
+export { DashboardIcon, WorkspaceIcon, PlannerIcon, TeamIcon, DocsIcon, NavIcons } from './AppIconsPro';
+

@@ -885,21 +885,11 @@ const WorkspaceView = () => {
                       return cell.dateStr >= from && cell.dateStr <= to;
                     });
 
-                    // Sort tasks based on duration (longest duration tasks placed on top)
+                    // Sort tasks based on creation/start date (order created), NOT long duration
                     const sortedDayTodos = [...dayTodos].sort((a, b) => {
-                      const aFrom = new Date((a.fromDate || cell.dateStr) + 'T00:00:00').getTime();
-                      const aTo = new Date((a.toDate || a.fromDate || cell.dateStr) + 'T00:00:00').getTime();
-                      const aDur = Math.max(1, Math.round((aTo - aFrom) / 86400000) + 1);
-
-                      const bFrom = new Date((b.fromDate || cell.dateStr) + 'T00:00:00').getTime();
-                      const bTo = new Date((b.toDate || b.fromDate || cell.dateStr) + 'T00:00:00').getTime();
-                      const bDur = Math.max(1, Math.round((bTo - bFrom) / 86400000) + 1);
-
-                      // Primary: Longest duration on top
-                      if (bDur !== aDur) return bDur - aDur;
-                      // Secondary: Earlier start date
-                      const cmp = (a.fromDate || '').localeCompare(b.fromDate || '');
-                      if (cmp !== 0) return cmp;
+                      const aCreated = new Date(a.createdAt || a.fromDate || 0).getTime();
+                      const bCreated = new Date(b.createdAt || b.fromDate || 0).getTime();
+                      if (aCreated !== bCreated) return aCreated - bCreated;
                       return (a.id || '').localeCompare(b.id || '');
                     });
 
@@ -937,66 +927,43 @@ const WorkspaceView = () => {
                           </button>
                         </div>
 
-                        {/* Todo Tasks rendered continuous across date columns without gap */}
-                        <div className="space-y-1 my-0.5 flex-1 w-full px-0 overflow-visible">
+                        {/* Todo Tasks rendered as sleek continuous line with title ONLY on created date */}
+                        <div className="space-y-1.5 my-1 flex-1 w-full px-0 overflow-visible">
                           {sortedDayTodos.slice(0, 3).map(todo => {
                             const fromDate = todo.fromDate;
                             const toDate = todo.toDate || todo.fromDate;
                             const isStart = cell.dateStr === fromDate;
                             const isEnd = cell.dateStr === toDate;
                             const isSingle = isStart && isEnd;
-                            const cellDate = new Date(cell.dateStr + 'T00:00:00');
-                            const cellDayOfWeek = cellDate.getDay();
-                            const isRowStart = cellDayOfWeek === 0 && !isStart;
-                            const isRowEnd = cellDayOfWeek === 6 && !isEnd;
                             const colorObj = getTodoColor(todo);
-
-                            // Determine continuous styling classes for duration bars across date columns
-                            let shapeClasses = '';
-                            let pipeShape = '';
-
-                            if (isSingle) {
-                              shapeClasses = 'rounded-lg border mx-1.5 my-0.5 shadow-2xs';
-                              pipeShape = 'rounded-full';
-                            } else if (isStart || (isRowStart && !isEnd)) {
-                              shapeClasses = 'rounded-l-lg border-y border-l ml-1.5 -mr-[1px] my-0.5 border-r-0 relative z-10 shadow-2xs';
-                              pipeShape = 'rounded-l-full rounded-r-none';
-                            } else if (isEnd || (isRowEnd && !isStart)) {
-                              shapeClasses = 'rounded-r-lg border-y border-r mr-1.5 ml-0 my-0.5 border-l-0 relative z-10 shadow-2xs';
-                              pipeShape = 'rounded-r-full rounded-l-none';
-                            } else {
-                              // Middle segment across date columns (continuous with no gaps)
-                              shapeClasses = 'rounded-none border-y mx-0 -mr-[1px] my-0.5 border-x-0 relative z-10';
-                              pipeShape = 'rounded-none';
-                            }
+                            // Show title ONLY on created date (isStart or isSingle), not on next rows
+                            const showTitle = isStart || isSingle;
 
                             return (
                               <div
                                 key={todo.id}
                                 onClick={() => setSelectedTodo(todo)}
-                                className={`group/bar relative text-[10px] font-bold py-1 cursor-pointer transition-all hover:brightness-95 flex flex-col justify-between select-none ${colorObj.lightBg
-                                  } ${colorObj.text} ${colorObj.border} ${todo.completed ? 'opacity-60 line-through' : ''
-                                  } ${shapeClasses}`}
+                                className="group/bar relative flex items-center w-full h-5 my-0.5 cursor-pointer select-none"
                                 title={`${todo.title} (${fromDate} → ${toDate})`}
                               >
-                                {/* Top: Title on start date or row start or single date */}
-                                <div className="flex items-center gap-1 min-w-0 h-3.5 px-1.5">
-                                  {(isStart || isSingle || isRowStart) ? (
-                                    <>
-                                      <span className={`w-1.5 h-1.5 rounded-full ${colorObj.dot} shrink-0`} />
-                                      <span className="truncate leading-tight font-extrabold">{todo.title}</span>
-                                    </>
-                                  ) : (
-                                    <div className="w-full h-full" />
-                                  )}
-                                </div>
+                                {showTitle ? (
+                                  <>
+                                    {/* Left line cap */}
+                                    <div className={`h-[3px] ${colorObj.pipe} w-2 rounded-l-full shrink-0`} />
 
-                                {/* Bottom: The continuous duration color pipe / line indicator */}
-                                <div className="w-full pt-0.5 px-0">
-                                  <div
-                                    className={`h-1 w-full ${colorObj.pipe} ${pipeShape}`}
-                                  />
-                                </div>
+                                    {/* Embedded modern task name pill on created date only */}
+                                    <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold shadow-2xs border shrink-0 mx-0.5 transition-transform group-hover/bar:scale-[1.03] ${colorObj.lightBg} ${colorObj.text} ${colorObj.border} ${todo.completed ? 'opacity-60 line-through' : ''}`}>
+                                      <span className={`w-1.5 h-1.5 rounded-full ${colorObj.dot} shrink-0`} />
+                                      <span className="truncate max-w-[85px] leading-none">{todo.title}</span>
+                                    </div>
+
+                                    {/* Right line extension (continues to next cell unless end of task or single day) */}
+                                    <div className={`h-[3px] flex-1 ${colorObj.pipe} ${isSingle ? 'rounded-r-full mr-1.5' : '-mr-[1px]'}`} />
+                                  </>
+                                ) : (
+                                  /* Continuation line spanning across middle and end cells with zero gap */
+                                  <div className={`h-[3px] w-full ${colorObj.pipe} ${isEnd ? 'rounded-r-full mr-1.5 -ml-[1px]' : '-mx-[1px]'} ${todo.completed ? 'opacity-50' : ''}`} />
+                                )}
                               </div>
                             );
                           })}
@@ -2535,23 +2502,10 @@ const WorkspaceView = () => {
                     </div>
                   </div>
 
-                  {/* ── Todo Tasks Pie Chart & Live Task Details (Planner Page Todos + Workspace Tasks) ── */}
+                  {/* ── Todo Tasks Pie Chart ── */}
                   {(() => {
-                    // 1. Planner Page Todos (Pending todos from decoupled Planner)
-                    const plannerScopeTodos = plannerTodos.filter(t => {
-                      if (t.completed) return false;
-                      if (dashboardScope === 'ALL') return true;
-                      return String(t.workspaceId || '') === String(dashboardScope);
-                    });
-
-                    // 2. Workspace Kanban Tasks (Pending tasks from DB)
-                    const workspaceTodoTasks = baseTasks.filter(t => {
-                      const st = String(t.status || '').toLowerCase().replace(/[-_\s]/g, '');
-                      return st === 'todo' || st === 'to_do' || st === 'backlog' || st === 'open' || (columns.length > 0 && t.status === columns[0].id);
-                    });
-
-                    // Active dataset based on user tab selection (default: PLANNER)
-                    const todoTasks = todoChartSource === 'PLANNER' ? plannerScopeTodos : workspaceTodoTasks;
+                    // Planner Todos: pending todos from decoupled Planner page
+                    const todoTasks = plannerTodos.filter(t => !t.completed);
 
                     const todoPrioBuckets = [
                       { key: 'CRITICAL', label: 'Critical', color: '#ef4444', dot: 'bg-red-500' },
@@ -2574,13 +2528,11 @@ const WorkspaceView = () => {
                       const s = cumAngle + gap;
                       const e = Math.max(s, cumAngle + angle - gap);
                       cumAngle += angle;
-
                       const x1 = cx + R * Math.cos(s); const y1 = cy + R * Math.sin(s);
                       const x2 = cx + R * Math.cos(e); const y2 = cy + R * Math.sin(e);
                       const ix1 = cx + r * Math.cos(e); const iy1 = cy + r * Math.sin(e);
                       const ix2 = cx + r * Math.cos(s); const iy2 = cy + r * Math.sin(s);
                       const la = angle > Math.PI ? 1 : 0;
-
                       return {
                         ...b,
                         pct: Math.round((b.count / todoTotal) * 100),
@@ -2589,86 +2541,58 @@ const WorkspaceView = () => {
                     });
 
                     const activeHover = hoveredTodoPieSlice ? todoPrioBuckets.find(b => b.key === hoveredTodoPieSlice) : null;
-                    const activeFilter = dashboardPriorityFilter !== 'ALL' ? todoPrioBuckets.find(b => b.key === dashboardPriorityFilter) : null;
-                    const displayTarget = activeHover || activeFilter;
+                    const displayTarget = activeHover;
 
-                    // Filtered tasks for interactive list below chart
                     const detailTasks = todoTasks.filter(t => {
-                      if (dashboardPriorityFilter !== 'ALL') {
-                        return getTaskPriorityKey(t.priority) === dashboardPriorityFilter;
-                      }
-                      if (hoveredTodoPieSlice) {
-                        return getTaskPriorityKey(t.priority) === hoveredTodoPieSlice;
-                      }
+                      const key = getTaskPriorityKey(t.priority);
+                      if (hoveredTodoPieSlice) return key === hoveredTodoPieSlice;
                       return true;
                     });
 
                     return (
-                      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-card space-y-4">
-                        {/* Header with Source Toggle Tabs (Planner Page Todos vs Workspace Tasks) */}
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <h3 className="text-sm font-black text-slate-900 tracking-tight">Todo Tasks</h3>
-                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 uppercase tracking-wide border border-indigo-100">
-                                {todoChartSource === 'PLANNER' ? 'Planner Page' : 'Kanban DB'}
-                              </span>
+                      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-card flex flex-col gap-4">
+                        {/* Card Header */}
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <span className="p-1.5 rounded-lg bg-violet-50 text-violet-600">
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <circle cx="12" cy="12" r="10" /><path d="M12 8v4l3 3" />
+                              </svg>
+                            </span>
+                            <div>
+                              <h3 className="text-sm font-black text-slate-900 tracking-tight leading-none">Todo Tasks</h3>
+                              <p className="text-[11px] text-slate-400 font-medium mt-0.5">Planner pending tasks by priority</p>
                             </div>
-                            <p className="text-xs text-slate-400 font-medium">
-                              {todoChartSource === 'PLANNER'
-                                ? 'Pending todo tasks from Planner page'
-                                : 'Pending workspace tasks from Database'}
-                            </p>
                           </div>
-
-                          <div className="flex items-center gap-1.5 bg-slate-100/80 p-1 rounded-xl shrink-0">
-                            <button
-                              onClick={() => setTodoChartSource('PLANNER')}
-                              className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${todoChartSource === 'PLANNER'
-                                ? 'bg-white text-indigo-600 shadow-xs border border-slate-200/60'
-                                : 'text-slate-500 hover:text-slate-800'
-                                }`}
-                            >
-                              📅 Planner Todos ({plannerScopeTodos.length})
-                            </button>
-                            <button
-                              onClick={() => setTodoChartSource('WORKSPACE')}
-                              className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${todoChartSource === 'WORKSPACE'
-                                ? 'bg-white text-indigo-600 shadow-xs border border-slate-200/60'
-                                : 'text-slate-500 hover:text-slate-800'
-                                }`}
-                            >
-                              💼 Workspace ({workspaceTodoTasks.length})
-                            </button>
-                          </div>
+                          <span className="text-xs font-bold text-violet-700 bg-violet-50 border border-violet-100 px-2.5 py-1 rounded-lg">
+                            {todoTotal} Pending
+                          </span>
                         </div>
 
-                        {/* Side-by-side horizontal alignment: Pie chart slice on left, details legend on right */}
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center pt-1">
-                          {/* Left: SVG Pie Donut Slice Graphic */}
-                          <div className="md:col-span-6 flex flex-col items-center justify-center relative">
-                            <div className="relative w-[170px] h-[170px]">
-                              <svg viewBox="0 0 200 200" className="w-full h-full transform transition-transform duration-300">
+                        {/* Chart + Legend side-by-side */}
+                        <div className="grid grid-cols-12 gap-3 items-center">
+                          {/* Donut Chart */}
+                          <div className="col-span-5 flex flex-col items-center gap-1">
+                            <div className="relative w-[140px] h-[140px]">
+                              <svg viewBox="0 0 200 200" className="w-full h-full">
                                 <circle cx={cx} cy={cy} r={(R + r) / 2} strokeWidth={R - r} fill="none" stroke="#f1f5f9" />
                                 {todoTotal > 0 && slices.map(s => {
                                   if (!s.path) return null;
                                   const isHov = hoveredTodoPieSlice === s.key;
-                                  const isSelected = dashboardPriorityFilter === s.key;
                                   return (
                                     <path
                                       key={s.key}
                                       d={s.path}
                                       fill={s.color}
-                                      opacity={hoveredTodoPieSlice && !isHov ? 0.45 : isSelected ? 1 : 0.9}
-                                      filter={isHov || isSelected ? 'drop-shadow(0 2px 6px rgba(0,0,0,0.25))' : undefined}
+                                      opacity={hoveredTodoPieSlice && !isHov ? 0.35 : 0.92}
+                                      filter={isHov ? 'drop-shadow(0 2px 8px rgba(0,0,0,0.22))' : undefined}
                                       className="transition-all duration-200 cursor-pointer"
                                       style={{
                                         transformOrigin: `${cx}px ${cy}px`,
-                                        transform: isHov ? 'scale(1.04)' : isSelected ? 'scale(1.02)' : 'scale(1)',
+                                        transform: isHov ? 'scale(1.05)' : 'scale(1)',
                                       }}
                                       onMouseEnter={() => setHoveredTodoPieSlice(s.key)}
                                       onMouseLeave={() => setHoveredTodoPieSlice(null)}
-                                      onClick={() => setDashboardPriorityFilter(curr => curr === s.key ? 'ALL' : s.key)}
                                     />
                                   );
                                 })}
@@ -2676,207 +2600,157 @@ const WorkspaceView = () => {
                                   <circle cx={cx} cy={cy} r={(R + r) / 2} strokeWidth={R - r} fill="none" stroke="#e2e8f0" />
                                 )}
                               </svg>
-                              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none text-center px-2">
+                              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none text-center">
                                 <motion.span
                                   key={displayTarget ? displayTarget.key : 'TOTAL'}
-                                  initial={{ scale: 0.85, opacity: 0 }}
+                                  initial={{ scale: 0.8, opacity: 0 }}
                                   animate={{ scale: 1, opacity: 1 }}
                                   transition={{ duration: 0.15 }}
                                   className="text-2xl font-black text-slate-900 leading-none"
                                 >
                                   {displayTarget ? displayTarget.count : todoTotal}
                                 </motion.span>
-                                <span className="text-[10px] font-bold text-slate-400 mt-1 truncate max-w-[100px]">
-                                  {displayTarget ? `${displayTarget.label} Todo` : 'Todo Tasks'}
+                                <span className="text-[10px] font-bold text-slate-400 mt-0.5 leading-tight">
+                                  {displayTarget ? displayTarget.label : 'Total'}
                                 </span>
-                                {todoTotal > 0 && (
-                                  <span className="text-[9px] font-extrabold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full mt-0.5 border border-blue-100">
-                                    {displayTarget
-                                      ? `${Math.round((displayTarget.count / (todoTotal || 1)) * 100)}% of todo`
-                                      : `${Math.round((todoTotal / (total || 1)) * 100)}% of total`}
-                                  </span>
-                                )}
                               </div>
                             </div>
-                            <span className="text-[10px] text-slate-400 font-medium mt-1 text-center">
-                              Click slice to filter task details
-                            </span>
+                            <span className="text-[10px] text-slate-400 font-medium text-center">Hover slice to inspect</span>
                           </div>
 
-                          {/* Right: Details Legend in Same Line */}
-                          <div className="md:col-span-6 space-y-1.5">
+                          {/* Priority Legend */}
+                          <div className="col-span-7 space-y-1.5">
                             {todoPrioBuckets.map(b => {
                               const isHov = hoveredTodoPieSlice === b.key;
-                              const isSelected = dashboardPriorityFilter === b.key;
                               const pct = todoTotal > 0 ? Math.round((b.count / todoTotal) * 100) : 0;
                               return (
                                 <div
                                   key={b.key}
                                   onMouseEnter={() => setHoveredTodoPieSlice(b.key)}
                                   onMouseLeave={() => setHoveredTodoPieSlice(null)}
-                                  onClick={() => setDashboardPriorityFilter(curr => curr === b.key ? 'ALL' : b.key)}
-                                  className={`p-2 rounded-xl border transition-all cursor-pointer ${isSelected
-                                    ? 'border-indigo-600 bg-indigo-50/70 shadow-xs ring-1 ring-indigo-500/20'
-                                    : isHov
-                                      ? 'border-slate-300 bg-slate-50 shadow-xs'
-                                      : 'border-slate-200/70 bg-white hover:bg-slate-50/70'
-                                    }`}
+                                  className={`p-2 rounded-xl border transition-all cursor-default ${isHov ? 'border-slate-300 bg-slate-50 shadow-sm' : 'border-slate-100 bg-white'}`}
                                 >
                                   <div className="flex items-center justify-between mb-1">
-                                    <div className="flex items-center gap-2">
-                                      <span className={`w-2.5 h-2.5 rounded-full ${b.dot} shrink-0`} />
-                                      <span className="text-xs font-bold text-slate-800">{b.label}</span>
-                                    </div>
                                     <div className="flex items-center gap-1.5">
+                                      <span className={`w-2 h-2 rounded-full ${b.dot} shrink-0`} />
+                                      <span className="text-xs font-bold text-slate-700">{b.label}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1">
                                       <span className="text-xs font-black text-slate-900">{b.count}</span>
-                                      <span className="text-[10px] text-slate-400 font-semibold w-7 text-right">{pct}%</span>
+                                      <span className="text-[10px] text-slate-400 font-medium w-6 text-right">{pct}%</span>
                                     </div>
                                   </div>
-
-                                  {/* Micro progress bar */}
-                                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                    <div
-                                      className="h-full rounded-full transition-all duration-500"
-                                      style={{
-                                        width: `${pct}%`,
-                                        backgroundColor: b.color,
-                                      }}
-                                    />
+                                  <div className="w-full h-1 bg-slate-100 rounded-full overflow-hidden">
+                                    <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, backgroundColor: b.color }} />
                                   </div>
                                 </div>
                               );
                             })}
                             {todoTotal === 0 && (
-                              <p className="text-xs text-slate-400 italic text-center py-2">No pending todo tasks 🎉</p>
+                              <p className="text-xs text-slate-400 italic text-center py-3">All caught up! 🎉</p>
                             )}
                           </div>
                         </div>
 
-                        {/* ── Live Task Details List (Planner Page Todos or Workspace Tasks) ── */}
-                        <div className="border-t border-slate-100 pt-3 mt-1 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                              <span>📋 {todoChartSource === 'PLANNER' ? 'Planner Page Todo Details' : 'Workspace Task Details'}</span>
-                              <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full">
-                                {detailTasks.length} {dashboardPriorityFilter !== 'ALL' ? dashboardPriorityFilter.toLowerCase() : ''} items
-                              </span>
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-medium">
-                              {todoChartSource === 'PLANNER' ? 'Planner Storage' : 'Synced with DB'}
-                            </span>
-                          </div>
-
-                          <div className="max-h-[160px] overflow-y-auto space-y-1.5 pr-1">
-                            {detailTasks.slice(0, 8).map(t => {
-                              const prioKey = getTaskPriorityKey(t.priority);
-                              const prioConfig = todoPrioBuckets.find(b => b.key === prioKey) || todoPrioBuckets[2];
-                              const isPlanner = todoChartSource === 'PLANNER';
-
-                              return (
-                                <div
-                                  key={t.id || t._id}
-                                  onClick={() => {
-                                    if (isPlanner) {
-                                      setSelectedTodo(t);
-                                    } else {
-                                      setSelectedCalendarTask({ taskId: t.id || t._id, workspaceId: t.workspaceId });
-                                    }
-                                  }}
-                                  className="flex items-center justify-between p-2 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-100/80 hover:border-slate-200 transition-all cursor-pointer group"
-                                >
-                                  <div className="flex items-center gap-2 min-w-0 pr-2">
-                                    <span className={`w-2 h-2 rounded-full ${prioConfig.dot} shrink-0`} />
-                                    <span className="text-xs font-extrabold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">
-                                      {t.title || 'Untitled Task'}
-                                    </span>
-                                  </div>
-
-                                  <div className="flex items-center gap-2 shrink-0">
+                        {/* Task List */}
+                        {todoTotal > 0 && (
+                          <div className="border-t border-slate-100 pt-3 space-y-1">
+                            <div className="flex items-center justify-between mb-2">
+                              {displayTarget && (
+                                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide">
+                                  {displayTarget.label} Tasks
+                                </span>
+                              )}
+                              <span className="text-[10px] font-semibold text-slate-400 ml-auto">{detailTasks.length} items</span>
+                            </div>
+                            <div className="max-h-[140px] overflow-y-auto space-y-1 pr-0.5">
+                              {detailTasks.slice(0, 8).map(t => {
+                                const prioKey = getTaskPriorityKey(t.priority);
+                                const prioConfig = todoPrioBuckets.find(b => b.key === prioKey) || todoPrioBuckets[2];
+                                return (
+                                  <div
+                                    key={t.id || t._id}
+                                    onClick={() => setSelectedTodo(t)}
+                                    className="flex items-center justify-between px-2.5 py-1.5 rounded-lg border border-slate-100 hover:border-violet-200 hover:bg-violet-50/40 transition-all cursor-pointer group"
+                                  >
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span className={`w-1.5 h-1.5 rounded-full shrink-0`} style={{ backgroundColor: prioConfig.color }} />
+                                      <span className="text-xs text-slate-700 font-semibold truncate group-hover:text-violet-700 transition-colors">
+                                        {t.title || 'Untitled'}
+                                      </span>
+                                    </div>
                                     {(t.fromDate || t.dueDate) && (
-                                      <span className="text-[10px] font-medium text-slate-400 bg-white border border-slate-200 px-1.5 py-0.5 rounded-md">
-                                        📅 {t.fromDate || t.dueDate}
+                                      <span className="text-[10px] text-slate-400 shrink-0 ml-2">
+                                        {t.fromDate || t.dueDate}
                                       </span>
                                     )}
-                                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider text-white`} style={{ backgroundColor: prioConfig.color }}>
-                                      {prioKey}
-                                    </span>
                                   </div>
-                                </div>
-                              );
-                            })}
-
-                            {detailTasks.length === 0 && (
-                              <div className="p-3 text-center rounded-xl bg-slate-50 border border-dashed border-slate-200">
-                                <p className="text-xs text-slate-400 font-medium">No todo tasks match this filter</p>
-                              </div>
-                            )}
+                                );
+                              })}
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     );
                   })()}
                 </div>
 
-                {/* ── Actionable Task Radar (Workable directly from Dashboard!) ── */}
+                {/* ── Actionable Task Radar ── */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl shadow-card overflow-hidden">
-                  {/* Task Radar Toolbar */}
-                  <div className="p-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-50/50">
-                    <div className="flex items-center gap-2.5">
-                      <div className="p-1.5 bg-white border border-slate-200 rounded-lg shadow-xs">
-                        <Target className="w-4 h-4 text-indigo-600" />
+                  {/* Toolbar */}
+                  <div className="px-5 py-4 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-sm shrink-0">
+                        <Target className="w-4 h-4 text-white" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-black text-slate-900 tracking-tight">Task Radar & Actions</h3>
-                        <p className="text-[11px] text-slate-400 font-medium">Update status, inspect assignments, and jump to boards</p>
+                        <h3 className="text-sm font-black text-slate-900 tracking-tight leading-none">Task Radar</h3>
+                        <p className="text-[11px] text-slate-400 font-medium mt-0.5">Live workspace tasks · Update status inline</p>
                       </div>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
                       {/* Search */}
-                      <div className="relative w-full sm:w-56">
-                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <div className="relative w-full sm:w-52">
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                         <input
                           type="text"
-                          placeholder="Search tasks..."
+                          placeholder="Search tasks…"
                           value={dashboardSearchQuery}
                           onChange={(e) => setDashboardSearchQuery(e.target.value)}
-                          className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                          className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all"
                         />
                       </div>
 
-                      {/* Status Filter Tab Pills */}
-                      <div className="flex items-center bg-white border border-slate-200 p-0.5 rounded-xl shadow-xs">
-                        {['ALL', 'IN_PROGRESS', 'TO_DO', 'COMPLETED'].map(statusKey => (
+                      {/* Status Filter Pills */}
+                      <div className="flex items-center bg-slate-100/70 p-0.5 rounded-xl gap-0.5">
+                        {[{ k: 'ALL', l: 'All' }, { k: 'IN_PROGRESS', l: 'Active' }, { k: 'TO_DO', l: 'Todo' }, { k: 'COMPLETED', l: 'Done' }].map(({ k, l }) => (
                           <button
-                            key={statusKey}
-                            onClick={() => setDashboardStatusFilter(statusKey)}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${dashboardStatusFilter === statusKey
-                              ? 'bg-indigo-600 text-white shadow-xs'
+                            key={k}
+                            onClick={() => setDashboardStatusFilter(k)}
+                            className={`px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer ${dashboardStatusFilter === k
+                              ? 'bg-white text-indigo-700 shadow-sm ring-1 ring-slate-200/60'
                               : 'text-slate-500 hover:text-slate-800'
                               }`}
                           >
-                            {statusKey === 'ALL' ? 'All' : statusKey === 'IN_PROGRESS' ? 'Active' : statusKey === 'TO_DO' ? 'Todo' : 'Done'}
+                            {l}
                           </button>
                         ))}
                       </div>
 
                       {(dashboardStatusFilter !== 'ALL' || dashboardPriorityFilter !== 'ALL' || dashboardSearchQuery) && (
                         <button
-                          onClick={() => {
-                            setDashboardStatusFilter('ALL');
-                            setDashboardPriorityFilter('ALL');
-                            setDashboardSearchQuery('');
-                          }}
-                          className="text-xs font-bold text-slate-400 hover:text-slate-700 px-2 py-1 cursor-pointer"
+                          onClick={() => { setDashboardStatusFilter('ALL'); setDashboardPriorityFilter('ALL'); setDashboardSearchQuery(''); }}
+                          className="text-[11px] font-bold text-rose-500 hover:text-rose-700 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg transition-all cursor-pointer"
                         >
-                          Reset
+                          Reset ×
                         </button>
                       )}
                     </div>
                   </div>
 
                   {/* Task Rows */}
-                  <div className="divide-y divide-slate-100">
+                  <div className="divide-y divide-slate-100/80">
                     {radarTasks.length > 0 ? (
                       radarTasks.slice(0, 8).map((task, idx) => {
                         const pc = PRIORITY_CONFIG[getTaskPriorityKey(task.priority)] || PRIORITY_CONFIG.MEDIUM;
@@ -2891,39 +2765,26 @@ const WorkspaceView = () => {
                             animate={{ opacity: 1 }}
                             transition={{ delay: idx * 0.02 }}
                             onClick={() => task.workspaceId && handleSelect(task.workspaceId)}
-                            className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-slate-50/80 transition-all cursor-pointer group gap-3"
+                            className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-3.5 hover:bg-slate-50/70 transition-colors cursor-pointer group gap-3"
                           >
-                            {/* Left info */}
-                            <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                              {/* Workspace Logo badge */}
+                            {/* Left: info */}
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
                               <WorkspaceLogo workspace={taskWs} size="sm" className="shrink-0 ring-1 ring-slate-200/50" />
-
                               <div className="min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
-                                  <span className={`w-2 h-2 rounded-full shrink-0 ${pc.dot}`} />
-                                  <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors truncate">
+                                  <span className={`w-1.5 h-1.5 rounded-full shrink-0`} style={{ backgroundColor: pc.color || '#6366f1' }} />
+                                  <h4 className="text-sm font-semibold text-slate-800 group-hover:text-indigo-600 transition-colors truncate">
                                     {task.title}
                                   </h4>
                                 </div>
-
-                                <div className="flex flex-wrap items-center gap-2.5 mt-1 text-xs text-slate-400">
-                                  <span className="font-semibold text-slate-600">
-                                    {taskWs?.name || 'Workspace'}
-                                  </span>
+                                <div className="flex flex-wrap items-center gap-2 mt-0.5 text-[11px] text-slate-400">
+                                  <span className="font-medium text-slate-500">{taskWs?.name || 'Workspace'}</span>
                                   {task.dueDate && (
                                     <>
-                                      <span>•</span>
-                                      <span className="flex items-center gap-1 font-medium text-slate-500">
-                                        <Clock className="w-3 h-3 text-slate-400" />
-                                        Due {task.dueDate}
-                                      </span>
-                                    </>
-                                  )}
-                                  {task.points && (
-                                    <>
-                                      <span>•</span>
-                                      <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold">
-                                        {task.points} pts
+                                      <span className="text-slate-200">·</span>
+                                      <span className="flex items-center gap-1">
+                                        <Clock className="w-3 h-3" />
+                                        {task.dueDate}
                                       </span>
                                     </>
                                   )}
@@ -2931,59 +2792,48 @@ const WorkspaceView = () => {
                               </div>
                             </div>
 
-                            {/* Right actions: Priority Pill, Assignee, Quick Status Switcher */}
-                            <div className="flex items-center gap-3 shrink-0 self-end sm:self-center" onClick={e => e.stopPropagation()}>
-                              {/* Priority */}
-                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md border ${pc.chip}`}>
-                                {pc.label}
-                              </span>
+                            {/* Right: actions */}
+                            <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center" onClick={e => e.stopPropagation()}>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${pc.chip}`}>{pc.label}</span>
 
-                              {/* Quick Move Status Custom Dropdown */}
+                              {/* Status Dropdown */}
                               <div className="relative" id={`quick-status-${task.id}`}>
                                 <button
                                   type="button"
                                   disabled={isMoving}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setActiveStatusDropdownTaskId(activeStatusDropdownTaskId === task.id ? null : task.id);
-                                  }}
-                                  className={`text-xs font-bold py-1 px-2.5 rounded-lg border focus:outline-none transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${sc.color} ${isMoving ? 'opacity-50' : 'hover:shadow-xs'
-                                    }`}
+                                  onClick={(e) => { e.stopPropagation(); setActiveStatusDropdownTaskId(activeStatusDropdownTaskId === task.id ? null : task.id); }}
+                                  className={`text-[11px] font-semibold py-1 px-2.5 rounded-lg border focus:outline-none transition-all cursor-pointer flex items-center gap-1.5 ${sc.color} ${isMoving ? 'opacity-50' : 'hover:shadow-sm'}`}
                                 >
                                   <span>{sc.label}</span>
-                                  <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${activeStatusDropdownTaskId === task.id ? 'rotate-180' : ''}`} />
+                                  <ChevronDown className={`w-3 h-3 opacity-60 transition-transform ${activeStatusDropdownTaskId === task.id ? 'rotate-180' : ''}`} />
                                 </button>
 
                                 <AnimatePresence>
                                   {activeStatusDropdownTaskId === task.id && (
                                     <motion.div
-                                      initial={{ opacity: 0, y: 4, scale: 0.98 }}
+                                      initial={{ opacity: 0, y: 6, scale: 0.96 }}
                                       animate={{ opacity: 1, y: 0, scale: 1 }}
-                                      exit={{ opacity: 0, y: 4, scale: 0.98 }}
-                                      transition={{ duration: 0.12 }}
-                                      className="absolute right-0 top-full mt-1 w-36 bg-white border border-slate-200 rounded-xl shadow-xl z-50 py-1 overflow-hidden"
+                                      exit={{ opacity: 0, y: 6, scale: 0.96 }}
+                                      transition={{ duration: 0.12, ease: 'easeOut' }}
+                                      className="absolute right-0 top-full mt-1.5 w-40 bg-white border border-slate-200/80 rounded-2xl shadow-xl shadow-slate-200/60 z-50 py-1.5 overflow-hidden"
                                     >
                                       {[
-                                        { id: 'TO_DO', label: 'To Do', dot: 'bg-blue-400' },
-                                        { id: 'IN_PROGRESS', label: 'In Progress', dot: 'bg-indigo-500' },
-                                        { id: 'COMPLETED', label: 'Completed', dot: 'bg-emerald-500' },
-                                        { id: 'BACKLOG', label: 'Backlog', dot: 'bg-slate-400' }
+                                        { id: 'TO_DO', label: 'To Do', color: '#60a5fa' },
+                                        { id: 'IN_PROGRESS', label: 'In Progress', color: '#818cf8' },
+                                        { id: 'COMPLETED', label: 'Completed', color: '#34d399' },
+                                        { id: 'BACKLOG', label: 'Backlog', color: '#94a3b8' }
                                       ].map((st) => (
                                         <button
                                           key={st.id}
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setActiveStatusDropdownTaskId(null);
-                                            handleStatusChange(task.id, st.id, e);
-                                          }}
-                                          className={`w-full px-3 py-1.5 text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${task.status === st.id ? 'bg-indigo-50/70 text-indigo-700 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                                          onClick={(e) => { e.stopPropagation(); setActiveStatusDropdownTaskId(null); handleStatusChange(task.id, st.id, e); }}
+                                          className={`w-full px-3 py-2 text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${task.status === st.id ? 'bg-indigo-50 text-indigo-700' : 'hover:bg-slate-50 text-slate-700'
                                             }`}
                                         >
                                           <div className="flex items-center gap-2">
-                                            <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
+                                            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: st.color }} />
                                             <span>{st.label}</span>
                                           </div>
-                                          {task.status === st.id && <Check className="w-3 h-3 text-indigo-600" />}
+                                          {task.status === st.id && <Check className="w-3.5 h-3.5 text-indigo-500" />}
                                         </button>
                                       ))}
                                     </motion.div>
@@ -2991,15 +2841,11 @@ const WorkspaceView = () => {
                                 </AnimatePresence>
                               </div>
 
-                              {/* Assignee Avatar */}
+                              {/* Assignee */}
                               {memberAvatars[task.assigneeId || task.assignee] ? (
-                                <img
-                                  src={memberAvatars[task.assigneeId || task.assignee]}
-                                  alt=""
-                                  className="w-7 h-7 rounded-full object-cover border border-slate-200"
-                                />
+                                <img src={memberAvatars[task.assigneeId || task.assignee]} alt="" className="w-6 h-6 rounded-full object-cover ring-1 ring-slate-200" />
                               ) : (
-                                <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 text-[10px] font-black flex items-center justify-center border border-indigo-200/50">
+                                <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-black flex items-center justify-center ring-1 ring-indigo-200/40">
                                   {currentUser?.name?.charAt(0) || 'U'}
                                 </div>
                               )}
@@ -3009,33 +2855,29 @@ const WorkspaceView = () => {
                                 className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
                                 title="Open in Board"
                               >
-                                <ArrowUpRight className="w-4 h-4" />
+                                <ArrowUpRight className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </motion.div>
                         );
                       })
                     ) : (
-                      <div className="p-12 text-center flex flex-col items-center justify-center">
-                        <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3">
+                      <div className="py-14 text-center flex flex-col items-center">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-100 text-indigo-400 flex items-center justify-center mb-3">
                           <CheckCircle className="w-6 h-6" />
                         </div>
-                        <h4 className="text-sm font-bold text-slate-800">
-                          {dashboardUserMode === 'ME'
-                            ? `No tasks assigned to ${userDisplayName}`
-                            : 'No tasks match your filter'}
+                        <h4 className="text-sm font-bold text-slate-700">
+                          {dashboardUserMode === 'ME' ? `No tasks assigned to ${userDisplayName}` : 'No tasks match your filter'}
                         </h4>
-                        <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                          {dashboardUserMode === 'ME'
-                            ? 'Switch to Team View to inspect all tasks across the workspace, or assign a task to yourself.'
-                            : 'Try resetting your filter parameters or create a new task in this workspace.'}
+                        <p className="text-xs text-slate-400 mt-1 max-w-xs">
+                          {dashboardUserMode === 'ME' ? 'Switch to Team View to see all tasks.' : 'Try resetting your filters.'}
                         </p>
                         {dashboardUserMode === 'ME' && (
                           <button
                             onClick={() => setDashboardUserMode('ALL')}
-                            className="mt-3.5 px-4 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                            className="mt-3.5 px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shadow-sm"
                           >
-                            <span>👥 Switch to Team View</span>
+                            <span>Team View</span>
                             <ArrowRight className="w-3.5 h-3.5" />
                           </button>
                         )}
@@ -3044,7 +2886,8 @@ const WorkspaceView = () => {
                   </div>
 
                   {radarTasks.length > 8 && (
-                    <div className="p-3 border-t border-slate-100 bg-slate-50/50 flex justify-center">
+                    <div className="px-5 py-3 border-t border-slate-100 flex justify-between items-center">
+                      <span className="text-[11px] text-slate-400 font-medium">{radarTasks.length - 8} more tasks not shown</span>
                       <button
                         onClick={() => {
                           const targetId = dashboardScope !== 'ALL' ? dashboardScope : (activeWorkspace?.id || workspaces[0]?.id);
@@ -3052,62 +2895,94 @@ const WorkspaceView = () => {
                         }}
                         className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 cursor-pointer"
                       >
-                        View all {radarTasks.length} tasks in board <ArrowRight className="w-3.5 h-3.5" />
+                        View all in board <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   )}
                 </div>
 
-                {/* ── Workspace Fleet Overview ── */}
+                {/* ── Workspace Fleet Performance ── */}
                 <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-card space-y-4">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-black text-slate-900 tracking-tight">Workspace Fleet Performance</h3>
-                      <p className="text-xs text-slate-400 font-medium">Cross-workspace velocity and delivery metrics</p>
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm shrink-0">
+                        <BarChart3 className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-black text-slate-900 tracking-tight leading-none">Fleet Performance</h3>
+                        <p className="text-[11px] text-slate-400 font-medium mt-0.5">Cross-workspace delivery metrics</p>
+                      </div>
                     </div>
-                    <Button size="xs" variant="outline" icon={Plus} onClick={() => navigate('/create-workspace')}>
+                    <button
+                      onClick={() => navigate('/create-workspace')}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 hover:text-slate-900 text-xs font-bold transition-all cursor-pointer"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
                       New Space
-                    </Button>
+                    </button>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {workspaces.map((ws, i) => {
                       const { total: wsTotal, done: wsDone, pct: wsPct } = getWorkspaceStats(ws.id);
+                      const inProg = activeScopeTasks.filter(t => t.workspaceId === ws.id && t.status === 'IN_PROGRESS').length;
+                      const wsColor = wsPct >= 80 ? { from: 'from-emerald-500', to: 'to-teal-500', badge: 'text-emerald-700 bg-emerald-50 border-emerald-100' }
+                        : wsPct >= 40 ? { from: 'from-indigo-500', to: 'to-violet-500', badge: 'text-indigo-700 bg-indigo-50 border-indigo-100' }
+                          : { from: 'from-amber-400', to: 'to-orange-500', badge: 'text-amber-700 bg-amber-50 border-amber-100' };
+
                       return (
                         <motion.div
                           key={ws.id}
-                          whileHover={{ y: -2 }}
+                          whileHover={{ y: -2, scale: 1.01 }}
                           onClick={() => handleSelect(ws.id)}
-                          className="p-4 rounded-xl border border-slate-200/80 hover:border-indigo-300 hover:shadow-md transition-all cursor-pointer bg-white group flex flex-col justify-between min-h-[140px]"
+                          className="p-4 rounded-2xl border border-slate-200/80 hover:border-indigo-200 hover:shadow-lg transition-all cursor-pointer bg-white group relative overflow-hidden"
                         >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-center gap-3 min-w-0">
-                              <WorkspaceLogo workspace={ws} size="md" className="shrink-0 ring-2 ring-slate-100" />
+                          {/* Subtle gradient bg accent */}
+                          <div className={`absolute top-0 right-0 w-20 h-20 bg-gradient-to-br ${wsColor.from} ${wsColor.to} opacity-5 rounded-full -translate-y-6 translate-x-6 pointer-events-none`} />
+
+                          <div className="flex items-start justify-between gap-2 mb-3">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <WorkspaceLogo workspace={ws} size="sm" className="shrink-0 ring-2 ring-slate-100" />
                               <div className="min-w-0">
-                                <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors truncate">
+                                <h4 className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors truncate leading-tight">
                                   {ws.name}
                                 </h4>
-                                <span className="text-[10px] font-semibold text-slate-400">
+                                <span className="text-[10px] font-medium text-slate-400">
                                   {ws.visibility || 'Private'} · {ws.userRole || 'Member'}
                                 </span>
                               </div>
                             </div>
-                            <span className="text-xs font-black text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md">
+                            <span className={`text-[11px] font-black px-2 py-0.5 rounded-lg border shrink-0 ${wsColor.badge}`}>
                               {wsPct}%
                             </span>
                           </div>
 
-                          <div className="space-y-1.5 mt-3 pt-3 border-t border-slate-100">
-                            <div className="flex justify-between text-[11px] font-bold text-slate-500">
-                              <span>Progress</span>
-                              <span>{wsDone} / {wsTotal} done</span>
+                          {/* Mini stats row */}
+                          <div className="flex items-center gap-3 mb-3 text-[11px]">
+                            <div className="flex items-center gap-1 text-slate-500">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                              <span className="font-semibold">{wsDone} done</span>
                             </div>
+                            {inProg > 0 && (
+                              <div className="flex items-center gap-1 text-slate-500">
+                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-400 shrink-0" />
+                                <span className="font-semibold">{inProg} active</span>
+                              </div>
+                            )}
+                            <div className="flex items-center gap-1 text-slate-500">
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
+                              <span className="font-semibold">{wsTotal} total</span>
+                            </div>
+                          </div>
+
+                          {/* Progress bar */}
+                          <div className="space-y-1">
                             <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                               <motion.div
                                 initial={{ width: 0 }}
                                 animate={{ width: `${wsPct}%` }}
-                                transition={{ duration: 0.8, delay: i * 0.05 }}
-                                className="h-full bg-gradient-to-r from-indigo-500 to-violet-600 rounded-full"
+                                transition={{ duration: 0.9, delay: i * 0.06, ease: 'easeOut' }}
+                                className={`h-full bg-gradient-to-r ${wsColor.from} ${wsColor.to} rounded-full`}
                               />
                             </div>
                           </div>

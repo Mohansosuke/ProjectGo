@@ -11,21 +11,13 @@ import {
 import { useAuth } from '../contexts/AuthContext';
 import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useTask } from '../contexts/TaskContext';
-import { Button, Input, Avatar, Badge, Dropdown, Breadcrumb, WorkspaceLogo } from '../components/ui';
+import { Button, Input, Avatar, Badge, Dropdown, Breadcrumb, WorkspaceLogo, DashboardIcon, WorkspaceIcon, PlannerIcon, TeamIcon, DocsIcon } from '../components/ui';
 
 /* ─── Custom Icons ────────────────────────────────────────── */
 const OrbitIcon = ({ className }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
     <circle cx="12" cy="12" r="4" />
     <ellipse cx="12" cy="12" rx="10" ry="3.5" transform="rotate(-30 12 12)" />
-  </svg>
-);
-
-const DocsIcon = ({ className }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-    <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-    <path d="M10 9H8M16 13H8M16 17H8" />
   </svg>
 );
 
@@ -53,8 +45,8 @@ const ProjectGoAppLogo = ({ size = "md", showWordmark = true }) => (
       <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-violet-600 via-indigo-600 to-indigo-700 shadow-md shadow-indigo-500/25 transition-transform duration-200 group-hover:scale-105" />
       <div className="absolute inset-0 flex items-center justify-center">
         <svg viewBox="0 0 24 24" fill="none" className={size === 'sm' ? 'w-4 h-4' : 'w-[18px] h-[18px]'}>
-          <path d="M5 9L9 12L5 15" stroke="rgba(255,255,255,0.5)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-          <path d="M11 6L18 12L11 18" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
+          <path d="M5 9L9 12L5 15" stroke="rgba(255,255,255,0.5)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M11 6L18 12L11 18" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </div>
     </div>
@@ -187,11 +179,11 @@ const DashboardLayout = () => {
   };
 
   const primaryNavItems = [
-    { id: 'Dashboard', label: 'Dashboard', Icon: BarChart3, route: '/workspaces', badge: null },
-    { id: 'Spaces', label: 'Spaces', Icon: Layers, route: '/workspaces', badge: workspaces.length },
-    { id: 'Planner', label: 'Planner', Icon: CalendarDays, route: '/workspaces', badge: null },
-    { id: 'Teams', label: 'Teams', Icon: Users2, route: '/workspaces', badge: null },
-    { id: 'Docs', label: 'Docs', Icon: FileText, route: '/workspaces', badge: null },
+    { id: 'Dashboard', label: 'Dashboard', Icon: DashboardIcon, from: '#6366f1', to: '#06b6d4', route: '/workspaces', badge: null },
+    { id: 'Spaces', label: 'Spaces', Icon: WorkspaceIcon, from: '#8b5cf6', to: '#ec4899', route: '/workspaces', badge: workspaces.length },
+    { id: 'Planner', label: 'Planner', Icon: PlannerIcon, from: '#f97316', to: '#f43f5e', route: '/workspaces', badge: null },
+    { id: 'Teams', label: 'Teams', Icon: TeamIcon, from: '#10b981', to: '#06b6d4', route: '/workspaces', badge: null },
+    { id: 'Docs', label: 'Docs', Icon: DocsIcon, from: '#3b82f6', to: '#8b5cf6', route: '/workspaces', badge: null },
   ];
 
   const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
@@ -226,9 +218,8 @@ const DashboardLayout = () => {
           UNIFIED MODERN SIDEBAR
       ═══════════════════════════════════════════════════════ */}
       <aside
-        className={`hidden md:flex flex-col fixed left-0 top-0 h-screen z-40 bg-white border-r border-slate-200/80 shadow-[1px_0_12px_rgba(0,0,0,0.03)] transition-[width] duration-300 ease-in-out select-none ${
-          isCollapsed ? 'w-[68px]' : 'w-[260px]'
-        }`}
+        className={`hidden md:flex flex-col fixed left-0 top-0 h-screen z-40 bg-white border-r border-slate-200/80 shadow-[1px_0_12px_rgba(0,0,0,0.03)] transition-[width] duration-300 ease-in-out select-none ${isCollapsed ? 'w-[68px]' : 'w-[260px]'
+          }`}
       >
         {/* ── Top Header: Unique Application Logo & Sidebar Close/Expand Controls ── */}
         <div className="h-16 px-3 border-b border-slate-100 flex items-center justify-between shrink-0 relative">
@@ -267,8 +258,8 @@ const DashboardLayout = () => {
                 ) : (
                   <div className="w-8.5 h-8.5 rounded-xl bg-gradient-to-br from-violet-600 via-indigo-600 to-indigo-700 shadow-md shadow-indigo-500/25 flex items-center justify-center">
                     <svg viewBox="0 0 24 24" fill="none" className="w-[18px] h-[18px]">
-                      <path d="M5 9L9 12L5 15" stroke="rgba(255,255,255,0.5)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-                      <path d="M11 6L18 12L11 18" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M5 9L9 12L5 15" stroke="rgba(255,255,255,0.5)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                      <path d="M11 6L18 12L11 18" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </div>
                 )}
@@ -318,11 +309,10 @@ const DashboardLayout = () => {
                             setIsWorkspaceDropdownOpen(false);
                             navigate(`/workspace/${w.id}/kanban`);
                           }}
-                          className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                            w.id === activeWorkspace?.id
-                              ? 'bg-indigo-50 text-indigo-700 font-bold'
-                              : 'text-slate-700 hover:bg-slate-100'
-                          }`}
+                          className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${w.id === activeWorkspace?.id
+                            ? 'bg-indigo-50 text-indigo-700 font-bold'
+                            : 'text-slate-700 hover:bg-slate-100'
+                            }`}
                         >
                           <div className="flex items-center gap-2 truncate">
                             <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
@@ -381,23 +371,25 @@ const DashboardLayout = () => {
               <div key={item.id} className="relative group">
                 <button
                   onClick={() => handlePrimaryClick(item)}
-                  className={`w-full flex items-center rounded-xl transition-all cursor-pointer ${
-                    isCollapsed ? 'justify-center h-11' : 'gap-3 px-3 py-2.5 text-xs font-semibold'
-                  } ${
-                    isActive
+                  className={`w-full flex items-center rounded-xl transition-all cursor-pointer ${isCollapsed ? 'justify-center h-11' : 'gap-3 px-3 py-2.5 text-xs font-semibold'
+                    } ${isActive
                       ? 'bg-indigo-600 text-white font-bold shadow-sm shadow-indigo-600/25'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
+                    }`}
                   title={isCollapsed ? item.label : undefined}
                 >
-                  <item.Icon className={`shrink-0 ${isCollapsed ? 'w-5 h-5' : 'w-4 h-4'} ${isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-800'}`} />
+                  <item.Icon
+                    size={isCollapsed ? 22 : 18}
+                    stroke={isActive ? '#ffffff' : 'currentColor'}
+                    strokeWidth={1.8}
+                    className="shrink-0"
+                  />
                   {!isCollapsed && (
                     <span className="flex-1 text-left truncate">{item.label}</span>
                   )}
                   {!isCollapsed && item.badge !== null && item.badge > 0 && (
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                      isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
-                    }`}>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                      }`}>
                       {item.badge}
                     </span>
                   )}
@@ -434,11 +426,10 @@ const DashboardLayout = () => {
                   return (
                     <div key={w.id} className="rounded-xl overflow-hidden">
                       <div
-                        className={`flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${
-                          isCurrent
-                            ? 'bg-slate-100/90 text-indigo-700'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
-                        }`}
+                        className={`flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer ${isCurrent
+                          ? 'bg-slate-100/90 text-indigo-700'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                          }`}
                         onClick={() => handleSelect(w.id)}
                       >
                         <div className="flex items-center gap-2 truncate">
@@ -703,8 +694,8 @@ const DashboardLayout = () => {
                     <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 shadow-lg shadow-violet-500/30" />
                     <div className="absolute inset-0 flex items-center justify-center">
                       <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4">
-                        <path d="M5 9L9 12L5 15" stroke="rgba(255,255,255,0.45)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M11 6L18 12L11 18" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M5 9L9 12L5 15" stroke="rgba(255,255,255,0.45)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                        <path d="M11 6L18 12L11 18" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
                       </svg>
                     </div>
                   </Link>
@@ -712,11 +703,10 @@ const DashboardLayout = () => {
                     <button
                       key={item.id}
                       onClick={() => { handlePrimaryClick(item); setIsMobileMenuOpen(false); }}
-                      className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-colors cursor-pointer ${
-                        activeTab === item.id ? 'bg-white/15 text-white' : 'text-white/55 hover:text-white'
-                      }`}
+                      className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center gap-0.5 transition-colors cursor-pointer ${activeTab === item.id ? 'bg-white/15 text-white' : 'text-white/55 hover:text-white'
+                        }`}
                     >
-                      <item.Icon className="w-4 h-4" />
+                      <item.Icon size={18} stroke={activeTab === item.id ? '#ffffff' : 'rgba(255,255,255,0.7)'} strokeWidth={1.8} />
                       <span className="text-[8px] font-semibold">{item.label}</span>
                     </button>
                   ))}
@@ -777,9 +767,8 @@ const DashboardLayout = () => {
         />
       )}
 
-      <aside className={`fixed right-0 top-0 h-screen w-full max-w-[380px] bg-white border-l border-gray-200 shadow-[var(--shadow-panel)] transition-transform duration-300 ease-out z-[29] flex flex-col overflow-hidden ${
-        isProfilePanelOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
-      }`}>
+      <aside className={`fixed right-0 top-0 h-screen w-full max-w-[380px] bg-white border-l border-gray-200 shadow-[var(--shadow-panel)] transition-transform duration-300 ease-out z-[29] flex flex-col overflow-hidden ${isProfilePanelOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
+        }`}>
         {/* Cover banner */}
         <div
           className="relative h-28 shrink-0 overflow-hidden group"

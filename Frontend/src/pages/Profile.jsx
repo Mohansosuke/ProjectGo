@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   CheckCircle,
   MessageSquare,
@@ -12,31 +12,79 @@ import {
   Edit2,
   Activity,
   Phone,
-  Camera
+  Camera,
+  X,
+  ArrowLeft,
+  Trash2,
+  Save,
+  ChevronRight,
+  User,
+  Shield,
+  AlertTriangle
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useWorkspace } from '../contexts/WorkspaceContext';
 import { useTask } from '../contexts/TaskContext';
-import { Button, Input, Avatar, Badge } from '../components/ui';
+import { Badge } from '../components/ui';
 import apiClient from '../services/apiClient';
 
-const Profile = () => {
+const PRIORITY_COLORS = {
+  Critical: 'bg-red-50 text-red-600 border border-red-200',
+  High: 'bg-orange-50 text-orange-600 border border-orange-200',
+  Medium: 'bg-blue-50 text-blue-600 border border-blue-200',
+  Low: 'bg-slate-100 text-slate-500 border border-slate-200',
+};
+
+const STATUS_COLORS = {
+  COMPLETED: 'bg-emerald-50 text-emerald-600',
+  'IN PROGRESS': 'bg-violet-50 text-violet-600',
+  'TO DO': 'bg-slate-100 text-slate-500',
+};
+
+const Field = ({ label, children }) => (
+  <div className="flex flex-col gap-1.5">
+    <label className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 select-none">{label}</label>
+    {children}
+  </div>
+);
+
+const ReadValue = ({ icon: Icon, value, placeholder }) => (
+  <div className="flex items-center gap-2.5 py-2.5 px-3.5 rounded-xl bg-slate-50 border border-slate-100 text-sm font-medium text-slate-700 min-h-[42px]">
+    {Icon && <Icon className="w-3.5 h-3.5 text-slate-400 shrink-0" />}
+    <span className={value ? 'text-slate-800' : 'text-slate-400 italic'}>{value || placeholder}</span>
+  </div>
+);
+
+const EditInput = ({ value, onChange, placeholder, type = 'text', disabled = false }) => (
+  <input
+    type={type}
+    value={value}
+    onChange={onChange}
+    placeholder={placeholder}
+    disabled={disabled}
+    className="w-full py-2.5 px-3.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all disabled:bg-slate-50 disabled:text-slate-400"
+  />
+);
+
+export default function Profile() {
   const navigate = useNavigate();
   const { currentUser, updateProfile, logout } = useAuth();
   const { workspaces, activeWorkspace } = useWorkspace();
   const { tasks } = useTask();
 
-  const [fullName, setFullName] = useState(currentUser?.fullName || currentUser?.name || 'Mohan');
-  const [preferredName, setPreferredName] = useState(currentUser?.nickname || currentUser?.fullName || currentUser?.name || 'Mohan');
-  const [bio, setBio] = useState(currentUser?.bio || 'Lead Developer & Project Manager. Focused on scaling architectures and intuitive task flows.');
-  const [phone, setPhone] = useState(currentUser?.phone || '+1 (555) 000-1234');
-  const [avatarUrl, setAvatarUrl] = useState(currentUser?.photoURL || currentUser?.avatar || 'https://i.pravatar.cc/80?img=12');
+  const [fullName, setFullName] = useState(currentUser?.fullName || currentUser?.name || '');
+  const [preferredName, setPreferredName] = useState(currentUser?.nickname || currentUser?.fullName || currentUser?.name || '');
+  const [bio, setBio] = useState(currentUser?.bio || '');
+  const [phone, setPhone] = useState(currentUser?.phone || '');
+  const [avatarUrl, setAvatarUrl] = useState(currentUser?.photoURL || currentUser?.avatar || '');
   const [coverUrl, setCoverUrl] = useState(currentUser?.cover || '');
   const coverInputRef = useRef(null);
+  const avatarInputRef = useRef(null);
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -58,16 +106,11 @@ const Profile = () => {
     reader.onloadend = async () => {
       const base64 = reader.result;
       setAvatarUrl(base64);
-      try {
-        await updateProfile({ avatar: base64 });
-      } catch (err) {
-        console.error('Failed to save profile photo:', err);
-      }
+      try { await updateProfile({ avatar: base64 }); } catch { }
     };
     reader.readAsDataURL(file);
     e.target.value = '';
   };
-
 
   const handleCoverUpload = (e) => {
     const file = e.target.files?.[0];
@@ -76,39 +119,31 @@ const Profile = () => {
     reader.onloadend = async () => {
       const base64 = reader.result;
       setCoverUrl(base64);
-      try {
-        await updateProfile({ cover: base64 });
-      } catch (err) {
-        console.error('Failed to save cover photo:', err);
-      }
+      try { await updateProfile({ cover: base64 }); } catch { }
     };
     reader.readAsDataURL(file);
-    // reset so the same file can be selected again
     e.target.value = '';
   };
 
-  const openCoverPicker = () => {
-    coverInputRef.current?.click();
-  };
-
-
   const handleBack = () => {
-    if (activeWorkspace) {
-      navigate(`/workspace/${activeWorkspace.id}/kanban`);
-    } else {
-      navigate('/workspaces');
-    }
+    if (activeWorkspace) navigate(`/workspace/${activeWorkspace.id}/kanban`);
+    else navigate('/workspaces');
   };
 
   const handleSave = async () => {
-    await updateProfile({
-      name: fullName,
-      nickname: preferredName,
-      bio,
-      phone,
-      avatar: avatarUrl,
-      cover: coverUrl
-    });
+    setSaving(true);
+    await updateProfile({ name: fullName, nickname: preferredName, bio, phone, avatar: avatarUrl, cover: coverUrl });
+    setSaving(false);
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setFullName(currentUser.fullName || currentUser.name || '');
+    setPreferredName(currentUser.nickname || currentUser.fullName || currentUser.name || '');
+    setBio(currentUser.bio || '');
+    setPhone(currentUser.phone || '');
+    setAvatarUrl(currentUser.photoURL || currentUser.avatar || '');
+    setCoverUrl(currentUser.cover || '');
     setIsEditing(false);
   };
 
@@ -130,428 +165,452 @@ const Profile = () => {
   const activityLog = [
     {
       id: 1,
-      icon: <CheckCircle className="w-4 h-4 text-emerald-500" />,
-      bg: 'bg-emerald-50 border-emerald-100',
+      icon: CheckCircle,
+      color: 'text-emerald-500',
+      bg: 'bg-emerald-50',
+      ring: 'ring-emerald-100',
       text: 'Completed task',
       link: 'CORE-1204',
-      sub: '"Update design system tokens for Dar..."',
+      sub: '"Update design system tokens for Dar…"',
       time: '2 hours ago',
     },
     {
       id: 2,
-      icon: <MessageSquare className="w-4 h-4 text-amber-500" />,
-      bg: 'bg-amber-50 border-amber-100',
+      icon: MessageSquare,
+      color: 'text-amber-500',
+      bg: 'bg-amber-50',
+      ring: 'ring-amber-100',
       text: 'Commented on',
       link: 'MOB-88',
-      sub: '"The padding on the mobile view looks slightly off in the latest mockup..."',
+      sub: '"Padding on mobile view looks slightly off in latest mockup…"',
       time: '5 hours ago',
     },
     {
       id: 3,
-      icon: <PlusCircle className="w-4 h-4 text-blue-500" />,
-      bg: 'bg-blue-50 border-blue-100',
-      text: 'Updated status of',
+      icon: PlusCircle,
+      color: 'text-indigo-500',
+      bg: 'bg-indigo-50',
+      ring: 'ring-indigo-100',
+      text: 'Moved',
       link: 'UI-902',
-      statusFrom: 'TO DO',
-      statusTo: 'IN PROGRESS',
+      sub: 'TO DO → IN PROGRESS',
       time: 'Yesterday',
     }
   ];
 
+  const PRESET_AVATARS = [12, 47, 15, 33, 52, 60, 65, 41];
+
   return (
-    <div className="max-w-7xl mx-auto h-full flex flex-col lg:flex-row gap-8 pb-12 transition-colors duration-300">
-      
-      {/* Center Settings Column */}
-      <div className="flex-1 space-y-6">
+    <div className="min-h-screen bg-[#f7f8fc] pb-16">
+      {/* Hidden file inputs */}
+      <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={handleCoverUpload} />
+      <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
 
-        {/* Hidden cover file input — outside ALL overflow-clipped containers */}
-        <input
-          ref={coverInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleCoverUpload}
-        />
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-5">
 
-        {/* Profile Card Header with Cover Banner */}
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm transition-colors relative">
-
-          {/* Cover Banner */}
-          <div className="h-36 w-full relative overflow-hidden group">
-            {/* Background image or gradient */}
-            {coverUrl ? (
-              <img src={coverUrl} alt="Cover Banner" className="w-full h-full object-cover" />
+        {/* ── Back bar ── */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={handleBack}
+            className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-colors group"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+            Back
+          </button>
+          <div className="flex items-center gap-2">
+            {isEditing ? (
+              <>
+                <button
+                  onClick={handleCancel}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:bg-slate-100 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 disabled:opacity-60 transition-all shadow-sm shadow-indigo-500/20"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  {saving ? 'Saving…' : 'Save Changes'}
+                </button>
+              </>
             ) : (
-              <div className="w-full h-full bg-gradient-to-r from-blue-500 via-blue-400 to-indigo-500" />
+              <button
+                onClick={() => setIsEditing(true)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:border-indigo-300 hover:text-indigo-600 transition-all shadow-xs"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                Edit Profile
+              </button>
             )}
+          </div>
+        </div>
 
-            {/* Full-banner hover overlay — click anywhere on cover to change it */}
+        {/* ── Hero Card ── */}
+        <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-slate-200/80">
+          {/* Cover */}
+          <div className="relative h-40 group overflow-hidden">
+            {coverUrl
+              ? <img src={coverUrl} alt="Cover" className="w-full h-full object-cover" />
+              : <div className="w-full h-full bg-gradient-to-br from-violet-500 via-indigo-600 to-blue-500" />
+            }
+            {/* shimmer gloss */}
+            <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-black/20 pointer-events-none" />
             <button
-              type="button"
-              onClick={openCoverPicker}
-              title="Change cover photo"
-              className="absolute inset-0 w-full h-full flex flex-col items-center justify-center gap-1 bg-black/0 group-hover:bg-black/35 transition-all duration-200 cursor-pointer"
+              onClick={() => coverInputRef.current?.click()}
+              className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/50 hover:bg-black/70 backdrop-blur-sm text-white text-[11px] font-semibold border border-white/20 transition-all cursor-pointer"
             >
-              <span className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col items-center gap-1 pointer-events-none">
-                <Camera className="w-6 h-6 text-white drop-shadow" />
-                <span className="text-white text-xs font-semibold drop-shadow">Change Cover Photo</span>
-              </span>
-            </button>
-
-            {/* Always-visible camera pill button — bottom right corner */}
-            <button
-              type="button"
-              onClick={openCoverPicker}
-              title="Change cover photo"
-              className="absolute bottom-2 right-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-black/60 hover:bg-black/85 text-white text-xs font-semibold cursor-pointer transition-all shadow-lg border border-white/30 backdrop-blur-sm"
-              style={{ zIndex: 20 }}
-            >
-              <Camera className="w-3.5 h-3.5" />
-              <span>Edit Cover</span>
+              <Camera className="w-3 h-3" /> Edit Cover
             </button>
           </div>
-          
-          <div className="p-6 pt-0 flex flex-col sm:flex-row items-center sm:items-start justify-between gap-5 relative">
-            {/* Avatar positioned overlapping the banner */}
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 -mt-10 sm:-mt-12">
-              <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white shadow-md bg-white relative group">
-                <img src={avatarUrl} alt={fullName} className="w-full h-full object-cover" />
-                {isEditing && (
-                  <label className="absolute inset-0 bg-black/40 hover:bg-black/55 flex items-center justify-center text-white text-[10px] font-bold cursor-pointer transition-all text-center p-1 leading-tight">
-                    Upload
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleAvatarUpload}
-                    />
-                  </label>
+
+          {/* Identity strip */}
+          <div className="px-6 pb-6 flex flex-col sm:flex-row sm:items-end gap-4 -mt-10 relative">
+            {/* Avatar */}
+            <div className="relative w-20 h-20 shrink-0">
+              <div className="w-20 h-20 rounded-2xl border-4 border-white shadow-md overflow-hidden bg-slate-100">
+                <img
+                  src={avatarUrl || `https://i.pravatar.cc/80?img=12`}
+                  alt={fullName}
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              {isEditing && (
+                <button
+                  onClick={() => avatarInputRef.current?.click()}
+                  className="absolute -bottom-1 -right-1 w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-md hover:bg-indigo-700 transition-colors cursor-pointer border-2 border-white"
+                  title="Change avatar"
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Name + meta */}
+            <div className="flex-1 min-w-0 sm:pb-1.5">
+              <h1 className="text-xl font-black text-slate-900 leading-none tracking-tight">
+                {fullName || 'Your Name'}
+              </h1>
+              <p className="text-sm text-slate-500 font-medium mt-1 leading-snug line-clamp-1">
+                {bio || 'Add a short bio in Edit Profile'}
+              </p>
+              <div className="flex items-center flex-wrap gap-3 mt-2.5">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                  Online
+                </span>
+                <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 font-medium">
+                  <Mail className="w-3 h-3" />
+                  {currentUser.email}
+                </span>
+                {phone && (
+                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-400 font-medium">
+                    <Phone className="w-3 h-3" />
+                    {phone}
+                  </span>
                 )}
               </div>
-              <div className="sm:pt-14 text-center sm:text-left">
-                <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 leading-none">
-                  {fullName}
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1.5 font-semibold">
-                  {bio || 'Product Lead • Engineering Division'}
-                </p>
-                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 mt-2.5">
-                  <span className="inline-flex items-center text-xs font-bold text-emerald-600">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 mr-1.5 animate-pulse" />
-                    Online
-                  </span>
-                  <span className="inline-flex items-center text-xs text-slate-500 font-semibold">
-                    <MapPin className="mr-1 w-3.5 h-3.5 text-slate-400" />
-                    San Francisco, CA
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Action buttons */}
-            <div className="flex items-center space-x-3 shrink-0 self-end sm:self-auto sm:pt-6">
-              {isEditing ? (
-                <>
-                  <Button 
-                    size="sm"
-                    onClick={handleSave}
-                    className="bg-[#5f35f5] text-white hover:bg-[#4c1d95]"
-                  >
-                    Save
-                  </Button>
-                  <Button 
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setFullName(currentUser.fullName || currentUser.name || '');
-                      setPreferredName(currentUser.nickname || currentUser.fullName || currentUser.name || '');
-                      setBio(currentUser.bio || '');
-                      setPhone(currentUser.phone || '');
-                      setAvatarUrl(currentUser.photoURL || currentUser.avatar || '');
-                      setCoverUrl(currentUser.cover || '');
-                      setIsEditing(false);
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button 
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsEditing(true)}
-                    icon={Edit2}
-                  >
-                    Edit Profile
-                  </Button>
-                  <Button 
-                    size="sm"
-                    onClick={handleBack}
-                  >
-                    Done
-                  </Button>
-                </>
-              )}
             </div>
           </div>
         </div>
 
-        {/* Dynamic Personal Information Form */}
-        <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm transition-colors">
-          <div className="flex justify-between items-center mb-5">
-            <h3 className="text-[10px] font-extrabold text-slate-450 uppercase tracking-widest">
-              Personal Information
-            </h3>
-            {isEditing && (
-              <Badge variant="primary" size="sm">
-                Editing mode active
-              </Badge>
-            )}
-          </div>
+        {/* ── Two-column layout ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
 
+          {/* ── LEFT COLUMN ── */}
           <div className="space-y-5">
-            {isEditing && (
-              <div className="p-4 bg-slate-50 border border-slate-200/70 rounded-xl space-y-3.5">
-                <Input
-                  label="Profile Picture URL"
-                  value={avatarUrl}
-                  onChange={(e) => setAvatarUrl(e.target.value)}
-                  placeholder="Paste image URL..."
-                />
-                <div>
-                  <label className="block text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2">
-                    Or select a pre-made avatar
-                  </label>
-                  <div className="flex flex-wrap gap-2.5">
-                    {[12, 47, 15, 33, 52, 60, 65, 41].map(imgId => {
-                      const presetUrl = `https://i.pravatar.cc/150?img=${imgId}`;
-                      return (
-                        <button
-                          key={imgId}
-                          type="button"
-                          onClick={() => setAvatarUrl(presetUrl)}
-                          className={`w-10 h-10 rounded-full overflow-hidden border-2 cursor-pointer transition-all ${
-                            avatarUrl === presetUrl ? 'border-[#5f35f5] scale-110 shadow-sm' : 'border-transparent opacity-75 hover:opacity-100 hover:scale-105'
-                          }`}
-                        >
-                          <img src={presetUrl} alt="" className="w-full h-full object-cover" />
-                        </button>
-                      );
-                    })}
+
+            {/* Personal Info */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+              <div className="flex items-center gap-2.5 px-5 pt-5 pb-4 border-b border-slate-100">
+                <div className="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center">
+                  <User className="w-3.5 h-3.5 text-indigo-500" />
+                </div>
+                <h2 className="text-sm font-bold text-slate-800">Personal Information</h2>
+                {isEditing && (
+                  <span className="ml-auto text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-full">
+                    Editing
+                  </span>
+                )}
+              </div>
+
+              <div className="p-5 space-y-4">
+                {/* Preset avatars when editing */}
+                {isEditing && (
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-2.5">
+                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
+                      Avatar Presets
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {PRESET_AVATARS.map(imgId => {
+                        const url = `https://i.pravatar.cc/150?img=${imgId}`;
+                        return (
+                          <button
+                            key={imgId}
+                            onClick={() => setAvatarUrl(url)}
+                            className={`w-9 h-9 rounded-xl overflow-hidden border-2 transition-all cursor-pointer ${avatarUrl === url
+                                ? 'border-indigo-500 scale-110 shadow-sm shadow-indigo-200'
+                                : 'border-slate-200 hover:border-indigo-300 hover:scale-105 opacity-80 hover:opacity-100'
+                              }`}
+                          >
+                            <img src={url} alt="" className="w-full h-full object-cover" />
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Field label="Full Name">
+                    {isEditing
+                      ? <EditInput value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Your full name" />
+                      : <ReadValue value={fullName} placeholder="Not set" />
+                    }
+                  </Field>
+                  <Field label="Preferred Name">
+                    {isEditing
+                      ? <EditInput value={preferredName} onChange={e => setPreferredName(e.target.value)} placeholder="Nickname or display name" />
+                      : <ReadValue value={preferredName} placeholder="Not set" />
+                    }
+                  </Field>
+                </div>
+
+                <Field label="Bio">
+                  {isEditing ? (
+                    <textarea
+                      rows={2}
+                      value={bio}
+                      onChange={e => setBio(e.target.value)}
+                      placeholder="A short intro about you…"
+                      className="w-full py-2.5 px-3.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 font-medium placeholder:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all resize-none"
+                    />
+                  ) : (
+                    <ReadValue value={bio} placeholder="No bio added yet" />
+                  )}
+                </Field>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-100">
+                  <Field label="Email Address">
+                    <ReadValue icon={Mail} value={currentUser.email} />
+                  </Field>
+                  <Field label="Phone Number">
+                    {isEditing
+                      ? <EditInput value={phone} onChange={e => setPhone(e.target.value)} placeholder="+1 (555) 000-0000" type="tel" />
+                      : <ReadValue icon={Phone} value={phone} placeholder="Not added" />
+                    }
+                  </Field>
                 </div>
               </div>
-            )}
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <Input
-                label="Full Name"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                disabled={!isEditing}
-              />
-              <Input
-                label="Preferred Name"
-                value={preferredName}
-                onChange={(e) => setPreferredName(e.target.value)}
-                disabled={!isEditing}
-              />
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5 uppercase tracking-wider">
-                Bio
-              </label>
-              <textarea
-                rows={2}
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                disabled={!isEditing}
-                className="w-full p-3.5 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none disabled:bg-slate-50/50 disabled:text-slate-500 font-medium text-slate-800"
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-3 border-t border-slate-100">
-              <Input
-                label="Email Address"
-                type="email"
-                value={currentUser.email}
-                disabled
-              />
-
-              <Input
-                label="Phone Number"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                disabled={!isEditing}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Danger Zone */}
-        <div className="bg-white border border-red-200 rounded-xl p-6 shadow-sm transition-colors">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-[10px] font-extrabold text-red-600 uppercase tracking-widest">
-              Danger Zone
-            </h3>
-          </div>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h4 className="text-sm font-bold text-slate-900">Delete Account</h4>
-              <p className="text-xs text-slate-500 mt-1">
-                Permanently delete your account, workspaces, and all associated task records. This action is irreversible.
-              </p>
-            </div>
-            <Button
-              onClick={() => setShowDeleteModal(true)}
-              className="bg-red-650 text-white hover:bg-red-700 font-bold text-xs px-4 py-2 rounded-lg"
-            >
-              Delete My Account
-            </Button>
-          </div>
-        </div>
-
-        {/* Assigned Tasks & Workspace Memberships Section */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {/* Assigned Tasks */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm transition-colors">
-            <h3 className="text-[10px] font-extrabold text-slate-450 uppercase tracking-widest mb-4">
-              Assigned Tasks ({assignedTasks.length})
-            </h3>
-            <div className="space-y-3 max-h-56 overflow-y-auto pr-1">
-              {assignedTasks.length > 0 ? (
-                assignedTasks.map((t) => (
-                  <div 
+            {/* Assigned Tasks */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+              <div className="flex items-center gap-2.5 px-5 pt-5 pb-4 border-b border-slate-100">
+                <div className="w-7 h-7 rounded-lg bg-violet-50 flex items-center justify-center">
+                  <CheckCircle className="w-3.5 h-3.5 text-violet-500" />
+                </div>
+                <h2 className="text-sm font-bold text-slate-800">Assigned Tasks</h2>
+                <span className="ml-auto text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                  {assignedTasks.length}
+                </span>
+              </div>
+              <div className="p-4 max-h-60 overflow-y-auto space-y-2">
+                {assignedTasks.length > 0 ? assignedTasks.map(t => (
+                  <div
                     key={t.id}
                     onClick={() => navigate(`/workspace/${t.workspaceId}/task/${t.id}`)}
-                    className="p-3 bg-slate-50 rounded-lg border border-slate-200 hover:border-slate-350 transition-all cursor-pointer flex items-center justify-between"
+                    className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all cursor-pointer group"
                   >
-                    <span className="text-xs font-semibold text-slate-800 truncate mr-2">
+                    <span className="text-xs font-semibold text-slate-700 truncate group-hover:text-slate-900">
                       {t.title}
                     </span>
-                    <Badge variant={t.priority === 'Critical' ? 'danger' : 'primary'} size="sm">
-                      {t.priority}
-                    </Badge>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${PRIORITY_COLORS[t.priority] || 'bg-slate-100 text-slate-500 border border-slate-200'}`}>
+                        {t.priority}
+                      </span>
+                      <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-500 transition-colors" />
+                    </div>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-6 text-xs text-slate-400 font-semibold">
-                  No tasks currently assigned.
+                )) : (
+                  <div className="py-8 text-center text-xs text-slate-400 font-medium">
+                    No tasks currently assigned.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Workspace Memberships */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+              <div className="flex items-center gap-2.5 px-5 pt-5 pb-4 border-b border-slate-100">
+                <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
+                  <Briefcase className="w-3.5 h-3.5 text-blue-500" />
                 </div>
-              )}
+                <h2 className="text-sm font-bold text-slate-800">Workspace Memberships</h2>
+                <span className="ml-auto text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">
+                  {workspaces.length}
+                </span>
+              </div>
+              <div className="p-4 space-y-2">
+                {workspaces.map(w => (
+                  <div
+                    key={w.id}
+                    onClick={() => navigate(`/workspace/${w.id}/kanban`)}
+                    className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all cursor-pointer group"
+                  >
+                    <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black bg-gradient-to-br from-indigo-500 to-violet-600 text-white shrink-0 shadow-sm">
+                      {w.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-bold text-slate-800 truncate group-hover:text-slate-900">{w.name}</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">{w.visibility || 'Private'}</p>
+                    </div>
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-slate-500 transition-colors shrink-0" />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Danger Zone */}
+            <div className="bg-white rounded-2xl border border-red-200/80 shadow-sm overflow-hidden">
+              <div className="flex items-center gap-2.5 px-5 pt-5 pb-4 border-b border-red-100">
+                <div className="w-7 h-7 rounded-lg bg-red-50 flex items-center justify-center">
+                  <Shield className="w-3.5 h-3.5 text-red-500" />
+                </div>
+                <h2 className="text-sm font-bold text-red-700">Danger Zone</h2>
+              </div>
+              <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-bold text-slate-800">Delete Account</p>
+                  <p className="text-xs text-slate-500 mt-0.5 leading-relaxed max-w-sm">
+                    Permanently delete your account, workspaces, and all associated data. This is irreversible.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowDeleteModal(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-red-600 hover:bg-red-700 transition-colors shadow-sm shrink-0 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete Account
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Workspace Memberships */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm transition-colors">
-            <h3 className="text-[10px] font-extrabold text-slate-450 uppercase tracking-widest mb-4">
-              Workspace Memberships ({workspaces.length})
-            </h3>
-            <div className="space-y-3">
-              {workspaces.map((w) => (
-                <div 
-                  key={w.id}
-                  onClick={() => {
-                    navigate(`/workspace/${w.id}/kanban`);
-                  }}
-                  className="p-3 bg-slate-50 rounded-lg border border-slate-200 hover:border-slate-300 transition-all cursor-pointer flex items-center space-x-3"
-                >
-                  <div className="w-8 h-8 rounded bg-blue-100 text-blue-600 flex items-center justify-center font-black text-sm shrink-0">
-                    {w.name.charAt(0)}
+          {/* ── RIGHT COLUMN ── */}
+          <div className="space-y-5">
+
+            {/* Quick Stats */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+              <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-4">Overview</p>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: 'Tasks', value: assignedTasks.length, color: 'text-violet-600', bg: 'bg-violet-50' },
+                  { label: 'Done', value: assignedTasks.filter(t => t.status === 'COMPLETED').length, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+                  { label: 'Spaces', value: workspaces.length, color: 'text-blue-600', bg: 'bg-blue-50' },
+                ].map(stat => (
+                  <div key={stat.label} className={`${stat.bg} rounded-xl p-3 text-center`}>
+                    <p className={`text-xl font-black ${stat.color}`}>{stat.value}</p>
+                    <p className="text-[10px] font-bold text-slate-500 mt-0.5">{stat.label}</p>
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-slate-900 truncate">
-                      {w.name}
-                    </p>
-                    <span className="text-[9.5px] font-bold text-slate-450 uppercase tracking-wide">
-                      {w.visibility}
-                    </span>
-                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Recent Activity */}
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+              <div className="flex items-center gap-2.5 px-5 pt-5 pb-4 border-b border-slate-100">
+                <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center">
+                  <Activity className="w-3.5 h-3.5 text-amber-500" />
                 </div>
-              ))}
+                <h2 className="text-sm font-bold text-slate-800">Recent Activity</h2>
+              </div>
+              <div className="p-4 space-y-0">
+                {activityLog.map((item, idx) => {
+                  const IconComponent = item.icon;
+                  return (
+                    <div key={item.id} className="flex gap-3.5 py-3.5 relative">
+                      {/* vertical line */}
+                      {idx < activityLog.length - 1 && (
+                        <div className="absolute left-[17px] top-[40px] bottom-0 w-px bg-slate-100" />
+                      )}
+                      <div className={`w-9 h-9 rounded-xl ${item.bg} flex items-center justify-center shrink-0 relative z-10`}>
+                        <IconComponent className={`w-4 h-4 ${item.color}`} />
+                      </div>
+                      <div className="flex-1 min-w-0 pt-1">
+                        <p className="text-xs font-semibold text-slate-700 leading-relaxed">
+                          {item.text} <span className="font-bold text-indigo-600">{item.link}</span>
+                        </p>
+                        {item.sub && (
+                          <p className="text-[11px] text-slate-400 font-medium mt-0.5 line-clamp-1">{item.sub}</p>
+                        )}
+                        <p className="text-[10px] font-semibold text-slate-400 mt-1 flex items-center gap-1">
+                          <Clock className="w-2.5 h-2.5" />
+                          {item.time}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="px-4 pb-4">
+                <button className="w-full py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-700 transition-colors">
+                  View All Activity
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Right Column: Activity Timeline */}
-      <div className="w-full lg:w-[350px] shrink-0">
-        <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-5 transition-colors">
-          <h3 className="font-bold text-slate-900 text-sm flex items-center space-x-2">
-            <Activity className="w-4.5 h-4.5 text-blue-600" />
-            <span>Recent Activity</span>
-          </h3>
-
-          <div className="relative border-l border-slate-200 ml-3.5 pl-6 space-y-6 pb-2">
-            {activityLog.map((item) => (
-              <div key={item.id} className="relative">
-                <div className="absolute -left-[38px] top-0 w-7 h-7 rounded-full flex items-center justify-center bg-white shadow-sm border border-slate-100">
-                  {item.icon}
+      {/* Delete Account Modal */}
+      <AnimatePresence>
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 8 }}
+              transition={{ duration: 0.18 }}
+              className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-5 shadow-2xl border border-slate-200"
+            >
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-5 h-5 text-red-500" />
                 </div>
-
-                <div className="text-xs">
-                  <p className="text-slate-700 leading-relaxed font-semibold">
-                    {item.text} <span className="text-blue-600 font-bold">{item.link}</span>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Delete Account?</h3>
+                  <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                    This will <strong className="text-slate-700">permanently delete</strong> your account, all workspaces, tasks, and data. This action cannot be undone.
                   </p>
-                  
-                  {item.sub && (
-                    <p className="text-[11px] text-slate-400 font-medium italic mt-0.5">
-                      {item.sub}
-                    </p>
-                  )}
-
-                  <span className="text-[10px] text-slate-400 font-semibold block mt-1.5">
-                    {item.time}
-                  </span>
                 </div>
               </div>
-            ))}
+              {deleteError && (
+                <p className="text-xs font-semibold text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-100">
+                  {deleteError}
+                </p>
+              )}
+              <div className="flex gap-2.5">
+                <button
+                  onClick={() => { setShowDeleteModal(false); setDeleteError(''); }}
+                  disabled={deletingAccount}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deletingAccount}
+                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-sm font-bold text-white transition-colors disabled:opacity-60 shadow-sm"
+                >
+                  {deletingAccount ? 'Deleting…' : 'Yes, Delete'}
+                </button>
+              </div>
+            </motion.div>
           </div>
-
-          <Button variant="outline" className="w-full text-xs font-bold text-slate-650">
-            View All Activity
-          </Button>
-        </div>
-      </div>
-
-      {showDeleteModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 space-y-4 shadow-xl border border-slate-200">
-            <h3 className="text-lg font-bold text-slate-900">Delete Account Permanently?</h3>
-            <p className="text-sm text-slate-600 leading-relaxed">
-              This action <strong>cannot be undone</strong>. Your account, all your workspaces, tasks, and data will be permanently deleted. You will be signed out immediately.
-            </p>
-            {deleteError && (
-              <p className="text-xs font-semibold text-red-600 mt-1">
-                {deleteError}
-              </p>
-            )}
-            <div className="flex justify-end space-x-3 pt-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowDeleteModal(false);
-                  setDeleteError('');
-                }}
-                disabled={deletingAccount}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleDeleteAccount}
-                className="bg-red-600 hover:bg-red-700 text-white font-bold"
-                isLoading={deletingAccount}
-              >
-                Yes, Delete My Account
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
-};
-
-export default Profile;
+}
