@@ -10,7 +10,7 @@ import {
   Check, Circle, AlertCircle, BookOpen, Hash, ExternalLink,
   MoreHorizontal, Layers, Globe, Lock, UserPlus, Flame,
   CheckCircle2, PlayCircle, AlertOctagon, ArrowUpRight,
-  Filter, CheckCheck, RefreshCw, Trash2, CalendarRange, X
+  Filter, CheckCheck, RefreshCw, Trash2, CalendarRange, X, Edit3
 } from 'lucide-react';
 import TaskView from './TaskView';
 import { useWorkspace } from '../contexts/WorkspaceContext';
@@ -225,7 +225,7 @@ export const isTaskAssignedToUser = (task, user) => {
 
 const WorkspaceView = () => {
   const { workspaces, selectWorkspace, activeWorkspace, globalSearchQuery } = useWorkspace();
-  const { tasks, moveTask, addTask } = useTask();
+  const { tasks, moveTask, addTask, columns = [] } = useTask();
   const { currentUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -246,6 +246,7 @@ const WorkspaceView = () => {
   const [dashboardTimeRange, setDashboardTimeRange] = useState('sprint');
   const [movingTaskId, setMovingTaskId] = useState(null);
   const [hoveredPieSlice, setHoveredPieSlice] = useState(null);
+  const [hoveredTodoPieSlice, setHoveredTodoPieSlice] = useState(null);
   const [showScopeDropdown, setShowScopeDropdown] = useState(false);
   const [activeStatusDropdownTaskId, setActiveStatusDropdownTaskId] = useState(null);
 
@@ -276,6 +277,14 @@ const WorkspaceView = () => {
   const [todoDescription, setTodoDescription] = useState('');
   const [selectedCalendarTask, setSelectedCalendarTask] = useState(null); // { taskId, workspaceId }
   const [selectedTodo, setSelectedTodo] = useState(null); // todo object for floating modal
+
+  // State for editing an existing Todo task
+  const [isEditingTodo, setIsEditingTodo] = useState(false);
+  const [editTodoTitle, setEditTodoTitle] = useState('');
+  const [editTodoFromDate, setEditTodoFromDate] = useState('');
+  const [editTodoToDate, setEditTodoToDate] = useState('');
+  const [editTodoPriority, setEditTodoPriority] = useState('MEDIUM');
+  const [editTodoDescription, setEditTodoDescription] = useState('');
 
   // Decoupled planner todos persisted in localStorage
   const [plannerTodos, setPlannerTodos] = useState(() => {
@@ -751,11 +760,10 @@ const WorkspaceView = () => {
                     <button
                       type="button"
                       onClick={() => setShowPlannerWsDropdown(prev => !prev)}
-                      className={`h-9 px-3 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer shadow-xs ${
-                        plannerWorkspaceFilter
-                          ? 'bg-indigo-50/90 border-indigo-200 text-indigo-700 font-bold'
-                          : 'bg-white border-slate-200/80 text-slate-600 hover:border-indigo-300'
-                      }`}
+                      className={`h-9 px-3 rounded-xl border text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer shadow-xs ${plannerWorkspaceFilter
+                        ? 'bg-indigo-50/90 border-indigo-200 text-indigo-700 font-bold'
+                        : 'bg-white border-slate-200/80 text-slate-600 hover:border-indigo-300'
+                        }`}
                       title="Filter by workspace"
                     >
                       <SlidersHorizontal className="w-3.5 h-3.5 text-slate-400" />
@@ -798,11 +806,10 @@ const WorkspaceView = () => {
                               setPlannerWorkspaceFilter('');
                               setShowPlannerWsDropdown(false);
                             }}
-                            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                              !plannerWorkspaceFilter
-                                ? 'bg-indigo-50 text-indigo-700 font-bold'
-                                : 'text-slate-700 hover:bg-slate-100'
-                            }`}
+                            className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${!plannerWorkspaceFilter
+                              ? 'bg-indigo-50 text-indigo-700 font-bold'
+                              : 'text-slate-700 hover:bg-slate-100'
+                              }`}
                           >
                             <span>🌐 All Workspaces (Unselected)</span>
                             {!plannerWorkspaceFilter && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
@@ -817,11 +824,10 @@ const WorkspaceView = () => {
                                   setPlannerWorkspaceFilter(w.id);
                                   setShowPlannerWsDropdown(false);
                                 }}
-                                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                                  plannerWorkspaceFilter === w.id
-                                    ? 'bg-indigo-50 text-indigo-700 font-bold'
-                                    : 'text-slate-700 hover:bg-slate-100'
-                                }`}
+                                className={`w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${plannerWorkspaceFilter === w.id
+                                  ? 'bg-indigo-50 text-indigo-700 font-bold'
+                                  : 'text-slate-700 hover:bg-slate-100'
+                                  }`}
                               >
                                 <span className="truncate">{w.name}</span>
                                 {plannerWorkspaceFilter === w.id && <Check className="w-3.5 h-3.5 text-indigo-600 shrink-0" />}
@@ -861,9 +867,8 @@ const WorkspaceView = () => {
                 {/* Day Headers (Sun - Sat) */}
                 <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/80">
                   {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => (
-                    <div key={d} className={`py-2.5 text-center text-[11px] font-extrabold uppercase tracking-widest ${
-                      i === 0 || i === 6 ? 'text-slate-400' : 'text-slate-600'
-                    }`}>
+                    <div key={d} className={`py-2.5 text-center text-[11px] font-extrabold uppercase tracking-widest ${i === 0 || i === 6 ? 'text-slate-400' : 'text-slate-600'
+                      }`}>
                       {d}
                     </div>
                   ))}
@@ -879,8 +884,19 @@ const WorkspaceView = () => {
                       return cell.dateStr >= from && cell.dateStr <= to;
                     });
 
-                    // Stable sort so multi-day bars line up at the same vertical slot across cells
+                    // Sort tasks based on duration (longest duration tasks placed on top)
                     const sortedDayTodos = [...dayTodos].sort((a, b) => {
+                      const aFrom = new Date((a.fromDate || cell.dateStr) + 'T00:00:00').getTime();
+                      const aTo = new Date((a.toDate || a.fromDate || cell.dateStr) + 'T00:00:00').getTime();
+                      const aDur = Math.max(1, Math.round((aTo - aFrom) / 86400000) + 1);
+
+                      const bFrom = new Date((b.fromDate || cell.dateStr) + 'T00:00:00').getTime();
+                      const bTo = new Date((b.toDate || b.fromDate || cell.dateStr) + 'T00:00:00').getTime();
+                      const bDur = Math.max(1, Math.round((bTo - bFrom) / 86400000) + 1);
+
+                      // Primary: Longest duration on top
+                      if (bDur !== aDur) return bDur - aDur;
+                      // Secondary: Earlier start date
                       const cmp = (a.fromDate || '').localeCompare(b.fromDate || '');
                       if (cmp !== 0) return cmp;
                       return (a.id || '').localeCompare(b.id || '');
@@ -889,21 +905,19 @@ const WorkspaceView = () => {
                     return (
                       <div
                         key={cell.dateStr}
-                        className={`min-h-[110px] pb-1.5 border-b border-r border-slate-100 flex flex-col justify-between transition-all group relative overflow-visible ${
-                          cell.isCurrentMonth
-                            ? (cell.isToday ? 'bg-indigo-50/20' : 'bg-white hover:bg-slate-50/60')
-                            : 'bg-slate-50/35 text-slate-300'
-                        }`}
+                        className={`min-h-[110px] pb-1.5 border-b border-r border-slate-100 flex flex-col justify-between transition-all group relative overflow-visible ${cell.isCurrentMonth
+                          ? (cell.isToday ? 'bg-indigo-50/20' : 'bg-white hover:bg-slate-50/60')
+                          : 'bg-slate-50/35 text-slate-300'
+                          }`}
                       >
                         {/* Day Header Inside Cell */}
                         <div className="flex items-center justify-between px-2 pt-1.5 mb-1">
-                          <span className={`text-[11px] font-black w-6 h-6 flex items-center justify-center rounded-full transition-colors ${
-                            cell.isToday
-                              ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/30'
-                              : cell.isCurrentMonth
-                                ? 'text-slate-700 group-hover:text-indigo-600'
-                                : 'text-slate-300'
-                          }`}>
+                          <span className={`text-[11px] font-black w-6 h-6 flex items-center justify-center rounded-full transition-colors ${cell.isToday
+                            ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/30'
+                            : cell.isCurrentMonth
+                              ? 'text-slate-700 group-hover:text-indigo-600'
+                              : 'text-slate-300'
+                            }`}>
                             {cell.dayNum}
                           </span>
 
@@ -959,11 +973,9 @@ const WorkspaceView = () => {
                               <div
                                 key={todo.id}
                                 onClick={() => setSelectedTodo(todo)}
-                                className={`group/bar relative text-[10px] font-bold py-1 cursor-pointer transition-all hover:brightness-95 flex flex-col justify-between select-none ${
-                                  colorObj.lightBg
-                                } ${colorObj.text} ${colorObj.border} ${
-                                  todo.completed ? 'opacity-60 line-through' : ''
-                                } ${shapeClasses}`}
+                                className={`group/bar relative text-[10px] font-bold py-1 cursor-pointer transition-all hover:brightness-95 flex flex-col justify-between select-none ${colorObj.lightBg
+                                  } ${colorObj.text} ${colorObj.border} ${todo.completed ? 'opacity-60 line-through' : ''
+                                  } ${shapeClasses}`}
                                 title={`${todo.title} (${fromDate} → ${toDate})`}
                               >
                                 {/* Top: Title on start date or row start or single date */}
@@ -1074,26 +1086,6 @@ const WorkspaceView = () => {
                           </div>
                         </div>
 
-                        {/* 6 Random / Curated Color Selection */}
-                        <div>
-                          <label className="text-xs font-bold text-slate-700 block mb-1.5">Task Color Theme (6 Options)</label>
-                          <div className="flex items-center gap-2">
-                            {TODO_PALETTE.map((pal) => (
-                              <button
-                                key={pal.id}
-                                type="button"
-                                onClick={() => setTodoColor(pal.id)}
-                                className={`w-7 h-7 rounded-full transition-all cursor-pointer flex items-center justify-center ${pal.bg} ${
-                                  todoColor === pal.id ? 'ring-3 ring-offset-2 ring-indigo-500 scale-110 shadow-sm' : 'hover:scale-105 opacity-80 hover:opacity-100'
-                                }`}
-                                title={pal.name}
-                              >
-                                {todoColor === pal.id && <Check className="w-3.5 h-3.5 text-white stroke-[3]" />}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
                         <div>
                           <label className="text-xs font-bold text-slate-700 block mb-1">Priority</label>
                           <select
@@ -1141,17 +1133,48 @@ const WorkspaceView = () => {
                 )}
               </AnimatePresence>
 
-              {/* Floating Todo Task View Modal */}
+              {/* Floating Todo Task View / Edit Modal */}
               <AnimatePresence>
                 {selectedTodo && (() => {
                   const colorObj = getTodoColor(selectedTodo);
+
+                  const handleStartEdit = () => {
+                    setEditTodoTitle(selectedTodo.title || '');
+                    setEditTodoFromDate(selectedTodo.fromDate || '');
+                    setEditTodoToDate(selectedTodo.toDate || selectedTodo.fromDate || '');
+                    setEditTodoPriority(selectedTodo.priority || 'MEDIUM');
+                    setEditTodoDescription(selectedTodo.description || '');
+                    setIsEditingTodo(true);
+                  };
+
+                  const handleSaveEdit = (e) => {
+                    e?.preventDefault?.();
+                    if (!editTodoTitle.trim()) return;
+
+                    const updated = {
+                      ...selectedTodo,
+                      title: editTodoTitle.trim(),
+                      fromDate: editTodoFromDate || selectedTodo.fromDate,
+                      toDate: editTodoToDate || editTodoFromDate || selectedTodo.toDate,
+                      priority: editTodoPriority,
+                      description: editTodoDescription.trim()
+                    };
+
+                    setPlannerTodos(prev => prev.map(item => item.id === selectedTodo.id ? updated : item));
+                    setSelectedTodo(updated);
+                    setIsEditingTodo(false);
+                  };
+
                   return (
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                       <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        onClick={() => setSelectedTodo(null)}
+                        onClick={() => {
+                          setSelectedTodo(null);
+                          setIsEditingTodo(false);
+                        }}
                         className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs"
                       />
                       <motion.div
@@ -1167,103 +1190,202 @@ const WorkspaceView = () => {
                               <span className={`w-2 h-2 rounded-full ${colorObj.dot}`} />
                               <span>{colorObj.name}</span>
                             </span>
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wide ${PRIORITY_CONFIG[getTaskPriorityKey(selectedTodo.priority)]?.chip || 'bg-slate-100 text-slate-600'}`}>
-                              {selectedTodo.priority}
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wide ${PRIORITY_CONFIG[getTaskPriorityKey(isEditingTodo ? editTodoPriority : selectedTodo.priority)]?.chip || 'bg-slate-100 text-slate-600'}`}>
+                              {isEditingTodo ? editTodoPriority : selectedTodo.priority}
                             </span>
                           </div>
                           <button
-                            onClick={() => setSelectedTodo(null)}
+                            onClick={() => {
+                              setSelectedTodo(null);
+                              setIsEditingTodo(false);
+                            }}
                             className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer"
                           >
                             ✕
                           </button>
                         </div>
 
-                        <div className="space-y-3">
-                          {/* Pipe indicator banner */}
-                          <div className={`h-1.5 w-full rounded-full ${colorObj.pipe}`} />
-
-                          <div className="flex items-start gap-3">
-                            <button
-                              onClick={() => {
-                                setPlannerTodos(prev => prev.map(item => item.id === selectedTodo.id ? { ...item, completed: !item.completed } : item));
-                                setSelectedTodo(prev => prev ? { ...prev, completed: !prev.completed } : null);
-                              }}
-                              className={`mt-0.5 w-6 h-6 rounded-lg border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
-                                selectedTodo.completed
-                                  ? 'bg-emerald-600 border-emerald-600 text-white'
-                                  : 'border-slate-300 hover:border-indigo-600 text-transparent'
-                              }`}
-                              title={selectedTodo.completed ? 'Mark pending' : 'Mark completed'}
-                            >
-                              <Check className="w-3.5 h-3.5 stroke-[3]" />
-                            </button>
-                            <div className="flex-1">
-                              <h2 className={`text-base font-bold text-slate-900 ${selectedTodo.completed ? 'line-through text-slate-400' : ''}`}>
-                                {selectedTodo.title}
-                              </h2>
-                              <p className="text-xs text-slate-500 mt-0.5">
-                                {selectedTodo.completed ? 'Status: Completed' : 'Status: In Progress / Pending'}
-                              </p>
+                        {isEditingTodo ? (
+                          /* EDIT MODE FORM */
+                          <form onSubmit={handleSaveEdit} className="space-y-4">
+                            <div>
+                              <label className="text-xs font-bold text-slate-700 block mb-1">Task Title</label>
+                              <input
+                                type="text"
+                                value={editTodoTitle}
+                                onChange={(e) => setEditTodoTitle(e.target.value)}
+                                className="w-full px-3.5 py-2 rounded-xl border border-slate-200 focus:border-indigo-500 text-sm font-semibold text-slate-800 outline-none"
+                                required
+                              />
                             </div>
-                          </div>
 
-                          <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 space-y-2">
-                            <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-                              <CalendarRange className="w-4 h-4 text-indigo-600 shrink-0" />
-                              <span>From: <strong className="text-slate-800">{selectedTodo.fromDate}</strong></span>
-                              <span className="text-slate-300">→</span>
-                              <span>To: <strong className="text-slate-800">{selectedTodo.toDate || selectedTodo.fromDate}</strong></span>
-                            </div>
-                            {selectedTodo.description && (
-                              <div className="pt-2 border-t border-slate-200/60 text-xs text-slate-600 font-medium whitespace-pre-wrap">
-                                {selectedTodo.description}
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="text-xs font-bold text-slate-700 block mb-1">From Date</label>
+                                <input
+                                  type="date"
+                                  value={editTodoFromDate}
+                                  onChange={(e) => setEditTodoFromDate(e.target.value)}
+                                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-indigo-500 text-xs font-semibold text-slate-700 outline-none"
+                                  required
+                                />
                               </div>
-                            )}
-                          </div>
-                        </div>
+                              <div>
+                                <label className="text-xs font-bold text-slate-700 block mb-1">To Date</label>
+                                <input
+                                  type="date"
+                                  value={editTodoToDate}
+                                  onChange={(e) => setEditTodoToDate(e.target.value)}
+                                  min={editTodoFromDate}
+                                  className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-indigo-500 text-xs font-semibold text-slate-700 outline-none"
+                                  required
+                                />
+                              </div>
+                            </div>
 
-                      <div className="pt-2 flex items-center justify-between border-t border-slate-100">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPlannerTodos(prev => prev.filter(item => item.id !== selectedTodo.id));
-                            setSelectedTodo(null);
-                          }}
-                          className="px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-1 transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Delete</span>
-                        </button>
+                            <div>
+                              <label className="text-xs font-bold text-slate-700 block mb-1">Priority</label>
+                              <select
+                                value={editTodoPriority}
+                                onChange={(e) => setEditTodoPriority(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-indigo-500 text-xs font-semibold text-slate-700 outline-none bg-white"
+                              >
+                                <option value="LOW">Low</option>
+                                <option value="MEDIUM">Medium</option>
+                                <option value="HIGH">High</option>
+                                <option value="CRITICAL">Critical</option>
+                              </select>
+                            </div>
 
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPlannerTodos(prev => prev.map(item => item.id === selectedTodo.id ? { ...item, completed: !item.completed } : item));
-                              setSelectedTodo(prev => prev ? { ...prev, completed: !prev.completed } : null);
-                            }}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                              selectedTodo.completed
-                                ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                                : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
-                            }`}
-                          >
-                            {selectedTodo.completed ? 'Mark as Incomplete' : 'Mark as Done'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedTodo(null)}
-                            className="px-4 py-1.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
-                          >
-                            Close
-                          </button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  </div>
-                );
-              })()}
+                            <div>
+                              <label className="text-xs font-bold text-slate-700 block mb-1">Description / Notes</label>
+                              <textarea
+                                rows={2}
+                                value={editTodoDescription}
+                                onChange={(e) => setEditTodoDescription(e.target.value)}
+                                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-indigo-500 text-xs font-medium text-slate-700 outline-none resize-none"
+                              />
+                            </div>
+
+                            <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+                              <button
+                                type="button"
+                                onClick={() => setIsEditingTodo(false)}
+                                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="submit"
+                                disabled={!editTodoTitle.trim()}
+                                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-500/25 disabled:opacity-50 transition-all cursor-pointer"
+                              >
+                                Save Changes
+                              </button>
+                            </div>
+                          </form>
+                        ) : (
+                          /* VIEW MODE */
+                          <>
+                            <div className="space-y-3">
+                              {/* Pipe indicator banner */}
+                              <div className={`h-1.5 w-full rounded-full ${colorObj.pipe}`} />
+
+                              <div className="flex items-start gap-3">
+                                <button
+                                  onClick={() => {
+                                    setPlannerTodos(prev => prev.map(item => item.id === selectedTodo.id ? { ...item, completed: !item.completed } : item));
+                                    setSelectedTodo(prev => prev ? { ...prev, completed: !prev.completed } : null);
+                                  }}
+                                  className={`mt-0.5 w-6 h-6 rounded-lg border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${selectedTodo.completed
+                                    ? 'bg-emerald-600 border-emerald-600 text-white'
+                                    : 'border-slate-300 hover:border-indigo-600 text-transparent'
+                                    }`}
+                                  title={selectedTodo.completed ? 'Mark pending' : 'Mark completed'}
+                                >
+                                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                </button>
+                                <div className="flex-1">
+                                  <h2 className={`text-base font-bold text-slate-900 ${selectedTodo.completed ? 'line-through text-slate-400' : ''}`}>
+                                    {selectedTodo.title}
+                                  </h2>
+                                  <p className="text-xs text-slate-500 mt-0.5">
+                                    {selectedTodo.completed ? 'Status: Completed' : 'Status: In Progress / Pending'}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100 space-y-2">
+                                <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                                  <CalendarRange className="w-4 h-4 text-indigo-600 shrink-0" />
+                                  <span>From: <strong className="text-slate-800">{selectedTodo.fromDate}</strong></span>
+                                  <span className="text-slate-300">→</span>
+                                  <span>To: <strong className="text-slate-800">{selectedTodo.toDate || selectedTodo.fromDate}</strong></span>
+                                </div>
+                                {selectedTodo.description && (
+                                  <div className="pt-2 border-t border-slate-200/60 text-xs text-slate-600 font-medium whitespace-pre-wrap">
+                                    {selectedTodo.description}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="pt-2 flex items-center justify-between border-t border-slate-100">
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPlannerTodos(prev => prev.filter(item => item.id !== selectedTodo.id));
+                                    setSelectedTodo(null);
+                                    setIsEditingTodo(false);
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-1 transition-colors cursor-pointer"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Delete</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleStartEdit}
+                                  className="px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-600 hover:bg-indigo-50 flex items-center gap-1 transition-colors cursor-pointer border border-indigo-200/80"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5" />
+                                  <span>Edit Dates / Details</span>
+                                </button>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setPlannerTodos(prev => prev.map(item => item.id === selectedTodo.id ? { ...item, completed: !item.completed } : item));
+                                    setSelectedTodo(prev => prev ? { ...prev, completed: !prev.completed } : null);
+                                  }}
+                                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${selectedTodo.completed
+                                    ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                                    : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+                                    }`}
+                                >
+                                  {selectedTodo.completed ? 'Mark as Incomplete' : 'Mark as Done'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedTodo(null);
+                                    setIsEditingTodo(false);
+                                  }}
+                                  className="px-4 py-1.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                                >
+                                  Close
+                                </button>
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </motion.div>
+                    </div>
+                  );
+                })()}
               </AnimatePresence>
 
               {/* Floating Workspace Task View Modal */}
@@ -1292,11 +1414,10 @@ const WorkspaceView = () => {
                     <button
                       id="teams-filter-btn"
                       onClick={() => setShowFilterPanel(p => !p)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
-                        appliedTeamFilter
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-600/20'
-                          : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-400 hover:text-indigo-600'
-                      }`}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${appliedTeamFilter
+                        ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-600/20'
+                        : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-400 hover:text-indigo-600'
+                        }`}
                       title="Filter members"
                     >
                       <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -1406,11 +1527,10 @@ const WorkspaceView = () => {
                                         setShowFilterPanel(false);
                                         setTeamFilterQuery('');
                                       }}
-                                      className={`w-full text-left flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                                        isSelected
-                                          ? 'bg-indigo-50 text-indigo-700 font-bold'
-                                          : 'hover:bg-slate-100 text-slate-700'
-                                      }`}
+                                      className={`w-full text-left flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${isSelected
+                                        ? 'bg-indigo-50 text-indigo-700 font-bold'
+                                        : 'hover:bg-slate-100 text-slate-700'
+                                        }`}
                                     >
                                       <div className="flex items-center gap-2 truncate">
                                         <Layers className="w-3.5 h-3.5 shrink-0 text-indigo-500" />
@@ -1449,11 +1569,10 @@ const WorkspaceView = () => {
                                         setShowFilterPanel(false);
                                         setTeamFilterQuery('');
                                       }}
-                                      className={`w-full text-left flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                                        isSelected
-                                          ? 'bg-indigo-50 text-indigo-700 font-bold'
-                                          : 'hover:bg-slate-100 text-slate-700'
-                                      }`}
+                                      className={`w-full text-left flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-colors cursor-pointer ${isSelected
+                                        ? 'bg-indigo-50 text-indigo-700 font-bold'
+                                        : 'hover:bg-slate-100 text-slate-700'
+                                        }`}
                                     >
                                       <div className="flex items-center gap-2 truncate">
                                         {m.avatar ? (
@@ -1483,10 +1602,10 @@ const WorkspaceView = () => {
                         {teamFilterQuery.trim() &&
                           workspaces.filter(w => w.name.toLowerCase().includes(teamFilterQuery.toLowerCase())).length === 0 &&
                           teamMembers.filter(m => (m.name || m.email || '').toLowerCase().includes(teamFilterQuery.toLowerCase())).length === 0 && (
-                          <div className="text-center py-4 text-xs text-slate-400">
-                            No workspaces or teammates matching "{teamFilterQuery}"
-                          </div>
-                        )}
+                            <div className="text-center py-4 text-xs text-slate-400">
+                              No workspaces or teammates matching "{teamFilterQuery}"
+                            </div>
+                          )}
 
                         <div className="border-t border-slate-100 mt-2.5 pt-2.5 flex justify-between items-center">
                           {appliedTeamFilter ? (
@@ -1652,7 +1771,7 @@ const WorkspaceView = () => {
                           <div className="col-span-3 text-[11px] text-slate-500 font-medium truncate">{m.email}</div>
                           <div className="col-span-2">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${m.role === 'Owner' ? 'bg-violet-50 text-[#5f35f5]' :
-                                m.role === 'Admin' ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'
+                              m.role === 'Admin' ? 'bg-blue-50 text-blue-600' : 'bg-slate-100 text-slate-500'
                               }`}>{m.role || 'Member'}</span>
                           </div>
                           <div className="col-span-2 text-[11px] font-bold">
@@ -1894,11 +2013,10 @@ const WorkspaceView = () => {
                     <div className="flex items-center p-1 bg-slate-100/90 rounded-xl border border-slate-200/80">
                       <button
                         onClick={() => setDashboardUserMode('ME')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                          dashboardUserMode === 'ME'
-                            ? 'bg-white text-indigo-700 shadow-xs ring-1 ring-slate-200'
-                            : 'text-slate-500 hover:text-slate-800'
-                        }`}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${dashboardUserMode === 'ME'
+                          ? 'bg-white text-indigo-700 shadow-xs ring-1 ring-slate-200'
+                          : 'text-slate-500 hover:text-slate-800'
+                          }`}
                         title="Show tasks assigned to you"
                       >
                         <span>👤 My Tasks</span>
@@ -1908,11 +2026,10 @@ const WorkspaceView = () => {
                       </button>
                       <button
                         onClick={() => setDashboardUserMode('ALL')}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                          dashboardUserMode === 'ALL'
-                            ? 'bg-white text-indigo-700 shadow-xs ring-1 ring-slate-200'
-                            : 'text-slate-500 hover:text-slate-800'
-                        }`}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${dashboardUserMode === 'ALL'
+                          ? 'bg-white text-indigo-700 shadow-xs ring-1 ring-slate-200'
+                          : 'text-slate-500 hover:text-slate-800'
+                          }`}
                         title="Show all workspace tasks"
                       >
                         <span>👥 Team View</span>
@@ -1951,9 +2068,8 @@ const WorkspaceView = () => {
                                 setDashboardScope('ALL');
                                 setShowScopeDropdown(false);
                               }}
-                              className={`w-full px-3 py-2 text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
-                                dashboardScope === 'ALL' ? 'bg-indigo-50/70 text-indigo-700 font-bold' : 'hover:bg-slate-50 text-slate-700'
-                              }`}
+                              className={`w-full px-3 py-2 text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${dashboardScope === 'ALL' ? 'bg-indigo-50/70 text-indigo-700 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                                }`}
                             >
                               <span>🌐 Your Workspaces ({userAccessibleWorkspaces.length})</span>
                               {dashboardScope === 'ALL' && <Check className="w-3.5 h-3.5 text-indigo-600" />}
@@ -1967,9 +2083,8 @@ const WorkspaceView = () => {
                                     setDashboardScope(w.id);
                                     setShowScopeDropdown(false);
                                   }}
-                                  className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between transition-colors cursor-pointer ${
-                                    dashboardScope === w.id ? 'bg-indigo-50/70 text-indigo-700 font-bold' : 'hover:bg-slate-50 text-slate-700'
-                                  }`}
+                                  className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between transition-colors cursor-pointer ${dashboardScope === w.id ? 'bg-indigo-50/70 text-indigo-700 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                                    }`}
                                 >
                                   <div className="flex items-center gap-2 truncate">
                                     <span>📁</span>
@@ -2146,7 +2261,7 @@ const WorkspaceView = () => {
                 </div>
 
                 {/* ── Visual Pipelines: Status Flow & Priority Matrix ── */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {/* ── Status Pipeline (Advance Pie / Donut Chart) ── */}
                   <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-card space-y-4">
                     <div className="flex items-center justify-between">
@@ -2309,13 +2424,12 @@ const WorkspaceView = () => {
                                   onMouseEnter={() => setHoveredPieSlice(item.key)}
                                   onMouseLeave={() => setHoveredPieSlice(null)}
                                   onClick={() => setDashboardStatusFilter(curr => curr === item.key ? 'ALL' : item.key)}
-                                  className={`p-2 rounded-xl border transition-all cursor-pointer ${
-                                    isSelected
-                                      ? 'border-indigo-600 bg-indigo-50/70 shadow-xs ring-1 ring-indigo-500/20'
-                                      : isHov
-                                        ? 'border-slate-300 bg-slate-50 shadow-xs'
-                                        : 'border-slate-200/70 bg-white hover:bg-slate-50/70'
-                                  }`}
+                                  className={`p-2 rounded-xl border transition-all cursor-pointer ${isSelected
+                                    ? 'border-indigo-600 bg-indigo-50/70 shadow-xs ring-1 ring-indigo-500/20'
+                                    : isHov
+                                      ? 'border-slate-300 bg-slate-50 shadow-xs'
+                                      : 'border-slate-200/70 bg-white hover:bg-slate-50/70'
+                                    }`}
                                 >
                                   <div className="flex items-center justify-between mb-1">
                                     <div className="flex items-center gap-2">
@@ -2377,9 +2491,8 @@ const WorkspaceView = () => {
                           <div
                             key={p.key}
                             onClick={() => setDashboardPriorityFilter(curr => curr === p.key ? 'ALL' : p.key)}
-                            className={`p-2 rounded-xl border transition-all cursor-pointer ${
-                              isSelected ? 'border-indigo-500 bg-indigo-50/40' : 'border-transparent hover:bg-slate-50'
-                            }`}
+                            className={`p-2 rounded-xl border transition-all cursor-pointer ${isSelected ? 'border-indigo-500 bg-indigo-50/40' : 'border-transparent hover:bg-slate-50'
+                              }`}
                           >
                             <div className="flex items-center justify-between text-xs font-bold mb-1.5">
                               <div className="flex items-center gap-2">
@@ -2404,6 +2517,254 @@ const WorkspaceView = () => {
                       })}
                     </div>
                   </div>
+
+                  {/* ── Todo Tasks Pie Chart & Live DB Task Details ── */}
+                  {(() => {
+                    // Pull all workspace DB tasks in scope
+                    const todoTasks = baseTasks.filter(t => {
+                      const st = String(t.status || '').toLowerCase().replace(/[-_\s]/g, '');
+                      return st === 'todo' || st === 'to_do' || st === 'backlog' || st === 'open' || (columns.length > 0 && t.status === columns[0].id);
+                    });
+
+                    const todoPrioBuckets = [
+                      { key: 'CRITICAL', label: 'Critical', color: '#ef4444', dot: 'bg-red-500' },
+                      { key: 'HIGH', label: 'High', color: '#f97316', dot: 'bg-orange-500' },
+                      { key: 'MEDIUM', label: 'Medium', color: '#3b82f6', dot: 'bg-blue-500' },
+                      { key: 'LOW', label: 'Low', color: '#94a3b8', dot: 'bg-slate-400' },
+                    ].map(b => ({
+                      ...b,
+                      count: todoTasks.filter(t => getTaskPriorityKey(t.priority) === b.key).length
+                    }));
+
+                    const todoTotal = todoTasks.length;
+                    const cx = 100, cy = 100, R = 80, r = 52;
+                    let cumAngle = -Math.PI / 2;
+
+                    const slices = todoPrioBuckets.map(b => {
+                      if (todoTotal === 0 || b.count === 0) return { ...b, path: '', pct: 0 };
+                      const angle = (b.count / todoTotal) * 2 * Math.PI;
+                      const gap = 0.03;
+                      const s = cumAngle + gap;
+                      const e = Math.max(s, cumAngle + angle - gap);
+                      cumAngle += angle;
+
+                      const x1 = cx + R * Math.cos(s); const y1 = cy + R * Math.sin(s);
+                      const x2 = cx + R * Math.cos(e); const y2 = cy + R * Math.sin(e);
+                      const ix1 = cx + r * Math.cos(e); const iy1 = cy + r * Math.sin(e);
+                      const ix2 = cx + r * Math.cos(s); const iy2 = cy + r * Math.sin(s);
+                      const la = angle > Math.PI ? 1 : 0;
+
+                      return {
+                        ...b,
+                        pct: Math.round((b.count / todoTotal) * 100),
+                        path: `M ${x1} ${y1} A ${R} ${R} 0 ${la} 1 ${x2} ${y2} L ${ix1} ${iy1} A ${r} ${r} 0 ${la} 0 ${ix2} ${iy2} Z`
+                      };
+                    });
+
+                    const activeHover = hoveredTodoPieSlice ? todoPrioBuckets.find(b => b.key === hoveredTodoPieSlice) : null;
+                    const activeFilter = dashboardPriorityFilter !== 'ALL' ? todoPrioBuckets.find(b => b.key === dashboardPriorityFilter) : null;
+                    const displayTarget = activeHover || activeFilter;
+
+                    // Filtered Todo tasks for interactive DB task details list below chart
+                    const detailTasks = todoTasks.filter(t => {
+                      if (dashboardPriorityFilter !== 'ALL') {
+                        return getTaskPriorityKey(t.priority) === dashboardPriorityFilter;
+                      }
+                      if (hoveredTodoPieSlice) {
+                        return getTaskPriorityKey(t.priority) === hoveredTodoPieSlice;
+                      }
+                      return true;
+                    });
+
+                    return (
+                      <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-card space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="text-sm font-black text-slate-900 tracking-tight">Todo Tasks</h3>
+                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 uppercase tracking-wide">
+                                Pie Chart
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-400 font-medium">Pending tasks by priority from Database</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {dashboardPriorityFilter !== 'ALL' && (
+                              <button
+                                onClick={() => setDashboardPriorityFilter('ALL')}
+                                className="text-xs text-rose-600 font-bold hover:bg-rose-50 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
+                              >
+                                Reset ×
+                              </button>
+                            )}
+                            <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-lg">
+                              {todoTotal} Tasks
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Side-by-side horizontal alignment: Pie chart slice on left, details legend on right */}
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center pt-2">
+                          {/* Left: SVG Pie Donut Slice Graphic */}
+                          <div className="md:col-span-6 flex flex-col items-center justify-center relative">
+                            <div className="relative w-[170px] h-[170px]">
+                              <svg viewBox="0 0 200 200" className="w-full h-full transform transition-transform duration-300">
+                                <circle cx={cx} cy={cy} r={(R + r) / 2} strokeWidth={R - r} fill="none" stroke="#f1f5f9" />
+                                {todoTotal > 0 && slices.map(s => {
+                                  if (!s.path) return null;
+                                  const isHov = hoveredTodoPieSlice === s.key;
+                                  const isSelected = dashboardPriorityFilter === s.key;
+                                  return (
+                                    <path
+                                      key={s.key}
+                                      d={s.path}
+                                      fill={s.color}
+                                      opacity={hoveredTodoPieSlice && !isHov ? 0.45 : isSelected ? 1 : 0.9}
+                                      filter={isHov || isSelected ? 'drop-shadow(0 2px 6px rgba(0,0,0,0.25))' : undefined}
+                                      className="transition-all duration-200 cursor-pointer"
+                                      style={{
+                                        transformOrigin: `${cx}px ${cy}px`,
+                                        transform: isHov ? 'scale(1.04)' : isSelected ? 'scale(1.02)' : 'scale(1)',
+                                      }}
+                                      onMouseEnter={() => setHoveredTodoPieSlice(s.key)}
+                                      onMouseLeave={() => setHoveredTodoPieSlice(null)}
+                                      onClick={() => setDashboardPriorityFilter(curr => curr === s.key ? 'ALL' : s.key)}
+                                    />
+                                  );
+                                })}
+                                {todoTotal === 0 && (
+                                  <circle cx={cx} cy={cy} r={(R + r) / 2} strokeWidth={R - r} fill="none" stroke="#e2e8f0" />
+                                )}
+                              </svg>
+                              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none text-center px-2">
+                                <motion.span
+                                  key={displayTarget ? displayTarget.key : 'TOTAL'}
+                                  initial={{ scale: 0.85, opacity: 0 }}
+                                  animate={{ scale: 1, opacity: 1 }}
+                                  transition={{ duration: 0.15 }}
+                                  className="text-2xl font-black text-slate-900 leading-none"
+                                >
+                                  {displayTarget ? displayTarget.count : todoTotal}
+                                </motion.span>
+                                <span className="text-[10px] font-bold text-slate-400 mt-1 truncate max-w-[100px]">
+                                  {displayTarget ? `${displayTarget.label} Todo` : 'Todo Tasks'}
+                                </span>
+                                {todoTotal > 0 && (
+                                  <span className="text-[9px] font-extrabold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full mt-0.5 border border-blue-100">
+                                    {displayTarget
+                                      ? `${Math.round((displayTarget.count / (todoTotal || 1)) * 100)}% of todo`
+                                      : `${Math.round((todoTotal / (total || 1)) * 100)}% of total`}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-medium mt-1 text-center">
+                              Click slice to filter task details
+                            </span>
+                          </div>
+
+                          {/* Right: Details Legend in Same Line */}
+                          <div className="md:col-span-6 space-y-1.5">
+                            {todoPrioBuckets.map(b => {
+                              const isHov = hoveredTodoPieSlice === b.key;
+                              const isSelected = dashboardPriorityFilter === b.key;
+                              const pct = todoTotal > 0 ? Math.round((b.count / todoTotal) * 100) : 0;
+                              return (
+                                <div
+                                  key={b.key}
+                                  onMouseEnter={() => setHoveredTodoPieSlice(b.key)}
+                                  onMouseLeave={() => setHoveredTodoPieSlice(null)}
+                                  onClick={() => setDashboardPriorityFilter(curr => curr === b.key ? 'ALL' : b.key)}
+                                  className={`p-2 rounded-xl border transition-all cursor-pointer ${isSelected
+                                    ? 'border-indigo-600 bg-indigo-50/70 shadow-xs ring-1 ring-indigo-500/20'
+                                    : isHov
+                                      ? 'border-slate-300 bg-slate-50 shadow-xs'
+                                      : 'border-slate-200/70 bg-white hover:bg-slate-50/70'
+                                    }`}
+                                >
+                                  <div className="flex items-center justify-between mb-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`w-2.5 h-2.5 rounded-full ${b.dot} shrink-0`} />
+                                      <span className="text-xs font-bold text-slate-800">{b.label}</span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-xs font-black text-slate-900">{b.count}</span>
+                                      <span className="text-[10px] text-slate-400 font-semibold w-7 text-right">{pct}%</span>
+                                    </div>
+                                  </div>
+
+                                  {/* Micro progress bar */}
+                                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full rounded-full transition-all duration-500"
+                                      style={{
+                                        width: `${pct}%`,
+                                        backgroundColor: b.color,
+                                      }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            {todoTotal === 0 && (
+                              <p className="text-xs text-slate-400 italic text-center py-2">No pending tasks 🎉</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* ── Live DB Task Details List (Shows actual task details from DB) ── */}
+                        <div className="border-t border-slate-100 pt-3 mt-2 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                              <span>📋 Todo Task Details</span>
+                              <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full">
+                                {detailTasks.length} {dashboardPriorityFilter !== 'ALL' ? dashboardPriorityFilter.toLowerCase() : ''} items
+                              </span>
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-medium">Synced with DB</span>
+                          </div>
+
+                          <div className="max-h-[160px] overflow-y-auto space-y-1.5 pr-1">
+                            {detailTasks.slice(0, 8).map(t => {
+                              const prioKey = getTaskPriorityKey(t.priority);
+                              const prioConfig = todoPrioBuckets.find(b => b.key === prioKey) || todoPrioBuckets[2];
+                              return (
+                                <div
+                                  key={t.id || t._id}
+                                  onClick={() => setSelectedCalendarTask({ taskId: t.id || t._id, workspaceId: t.workspaceId })}
+                                  className="flex items-center justify-between p-2 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-100/80 hover:border-slate-200 transition-all cursor-pointer group"
+                                >
+                                  <div className="flex items-center gap-2 min-w-0 pr-2">
+                                    <span className={`w-2 h-2 rounded-full ${prioConfig.dot} shrink-0`} />
+                                    <span className="text-xs font-extrabold text-slate-800 truncate group-hover:text-indigo-600 transition-colors">
+                                      {t.title || 'Untitled Task'}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    {t.dueDate && (
+                                      <span className="text-[10px] font-medium text-slate-400 bg-white border border-slate-200 px-1.5 py-0.5 rounded-md">
+                                        📅 {t.dueDate}
+                                      </span>
+                                    )}
+                                    <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider text-white`} style={{ backgroundColor: prioConfig.color }}>
+                                      {prioKey}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+
+                            {detailTasks.length === 0 && (
+                              <div className="p-3 text-center rounded-xl bg-slate-50 border border-dashed border-slate-200">
+                                <p className="text-xs text-slate-400 font-medium">No todo tasks match this priority filter</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* ── Actionable Task Radar (Workable directly from Dashboard!) ── */}
@@ -2439,11 +2800,10 @@ const WorkspaceView = () => {
                           <button
                             key={statusKey}
                             onClick={() => setDashboardStatusFilter(statusKey)}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                              dashboardStatusFilter === statusKey
-                                ? 'bg-indigo-600 text-white shadow-xs'
-                                : 'text-slate-500 hover:text-slate-800'
-                            }`}
+                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${dashboardStatusFilter === statusKey
+                              ? 'bg-indigo-600 text-white shadow-xs'
+                              : 'text-slate-500 hover:text-slate-800'
+                              }`}
                           >
                             {statusKey === 'ALL' ? 'All' : statusKey === 'IN_PROGRESS' ? 'Active' : statusKey === 'TO_DO' ? 'Todo' : 'Done'}
                           </button>
@@ -2537,9 +2897,8 @@ const WorkspaceView = () => {
                                     e.stopPropagation();
                                     setActiveStatusDropdownTaskId(activeStatusDropdownTaskId === task.id ? null : task.id);
                                   }}
-                                  className={`text-xs font-bold py-1 px-2.5 rounded-lg border focus:outline-none transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${sc.color} ${
-                                    isMoving ? 'opacity-50' : 'hover:shadow-xs'
-                                  }`}
+                                  className={`text-xs font-bold py-1 px-2.5 rounded-lg border focus:outline-none transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${sc.color} ${isMoving ? 'opacity-50' : 'hover:shadow-xs'
+                                    }`}
                                 >
                                   <span>{sc.label}</span>
                                   <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${activeStatusDropdownTaskId === task.id ? 'rotate-180' : ''}`} />
@@ -2567,9 +2926,8 @@ const WorkspaceView = () => {
                                             setActiveStatusDropdownTaskId(null);
                                             handleStatusChange(task.id, st.id, e);
                                           }}
-                                          className={`w-full px-3 py-1.5 text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
-                                            task.status === st.id ? 'bg-indigo-50/70 text-indigo-700 font-bold' : 'hover:bg-slate-50 text-slate-700'
-                                          }`}
+                                          className={`w-full px-3 py-1.5 text-left text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${task.status === st.id ? 'bg-indigo-50/70 text-indigo-700 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                                            }`}
                                         >
                                           <div className="flex items-center gap-2">
                                             <span className={`w-1.5 h-1.5 rounded-full ${st.dot}`} />
