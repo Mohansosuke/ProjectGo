@@ -247,6 +247,7 @@ const WorkspaceView = () => {
   const [movingTaskId, setMovingTaskId] = useState(null);
   const [hoveredPieSlice, setHoveredPieSlice] = useState(null);
   const [hoveredTodoPieSlice, setHoveredTodoPieSlice] = useState(null);
+  const [todoChartSource, setTodoChartSource] = useState('PLANNER'); // 'PLANNER' (Planner page todos) or 'WORKSPACE' (Kanban workspace tasks)
   const [showScopeDropdown, setShowScopeDropdown] = useState(false);
   const [activeStatusDropdownTaskId, setActiveStatusDropdownTaskId] = useState(null);
 
@@ -2534,13 +2535,23 @@ const WorkspaceView = () => {
                     </div>
                   </div>
 
-                  {/* ── Todo Tasks Pie Chart & Live DB Task Details ── */}
+                  {/* ── Todo Tasks Pie Chart & Live Task Details (Planner Page Todos + Workspace Tasks) ── */}
                   {(() => {
-                    // Pull all workspace DB tasks in scope
-                    const todoTasks = baseTasks.filter(t => {
+                    // 1. Planner Page Todos (Pending todos from decoupled Planner)
+                    const plannerScopeTodos = plannerTodos.filter(t => {
+                      if (t.completed) return false;
+                      if (dashboardScope === 'ALL') return true;
+                      return String(t.workspaceId || '') === String(dashboardScope);
+                    });
+
+                    // 2. Workspace Kanban Tasks (Pending tasks from DB)
+                    const workspaceTodoTasks = baseTasks.filter(t => {
                       const st = String(t.status || '').toLowerCase().replace(/[-_\s]/g, '');
                       return st === 'todo' || st === 'to_do' || st === 'backlog' || st === 'open' || (columns.length > 0 && t.status === columns[0].id);
                     });
+
+                    // Active dataset based on user tab selection (default: PLANNER)
+                    const todoTasks = todoChartSource === 'PLANNER' ? plannerScopeTodos : workspaceTodoTasks;
 
                     const todoPrioBuckets = [
                       { key: 'CRITICAL', label: 'Critical', color: '#ef4444', dot: 'bg-red-500' },
@@ -2581,7 +2592,7 @@ const WorkspaceView = () => {
                     const activeFilter = dashboardPriorityFilter !== 'ALL' ? todoPrioBuckets.find(b => b.key === dashboardPriorityFilter) : null;
                     const displayTarget = activeHover || activeFilter;
 
-                    // Filtered Todo tasks for interactive DB task details list below chart
+                    // Filtered tasks for interactive list below chart
                     const detailTasks = todoTasks.filter(t => {
                       if (dashboardPriorityFilter !== 'ALL') {
                         return getTaskPriorityKey(t.priority) === dashboardPriorityFilter;
@@ -2594,33 +2605,46 @@ const WorkspaceView = () => {
 
                     return (
                       <div className="bg-white border border-slate-200/80 rounded-2xl p-5 shadow-card space-y-4">
-                        <div className="flex items-center justify-between">
+                        {/* Header with Source Toggle Tabs (Planner Page Todos vs Workspace Tasks) */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
                           <div>
                             <div className="flex items-center gap-2">
-                              <h3 className="text-sm font-black text-slate-900 tracking-tight">Workspace Todo Tasks</h3>
+                              <h3 className="text-sm font-black text-slate-900 tracking-tight">Todo Tasks</h3>
                               <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 uppercase tracking-wide border border-indigo-100">
-                                Kanban DB
+                                {todoChartSource === 'PLANNER' ? 'Planner Page' : 'Kanban DB'}
                               </span>
                             </div>
-                            <p className="text-xs text-slate-400 font-medium">Pending workspace tasks by priority from Database</p>
+                            <p className="text-xs text-slate-400 font-medium">
+                              {todoChartSource === 'PLANNER'
+                                ? 'Pending todo tasks from Planner page'
+                                : 'Pending workspace tasks from Database'}
+                            </p>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {dashboardPriorityFilter !== 'ALL' && (
-                              <button
-                                onClick={() => setDashboardPriorityFilter('ALL')}
-                                className="text-xs text-rose-600 font-bold hover:bg-rose-50 px-2 py-0.5 rounded-md transition-colors cursor-pointer"
-                              >
-                                Reset ×
-                              </button>
-                            )}
-                            <span className="text-xs font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-lg">
-                              {todoTotal} Tasks
-                            </span>
+
+                          <div className="flex items-center gap-1.5 bg-slate-100/80 p-1 rounded-xl shrink-0">
+                            <button
+                              onClick={() => setTodoChartSource('PLANNER')}
+                              className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${todoChartSource === 'PLANNER'
+                                ? 'bg-white text-indigo-600 shadow-xs border border-slate-200/60'
+                                : 'text-slate-500 hover:text-slate-800'
+                                }`}
+                            >
+                              📅 Planner Todos ({plannerScopeTodos.length})
+                            </button>
+                            <button
+                              onClick={() => setTodoChartSource('WORKSPACE')}
+                              className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${todoChartSource === 'WORKSPACE'
+                                ? 'bg-white text-indigo-600 shadow-xs border border-slate-200/60'
+                                : 'text-slate-500 hover:text-slate-800'
+                                }`}
+                            >
+                              💼 Workspace ({workspaceTodoTasks.length})
+                            </button>
                           </div>
                         </div>
 
                         {/* Side-by-side horizontal alignment: Pie chart slice on left, details legend on right */}
-                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center pt-2">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center pt-1">
                           {/* Left: SVG Pie Donut Slice Graphic */}
                           <div className="md:col-span-6 flex flex-col items-center justify-center relative">
                             <div className="relative w-[170px] h-[170px]">
@@ -2723,31 +2747,41 @@ const WorkspaceView = () => {
                               );
                             })}
                             {todoTotal === 0 && (
-                              <p className="text-xs text-slate-400 italic text-center py-2">No pending tasks 🎉</p>
+                              <p className="text-xs text-slate-400 italic text-center py-2">No pending todo tasks 🎉</p>
                             )}
                           </div>
                         </div>
 
-                        {/* ── Live DB Task Details List (Shows actual task details from DB) ── */}
-                        <div className="border-t border-slate-100 pt-3 mt-2 space-y-2">
+                        {/* ── Live Task Details List (Planner Page Todos or Workspace Tasks) ── */}
+                        <div className="border-t border-slate-100 pt-3 mt-1 space-y-2">
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                              <span>📋 Todo Task Details</span>
+                              <span>📋 {todoChartSource === 'PLANNER' ? 'Planner Page Todo Details' : 'Workspace Task Details'}</span>
                               <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full">
                                 {detailTasks.length} {dashboardPriorityFilter !== 'ALL' ? dashboardPriorityFilter.toLowerCase() : ''} items
                               </span>
                             </span>
-                            <span className="text-[10px] text-slate-400 font-medium">Synced with DB</span>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              {todoChartSource === 'PLANNER' ? 'Planner Storage' : 'Synced with DB'}
+                            </span>
                           </div>
 
                           <div className="max-h-[160px] overflow-y-auto space-y-1.5 pr-1">
                             {detailTasks.slice(0, 8).map(t => {
                               const prioKey = getTaskPriorityKey(t.priority);
                               const prioConfig = todoPrioBuckets.find(b => b.key === prioKey) || todoPrioBuckets[2];
+                              const isPlanner = todoChartSource === 'PLANNER';
+
                               return (
                                 <div
                                   key={t.id || t._id}
-                                  onClick={() => setSelectedCalendarTask({ taskId: t.id || t._id, workspaceId: t.workspaceId })}
+                                  onClick={() => {
+                                    if (isPlanner) {
+                                      setSelectedTodo(t);
+                                    } else {
+                                      setSelectedCalendarTask({ taskId: t.id || t._id, workspaceId: t.workspaceId });
+                                    }
+                                  }}
                                   className="flex items-center justify-between p-2 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-100/80 hover:border-slate-200 transition-all cursor-pointer group"
                                 >
                                   <div className="flex items-center gap-2 min-w-0 pr-2">
@@ -2758,9 +2792,9 @@ const WorkspaceView = () => {
                                   </div>
 
                                   <div className="flex items-center gap-2 shrink-0">
-                                    {t.dueDate && (
+                                    {(t.fromDate || t.dueDate) && (
                                       <span className="text-[10px] font-medium text-slate-400 bg-white border border-slate-200 px-1.5 py-0.5 rounded-md">
-                                        📅 {t.dueDate}
+                                        📅 {t.fromDate || t.dueDate}
                                       </span>
                                     )}
                                     <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider text-white`} style={{ backgroundColor: prioConfig.color }}>
@@ -2773,7 +2807,7 @@ const WorkspaceView = () => {
 
                             {detailTasks.length === 0 && (
                               <div className="p-3 text-center rounded-xl bg-slate-50 border border-dashed border-slate-200">
-                                <p className="text-xs text-slate-400 font-medium">No todo tasks match this priority filter</p>
+                                <p className="text-xs text-slate-400 font-medium">No todo tasks match this filter</p>
                               </div>
                             )}
                           </div>
