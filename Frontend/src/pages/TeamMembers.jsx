@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Download, 
-  UserPlus, 
-  Search, 
-  MoreVertical, 
+import {
+  Download,
+  UserPlus,
+  Search,
+  MoreVertical,
   Info,
   ChevronLeft,
   ChevronRight,
@@ -40,8 +40,10 @@ const TeamMembers = () => {
   const { workspaces, activeWorkspace } = useWorkspace();
   const toast = useToast();
 
-  const workspace = workspaces.find(w => w.id === workspaceId) || activeWorkspace;
-  const isCurrentOwner = workspace && currentUser && (currentUser.id === workspace.ownerId || currentUser.id === workspace.owner);
+  const workspace = workspaces.find(w => w.id === workspaceId || w._id === workspaceId) || activeWorkspace;
+  const currentWorkspaceId = workspaceId || workspace?.id || workspace?._id;
+
+  const isCurrentOwner = workspace && currentUser && (currentUser.id === workspace.ownerId || currentUser.id === workspace.owner || currentUser._id === workspace.ownerId || currentUser._id === workspace.owner);
   const isCurrentAdmin = workspace && (workspace.userRole === 'Admin' || isCurrentOwner);
 
   const [members, setMembers] = useState([]);
@@ -59,9 +61,11 @@ const TeamMembers = () => {
   const [inviting, setInviting] = useState(false);
   const [updatingRoleId, setUpdatingRoleId] = useState(null);
 
-  const fetchMembers = async () => {
+  const fetchMembers = async (wsId) => {
+    const idToUse = wsId || currentWorkspaceId;
+    if (!idToUse) return;
     try {
-      const res = await apiClient.get(`/invitations/workspace/${workspaceId}`);
+      const res = await apiClient.get(`/invitations/workspace/${idToUse}`);
       const list = Array.isArray(res.data) ? res.data : (res.data?.data ? res.data.data : []);
       setMembers(list);
     } catch (err) {
@@ -70,9 +74,11 @@ const TeamMembers = () => {
     }
   };
 
-  const fetchPendingInvitations = async () => {
+  const fetchPendingInvitations = async (wsId) => {
+    const idToUse = wsId || currentWorkspaceId;
+    if (!idToUse) return;
     try {
-      const res = await apiClient.get(`/workspaces/${workspaceId}/invitations`);
+      const res = await apiClient.get(`/workspaces/${idToUse}/invitations`);
       const invList = Array.isArray(res.data) ? res.data : (res.data?.data ? res.data.data : []);
       setPendingInvitations(invList);
     } catch (err) {
@@ -84,13 +90,13 @@ const TeamMembers = () => {
   useEffect(() => {
     const init = async () => {
       setLoading(true);
-      if (workspaceId) {
-        await Promise.all([fetchMembers(), fetchPendingInvitations()]);
+      if (currentWorkspaceId) {
+        await Promise.all([fetchMembers(currentWorkspaceId), fetchPendingInvitations(currentWorkspaceId)]);
       }
       setLoading(false);
     };
     init();
-  }, [workspaceId]);
+  }, [currentWorkspaceId]);
 
   // Quick invite member
   const handleInvite = async (e) => {
@@ -206,9 +212,9 @@ const TeamMembers = () => {
 
       const q = searchQuery.toLowerCase();
       const matchesSearch = !q || (user.name || '').toLowerCase().includes(q) || (user.email || '').toLowerCase().includes(q);
-      
+
       const matchesRole = roleFilter === 'All Roles' || (user.role || '').toLowerCase() === roleFilter.toLowerCase();
-      
+
       let matchesStatus = true;
       if (statusFilter !== 'All Status') {
         if (statusFilter === 'Active') {
@@ -217,7 +223,7 @@ const TeamMembers = () => {
           matchesStatus = !user.isOnline && (user.status || '').toLowerCase() !== 'online';
         }
       }
-      
+
       return matchesSearch && matchesRole && matchesStatus;
     });
   }, [members, searchQuery, roleFilter, statusFilter, appliedFilter]);
@@ -261,11 +267,10 @@ const TeamMembers = () => {
           <div className="relative">
             <button
               onClick={() => setShowFilterPanel(p => !p)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                appliedFilter
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${appliedFilter
                   ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
                   : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-400 hover:text-indigo-600'
-              }`}
+                }`}
               title="Filter members"
             >
               <Filter className="w-3.5 h-3.5" />
@@ -339,9 +344,8 @@ const TeamMembers = () => {
                             setShowFilterPanel(false);
                             setFilterSearchQuery('');
                           }}
-                          className={`w-full text-left flex items-center justify-between px-2 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
-                            isSelected ? 'bg-indigo-50 text-indigo-700 font-bold' : 'hover:bg-slate-100 text-slate-700'
-                          }`}
+                          className={`w-full text-left flex items-center justify-between px-2 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${isSelected ? 'bg-indigo-50 text-indigo-700 font-bold' : 'hover:bg-slate-100 text-slate-700'
+                            }`}
                         >
                           <span className="truncate">{m.name || m.email}</span>
                           {isSelected && <Check className="w-3.5 h-3.5 text-indigo-600" />}
@@ -367,8 +371,8 @@ const TeamMembers = () => {
               </div>
             )}
           </div>
-          
-          <Button 
+
+          <Button
             onClick={() => navigate(`/workspace/${workspaceId}/invite`)}
             className="shadow-sm shadow-indigo-500/20"
           >
@@ -436,7 +440,7 @@ const TeamMembers = () => {
 
       {/* ── Main Members Table ── */}
       <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
-        
+
         {/* Table Filter Controls */}
         <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row gap-3 items-center justify-between">
           <div className="relative w-full sm:w-80">
@@ -457,7 +461,7 @@ const TeamMembers = () => {
               <span>Filters:</span>
             </div>
 
-            <select 
+            <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
               className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
@@ -469,7 +473,7 @@ const TeamMembers = () => {
               <option>Viewer</option>
             </select>
 
-            <select 
+            <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
@@ -590,13 +594,12 @@ const TeamMembers = () => {
                             <option value="Viewer">Viewer</option>
                           </select>
                         ) : (
-                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold border ${
-                            user.role === 'Admin'
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg text-xs font-bold border ${user.role === 'Admin'
                               ? 'bg-purple-50 text-purple-700 border-purple-200'
                               : user.role === 'Viewer'
                                 ? 'bg-slate-100 text-slate-600 border-slate-200'
                                 : 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                          }`}>
+                            }`}>
                             {user.role === 'Admin' ? <ShieldCheck className="w-3 h-3 text-purple-500" /> : <UserCheck className="w-3 h-3 text-indigo-500" />}
                             {user.role || 'Member'}
                           </span>

@@ -8,7 +8,7 @@ const baseURL = rawApiUrl
 const apiClient = axios.create({
   baseURL,
   withCredentials: true,
-  timeout: 8000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json'
   }
@@ -17,7 +17,7 @@ const apiClient = axios.create({
 apiClient.interceptors.response.use(
   (response) => {
     if (response.data && response.data.success !== undefined) {
-      return { ...response, data: response.data.data};
+      return { ...response, data: response.data.data };
     }
     return response;
   },
