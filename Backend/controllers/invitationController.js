@@ -118,8 +118,8 @@ const getWorkspaceMembers = asyncHandler(async (req, res) => {
 
   // Now do the full populate
   const workspace = await Workspace.findById(workspaceId)
-    .populate('owner', 'fullName email photoURL bio lastSeen')
-    .populate('members', 'fullName email photoURL bio lastSeen');
+    .populate('owner', 'fullName nickname phone bio email photoURL lastSeen')
+    .populate('members', 'fullName nickname phone bio email photoURL lastSeen');
 
   const computeOnline = (user) => {
     return !!(user.lastSeen && (now - new Date(user.lastSeen).getTime()) < ONLINE_THRESHOLD_MS);
@@ -131,7 +131,10 @@ const getWorkspaceMembers = asyncHandler(async (req, res) => {
   membersList.push({
     id: workspace.owner._id,
     name: workspace.owner.fullName,
+    nickname: workspace.owner.nickname || '',
     email: workspace.owner.email,
+    phone: workspace.owner.phone || '',
+    bio: workspace.owner.bio || '',
     avatar: workspace.owner.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(workspace.owner.fullName)}`,
     role: 'Owner',
     isOnline: ownerOnline,
@@ -149,7 +152,10 @@ const getWorkspaceMembers = asyncHandler(async (req, res) => {
       membersList.push({
         id: member._id,
         name: member.fullName,
+        nickname: member.nickname || '',
         email: member.email,
+        phone: member.phone || '',
+        bio: member.bio || '',
         avatar: member.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.fullName)}`,
         role: role,
         isOnline: memberOnline,
