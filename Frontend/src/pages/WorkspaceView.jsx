@@ -1939,10 +1939,26 @@ const WorkspaceView = () => {
               return isOwner || isMember;
             });
 
-            // Tasks scoped by workspace
+            // Robust workspace ID extraction from DB task objects
+            const getTaskWsId = (t) => {
+              if (!t) return '';
+              const ws = t.workspaceId || t.workspace;
+              if (!ws) return '';
+              if (typeof ws === 'string') return ws;
+              return ws._id || ws.id || String(ws);
+            };
+
+            // Workspace Kanban DB tasks scoped by selected workspace
             const baseTasks = dashboardScope === 'ALL'
-              ? tasks.filter(t => userAccessibleWorkspaces.length === 0 || userAccessibleWorkspaces.some(w => w.id === t.workspaceId))
-              : tasks.filter(t => t.workspaceId === dashboardScope);
+              ? tasks.filter(t => userAccessibleWorkspaces.length === 0 || userAccessibleWorkspaces.some(w => {
+                const wid = String(w.id || w._id || '');
+                const tid = getTaskWsId(t);
+                return !tid || tid === wid;
+              }))
+              : tasks.filter(t => {
+                const tid = getTaskWsId(t);
+                return !tid || tid === String(dashboardScope);
+              });
 
             // Filter tasks based on logged-in user by default (only show all when Team View is explicitly selected)
             const activeScopeTasks = dashboardUserMode === 'ME'
@@ -2581,12 +2597,12 @@ const WorkspaceView = () => {
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="flex items-center gap-2">
-                              <h3 className="text-sm font-black text-slate-900 tracking-tight">Todo Tasks</h3>
-                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 uppercase tracking-wide">
-                                Pie Chart
+                              <h3 className="text-sm font-black text-slate-900 tracking-tight">Workspace Todo Tasks</h3>
+                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 uppercase tracking-wide border border-indigo-100">
+                                Kanban DB
                               </span>
                             </div>
-                            <p className="text-xs text-slate-400 font-medium">Pending tasks by priority from Database</p>
+                            <p className="text-xs text-slate-400 font-medium">Pending workspace tasks by priority from Database</p>
                           </div>
                           <div className="flex items-center gap-2">
                             {dashboardPriorityFilter !== 'ALL' && (
