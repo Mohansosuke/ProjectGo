@@ -218,11 +218,19 @@ const getWorkspaceInvitations = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Forbidden: You do not have access to this workspace invitations');
   }
 
-  // Find pending non-expired invitations for this workspace
+  const mongoose = require('mongoose');
+  const orConditions = [
+    { workspaceId: workspaceId },
+    { workspaceId: String(workspaceId) }
+  ];
+  if (mongoose.Types.ObjectId.isValid(workspaceId)) {
+    orConditions.push({ workspaceId: new mongoose.Types.ObjectId(workspaceId) });
+  }
+
+  // Find pending invitations for this workspace
   const invitations = await Invitation.find({
-    workspaceId,
-    status: 'pending',
-    expiresAt: { $gt: new Date() }
+    $or: orConditions,
+    status: { $regex: /^pending$/i }
   }).select('_id email role status createdAt expiresAt');
 
   return res.json(new ApiResponse(200, invitations));

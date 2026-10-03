@@ -96,13 +96,14 @@ const TeamMembers = () => {
   useEffect(() => {
     const init = async () => {
       setLoading(true);
-      if (currentWorkspaceId) {
-        await Promise.all([fetchMembers(currentWorkspaceId), fetchPendingInvitations(currentWorkspaceId)]);
+      const targetWsId = workspaceId || workspace?.id || workspace?._id || activeWorkspace?.id || activeWorkspace?._id;
+      if (targetWsId) {
+        await Promise.all([fetchMembers(targetWsId), fetchPendingInvitations(targetWsId)]);
       }
       setLoading(false);
     };
     init();
-  }, [currentWorkspaceId]);
+  }, [workspaceId, currentWorkspaceId, workspace?.id, workspace?._id, activeWorkspace?.id, activeWorkspace?._id, workspaces.length]);
 
   // Quick invite member
   const handleInvite = async (e) => {
