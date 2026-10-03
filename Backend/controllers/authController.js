@@ -37,32 +37,18 @@ const verifyEmailController = asyncHandler(async (req, res) => {
 
   console.log("User verified:", user.email);
 
-  try {
-    const { acceptPendingInvitationsForEmail } = require('../services/invitationService');
-    await acceptPendingInvitationsForEmail(user.email, user);
-  } catch (err) {
-    console.error("Failed to auto-accept invitations during verification:", err);
-  }
-
   return res.json(
-  new ApiResponse(
-    200,
-    null,
-    "Email verified successfully!"
-  )
-);
+    new ApiResponse(
+      200,
+      null,
+      "Email verified successfully!"
+    )
+  );
 });
 
 const login = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
   const { user, token } = await loginUser(email, password);
-
-  try {
-    const { acceptPendingInvitationsForEmail } = require('../services/invitationService');
-    await acceptPendingInvitationsForEmail(user.email, user);
-  } catch (err) {
-    console.error("Failed to auto-accept invitations during login:", err);
-  }
 
   res.cookie('token', token, {
     httpOnly: true,
@@ -140,13 +126,6 @@ const googleCallback = asyncHandler(async (req, res) => {
 
   if (!req.user) {
     throw new ApiError(401, 'Google authentication failed');
-  }
-
-  try {
-    const { acceptPendingInvitationsForEmail } = require('../services/invitationService');
-    await acceptPendingInvitationsForEmail(req.user.email, req.user);
-  } catch (err) {
-    console.error("Failed to auto-accept invitations during Google login:", err);
   }
 
   const token = generateToken(req.user._id);

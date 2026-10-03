@@ -205,9 +205,14 @@ const getWorkspaceInvitations = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Workspace not found');
   }
 
-  // Only workspace owner can view
-  if (workspace.owner.toString() !== req.user._id.toString()) {
-    throw new ApiError(403, 'Forbidden: Only the workspace owner can view invitations');
+  const reqUserId = (req.user._id || req.user.id).toString();
+  const rawOwnerId = workspace.owner ? workspace.owner.toString() : '';
+  const isMember =
+    rawOwnerId === reqUserId ||
+    (workspace.members || []).some(m => m && m.toString() === reqUserId);
+
+  if (!isMember) {
+    throw new ApiError(403, 'Forbidden: You do not have access to this workspace invitations');
   }
 
   // Find pending non-expired invitations for this workspace
@@ -215,7 +220,7 @@ const getWorkspaceInvitations = asyncHandler(async (req, res) => {
     workspaceId,
     status: 'pending',
     expiresAt: { $gt: new Date() }
-  }).select('email status createdAt expiresAt');
+  }).select('_id email role status createdAt expiresAt');
 
   return res.json(new ApiResponse(200, invitations));
 });
