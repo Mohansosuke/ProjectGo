@@ -82,13 +82,23 @@ const TeamMembers = () => {
 
   const fetchPendingInvitations = async (wsId) => {
     const idToUse = wsId || currentWorkspaceId;
-    if (!idToUse) return;
+    if (!idToUse) {
+      console.warn("[TeamMembers] fetchPendingInvitations: no workspace ID available");
+      return;
+    }
+    console.log("[TeamMembers] Fetching pending invitations for workspace:", idToUse);
     try {
       const res = await apiClient.get(`/workspaces/${idToUse}/invitations`);
-      const invList = Array.isArray(res.data) ? res.data : (res.data?.data ? res.data.data : []);
+      console.log("[TeamMembers] Pending invitations raw response:", res);
+      // apiClient interceptor unwraps res.data.data → so res.data is already the array
+      const invList = Array.isArray(res.data) ? res.data : (res.data != null ? [res.data] : []);
+      console.log("[TeamMembers] Parsed pending invitations:", invList);
       setPendingInvitations(invList);
     } catch (err) {
-      console.error("Error loading pending invitations:", err);
+      const status = err.response?.status;
+      const msg = err.response?.data?.message || err.message;
+      console.error(`[TeamMembers] Error loading pending invitations (HTTP ${status}):`, msg, err);
+      toast.error(`Could not load pending invitations: ${msg || status || 'Unknown error'}`);
       setPendingInvitations([]);
     }
   };

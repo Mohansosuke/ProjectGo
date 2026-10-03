@@ -203,35 +203,45 @@ const cancelInvitation = asyncHandler(async (req, res) => {
 
 const getWorkspaceInvitations = asyncHandler(async (req, res) => {
   const { workspaceId } = req.params;
+  console.log('[getWorkspaceInvitations] workspaceId:', workspaceId);
+
   const workspace = await Workspace.findById(workspaceId);
   if (!workspace) {
+    console.log('[getWorkspaceInvitations] Workspace not found for id:', workspaceId);
     throw new ApiError(404, 'Workspace not found');
   }
 
-  const reqUserId = (req.user._id || req.user.id).toString();
+  const reqUserId = (req.user._id || req.user.id || '').toString();
   const rawOwnerId = workspace.owner ? workspace.owner.toString() : '';
-  const isMember =
-    rawOwnerId === reqUserId ||
-    (workspace.members || []).some(m => m && m.toString() === reqUserId);
+  const memberIds = (workspace.members || []).map(m => m ? m.toString() : '');
+  const isMember = rawOwnerId === reqUserId || memberIds.includes(reqUserId);
+
+  console.log('[getWorkspaceInvitations] reqUserId:', reqUserId);
+  console.log('[getWorkspaceInvitations] rawOwnerId:', rawOwnerId);
+  console.log('[getWorkspaceInvitations] memberIds:', memberIds);
+  console.log('[getWorkspaceInvitations] isMember:', isMember);
 
   if (!isMember) {
+    console.log('[getWorkspaceInvitations] 403: user is not a member');
     throw new ApiError(403, 'Forbidden: You do not have access to this workspace invitations');
   }
 
   const mongoose = require('mongoose');
-  const orConditions = [
-    { workspaceId: workspaceId },
-    { workspaceId: String(workspaceId) }
-  ];
-  if (mongoose.Types.ObjectId.isValid(workspaceId)) {
-    orConditions.push({ workspaceId: new mongoose.Types.ObjectId(workspaceId) });
+  const isValidObjectId = mongoose.Types.ObjectId.isValid(workspaceId);
+  const workspaceObjectId = isValidObjectId ? new mongoose.Types.ObjectId(workspaceId) : null;
+
+  // Find pending invitations — query by ObjectId (primary) with string fallback
+  const query = { status: 'pending' };
+  if (workspaceObjectId) {
+    query.workspaceId = workspaceObjectId;
+  } else {
+    query.workspaceId = workspaceId;
   }
 
-  // Find pending invitations for this workspace
-  const invitations = await Invitation.find({
-    $or: orConditions,
-    status: { $regex: /^pending$/i }
-  }).select('_id email role status createdAt expiresAt');
+  const invitations = await Invitation.find(query)
+    .select('_id email role status createdAt expiresAt');
+
+  console.log('[getWorkspaceInvitations] Found invitations:', invitations.length);
 
   return res.json(new ApiResponse(200, invitations));
 });
