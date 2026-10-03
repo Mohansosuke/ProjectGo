@@ -45,7 +45,7 @@ const TeamMembers = () => {
   const { tasks = [] } = useTask() || {};
   const toast = useToast();
 
-  const workspace = workspaces.find(w => w.id === workspaceId || w._id === workspaceId) || activeWorkspace;
+  const workspace = workspaces.find(w => w.id === workspaceId || w._id === workspaceId) || activeWorkspace || (workspaces.length > 0 ? workspaces[0] : null);
   const currentWorkspaceId = workspaceId || workspace?.id || workspace?._id;
 
   const isCurrentOwner = workspace && currentUser && (currentUser.id === workspace.ownerId || currentUser.id === workspace.owner || currentUser._id === workspace.ownerId || currentUser._id === workspace.owner);
@@ -798,10 +798,10 @@ const TeamMembers = () => {
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-lg font-black text-slate-900 leading-tight">{selectedMember.name}</h3>
                     <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${selectedMember.role === 'Owner'
-                        ? 'bg-amber-50 text-amber-700 border-amber-200'
-                        : selectedMember.role === 'Admin'
-                          ? 'bg-purple-50 text-purple-700 border-purple-200'
-                          : 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                      : selectedMember.role === 'Admin'
+                        ? 'bg-purple-50 text-purple-700 border-purple-200'
+                        : 'bg-indigo-50 text-indigo-700 border-indigo-200'
                       }`}>
                       {selectedMember.role}
                     </span>

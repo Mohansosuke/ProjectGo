@@ -389,7 +389,7 @@ const WorkspaceView = () => {
   // Fetch real team members when Teams tab is active
   useEffect(() => {
     if (activeTab !== 'Teams') return;
-    const wsId = activeWorkspace?.id || activeWorkspace?._id;
+    const wsId = activeWorkspace?.id || activeWorkspace?._id || (workspaces.length > 0 ? (workspaces[0].id || workspaces[0]._id) : null);
     if (!wsId) return;
     const load = async () => {
       setTeamLoading(true);
@@ -418,7 +418,7 @@ const WorkspaceView = () => {
       }
     };
     load();
-  }, [activeTab, activeWorkspace]);
+  }, [activeTab, activeWorkspace?.id, activeWorkspace?._id, workspaces]);
 
   const hour = now.getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';

@@ -107,10 +107,11 @@ const getWorkspaceMembers = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Workspace not found');
   }
 
-  const reqUserId = req.user._id.toString();
+  const reqUserId = (req.user._id || req.user.id).toString();
+  const rawOwnerId = rawWorkspace.owner ? rawWorkspace.owner.toString() : '';
   const isMember =
-    rawWorkspace.owner.toString() === reqUserId ||
-    rawWorkspace.members.some(m => m.toString() === reqUserId);
+    rawOwnerId === reqUserId ||
+    (rawWorkspace.members || []).some(m => m && m.toString() === reqUserId);
 
   if (!isMember) {
     throw new ApiError(403, 'Forbidden: You do not have access to this workspace member list');
@@ -122,48 +123,53 @@ const getWorkspaceMembers = asyncHandler(async (req, res) => {
     .populate('members', 'fullName nickname phone bio email photoURL lastSeen');
 
   const computeOnline = (user) => {
-    return !!(user.lastSeen && (now - new Date(user.lastSeen).getTime()) < ONLINE_THRESHOLD_MS);
+    return !!(user && user.lastSeen && (now - new Date(user.lastSeen).getTime()) < ONLINE_THRESHOLD_MS);
   };
 
   const membersList = [];
 
-  const ownerOnline = computeOnline(workspace.owner);
-  membersList.push({
-    id: workspace.owner._id,
-    name: workspace.owner.fullName,
-    nickname: workspace.owner.nickname || '',
-    email: workspace.owner.email,
-    phone: workspace.owner.phone || '',
-    bio: workspace.owner.bio || '',
-    avatar: workspace.owner.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(workspace.owner.fullName)}`,
-    role: 'Owner',
-    isOnline: ownerOnline,
-    status: ownerOnline ? 'Online' : 'Offline',
-    lastSeen: workspace.owner.lastSeen || null,
-    joinedAt: workspace.createdAt
-  });
+  if (workspace.owner) {
+    const ownerOnline = computeOnline(workspace.owner);
+    membersList.push({
+      id: workspace.owner._id || workspace.owner.id,
+      name: workspace.owner.fullName || workspace.owner.email || 'Owner',
+      nickname: workspace.owner.nickname || '',
+      email: workspace.owner.email || '',
+      phone: workspace.owner.phone || '',
+      bio: workspace.owner.bio || '',
+      avatar: workspace.owner.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(workspace.owner.fullName || 'Owner')}`,
+      role: 'Owner',
+      isOnline: ownerOnline,
+      status: ownerOnline ? 'Online' : 'Offline',
+      lastSeen: workspace.owner.lastSeen || null,
+      joinedAt: workspace.createdAt
+    });
+  }
 
-  workspace.members.forEach(member => {
-    if (member._id.toString() !== workspace.owner._id.toString()) {
-      const memberRoleObj = workspace.memberRoles?.find(mr => mr.user.toString() === member._id.toString());
-      const role = memberRoleObj ? memberRoleObj.role : 'Member';
-      const memberOnline = computeOnline(member);
+  (workspace.members || []).forEach(member => {
+    if (!member || (!member._id && !member.id)) return;
+    const memberId = (member._id || member.id).toString();
+    const ownerId = workspace.owner ? (workspace.owner._id || workspace.owner.id).toString() : '';
+    if (ownerId && memberId === ownerId) return;
 
-      membersList.push({
-        id: member._id,
-        name: member.fullName,
-        nickname: member.nickname || '',
-        email: member.email,
-        phone: member.phone || '',
-        bio: member.bio || '',
-        avatar: member.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.fullName)}`,
-        role: role,
-        isOnline: memberOnline,
-        status: memberOnline ? 'Online' : 'Offline',
-        lastSeen: member.lastSeen || null,
-        joinedAt: workspace.createdAt
-      });
-    }
+    const memberRoleObj = workspace.memberRoles?.find(mr => mr.user && mr.user.toString() === memberId);
+    const role = memberRoleObj ? memberRoleObj.role : 'Member';
+    const memberOnline = computeOnline(member);
+
+    membersList.push({
+      id: member._id || member.id,
+      name: member.fullName || member.email || 'Member',
+      nickname: member.nickname || '',
+      email: member.email || '',
+      phone: member.phone || '',
+      bio: member.bio || '',
+      avatar: member.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.fullName || 'Member')}`,
+      role: role,
+      isOnline: memberOnline,
+      status: memberOnline ? 'Online' : 'Offline',
+      lastSeen: member.lastSeen || null,
+      joinedAt: workspace.createdAt
+    });
   });
 
   return res.json(new ApiResponse(200, membersList));
