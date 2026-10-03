@@ -337,7 +337,6 @@ const getPendingWorkspaceInvitations = asyncHandler(async (req, res) => {
   const mongoose = require('mongoose');
 
   const reqUserId = (req.user._id || req.user.id || '').toString();
-  console.log('[getPendingWorkspaceInvitations] workspaceId:', workspaceId, '| reqUserId:', reqUserId);
 
   // Validate workspaceId format
   if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
@@ -349,11 +348,20 @@ const getPendingWorkspaceInvitations = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Workspace not found');
   }
 
-  const rawOwnerId = workspace.owner ? workspace.owner.toString() : '';
-  const memberIds = (workspace.members || []).map(m => m ? m.toString() : '').filter(Boolean);
-  const isMember = rawOwnerId === reqUserId || memberIds.includes(reqUserId);
+  // Safely extract string ID even if populated as an object
+  const getObjIdStr = (val) => {
+    if (!val) return '';
+    if (typeof val === 'string') return val;
+    if (val._id) return val._id.toString();
+    if (val.id) return val.id.toString();
+    return val.toString();
+  };
 
-  console.log('[getPendingWorkspaceInvitations] rawOwnerId:', rawOwnerId, '| isMember:', isMember);
+  const rawOwnerId = getObjIdStr(workspace.owner);
+  const memberIds = (workspace.members || []).map(getObjIdStr).filter(Boolean);
+  const memberRoleUserIds = (workspace.memberRoles || []).map(mr => mr && mr.user ? getObjIdStr(mr.user) : '').filter(Boolean);
+
+  const isMember = rawOwnerId === reqUserId || memberIds.includes(reqUserId) || memberRoleUserIds.includes(reqUserId);
 
   if (!isMember) {
     throw new ApiError(403, 'Forbidden: You are not a member of this workspace');
@@ -361,12 +369,14 @@ const getPendingWorkspaceInvitations = asyncHandler(async (req, res) => {
 
   const workspaceObjectId = new mongoose.Types.ObjectId(workspaceId);
 
+  // Match either ObjectId or String workspaceId, and case-insensitive pending status
   const invitations = await Invitation.find({
-    workspaceId: workspaceObjectId,
-    status: 'pending'
+    $or: [
+      { workspaceId: workspaceObjectId },
+      { workspaceId: workspaceId }
+    ],
+    status: { $regex: /^pending$/i }
   }).select('_id email role status createdAt expiresAt');
-
-  console.log('[getPendingWorkspaceInvitations] found:', invitations.length);
 
   return res.json(new ApiResponse(200, invitations));
 });
