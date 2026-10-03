@@ -31,9 +31,12 @@ const createInvitation = async (workspaceId, email, inviterUser, role = 'Member'
     throw new ApiError(404, 'Workspace not found');
   }
 
+  const inviterIdStr = (inviterUser._id || inviterUser.id || '').toString();
+  const rawOwnerId = workspace.owner ? workspace.owner.toString() : '';
+
   // Only workspace owner or admin can invite
-  const isOwner = workspace.owner.toString() === inviterUser._id.toString();
-  const memberRoleObj = workspace.memberRoles?.find(mr => mr.user.toString() === inviterUser._id.toString());
+  const isOwner = rawOwnerId === inviterIdStr;
+  const memberRoleObj = workspace.memberRoles?.find(mr => mr && mr.user && mr.user.toString() === inviterIdStr);
   const userRole = isOwner ? 'Admin' : (memberRoleObj ? memberRoleObj.role : 'Member');
 
   if (userRole !== 'Admin') {
@@ -43,8 +46,9 @@ const createInvitation = async (workspaceId, email, inviterUser, role = 'Member'
   // Email cannot already be a member
   const invitedUser = await User.findOne({ email: lowercaseEmail });
   if (invitedUser) {
-    const isAlreadyMember = workspace.members.some(m => m.toString() === invitedUser._id.toString()) ||
-                            workspace.owner.toString() === invitedUser._id.toString();
+    const invitedUserIdStr = (invitedUser._id || invitedUser.id || '').toString();
+    const isAlreadyMember = (workspace.members || []).some(m => m && m.toString() === invitedUserIdStr) ||
+      rawOwnerId === invitedUserIdStr;
     if (isAlreadyMember) {
       throw new ApiError(400, 'This user is already a member of this workspace.');
     }
@@ -75,7 +79,7 @@ const createInvitation = async (workspaceId, email, inviterUser, role = 'Member'
   const invite = await Invitation.create({
     workspaceId,
     email: lowercaseEmail,
-    invitedBy: inviterUser._id,
+    invitedBy: inviterUser._id || inviterUser.id,
     token,
     expiresAt,
     status: 'pending',
@@ -83,13 +87,13 @@ const createInvitation = async (workspaceId, email, inviterUser, role = 'Member'
   });
 
   sendWorkspaceInvitationEmail(
-  email,
-  invite.token,
-  workspace.name,
-  inviterUser.fullName
-).catch(err => {
-  console.error("Invitation email failed:", err);
-});
+    email,
+    invite.token,
+    workspace.name,
+    inviterUser.fullName
+  ).catch(err => {
+    console.error("Invitation email failed:", err);
+  });
 
   return invite;
 };
@@ -113,16 +117,20 @@ const acceptInvitation = async (token, user) => {
     return workspace;
   }
 
+  const userId = user._id || user.id;
+  const userIdStr = userId.toString();
+  const rawOwnerId = workspace.owner ? workspace.owner.toString() : '';
+
   // Add user to members if not already there
-  const isMember = workspace.members.some(m => m.toString() === user._id.toString());
-  if (!isMember && workspace.owner.toString() !== user._id.toString()) {
-    workspace.members.push(user._id);
+  const isMember = (workspace.members || []).some(m => m && m.toString() === userIdStr);
+  if (!isMember && rawOwnerId !== userIdStr) {
+    workspace.members.push(userId);
   }
 
-  const hasRole = workspace.memberRoles?.some(mr => mr.user.toString() === user._id.toString());
-  if (!hasRole && workspace.owner.toString() !== user._id.toString()) {
+  const hasRole = (workspace.memberRoles || []).some(mr => mr && mr.user && mr.user.toString() === userIdStr);
+  if (!hasRole && rawOwnerId !== userIdStr) {
     if (!workspace.memberRoles) workspace.memberRoles = [];
-    workspace.memberRoles.push({ user: user._id, role: invitation.role || 'Member' });
+    workspace.memberRoles.push({ user: userId, role: invitation.role || 'Member' });
   }
 
   await workspace.save();

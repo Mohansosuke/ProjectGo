@@ -107,17 +107,18 @@ const TeamMembers = () => {
   // Quick invite member
   const handleInvite = async (e) => {
     e.preventDefault();
-    if (!inviteEmail.trim()) return;
+    const wsId = currentWorkspaceId;
+    if (!inviteEmail.trim() || !wsId) return;
     setInviting(true);
     try {
       await apiClient.post('/invitations', {
-        workspaceId,
+        workspaceId: wsId,
         email: inviteEmail.trim().toLowerCase(),
         role: inviteRole
       });
       toast.success(`Invitation sent to ${inviteEmail.trim()}`);
       setInviteEmail('');
-      await fetchPendingInvitations();
+      await fetchPendingInvitations(wsId);
     } catch (err) {
       const errMsg = err.response?.data?.message || err.message || '';
       if (errMsg.toLowerCase().includes('already a member') || errMsg.toLowerCase().includes('already belongs')) {
@@ -134,9 +135,11 @@ const TeamMembers = () => {
 
   // Change member role
   const handleChangeRole = async (userId, newRole) => {
+    const wsId = currentWorkspaceId;
+    if (!wsId) return;
     setUpdatingRoleId(userId);
     try {
-      await apiClient.put(`/invitations/workspace/${workspaceId}/member/${userId}/role`, {
+      await apiClient.put(`/invitations/workspace/${wsId}/member/${userId}/role`, {
         role: newRole
       });
       toast.success(`Member role updated to ${newRole}`);
@@ -150,10 +153,12 @@ const TeamMembers = () => {
 
   // Remove member
   const handleRemoveMember = async (userId, memberName) => {
+    const wsId = currentWorkspaceId;
+    if (!wsId) return;
     if (!window.confirm(`Remove ${memberName || 'this member'} from the workspace?`)) return;
 
     try {
-      await apiClient.delete(`/invitations/workspace/${workspaceId}/member/${userId}`);
+      await apiClient.delete(`/invitations/workspace/${wsId}/member/${userId}`);
       toast.success("Member removed successfully.");
       setMembers(prev => prev.filter(m => (m.id !== userId && m._id !== userId)));
     } catch (err) {
@@ -174,10 +179,12 @@ const TeamMembers = () => {
 
   // Resend invitation
   const handleResendInvitation = async (email, role) => {
+    const wsId = currentWorkspaceId;
+    if (!wsId) return;
     try {
-      await apiClient.post('/invitations', { workspaceId, email, role: role || 'Member' });
+      await apiClient.post('/invitations', { workspaceId: wsId, email, role: role || 'Member' });
       toast.success(`Invitation re-sent to ${email}`);
-      await fetchPendingInvitations();
+      await fetchPendingInvitations(wsId);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to resend invitation');
     }

@@ -187,8 +187,11 @@ const cancelInvitation = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Workspace not found');
   }
 
+  const reqUserId = (req.user._id || req.user.id).toString();
+  const rawOwnerId = workspace.owner ? workspace.owner.toString() : '';
+
   // Only workspace owner can cancel
-  if (workspace.owner.toString() !== req.user._id.toString()) {
+  if (rawOwnerId !== reqUserId) {
     throw new ApiError(403, 'Forbidden: Only the workspace owner can cancel invitations');
   }
 
@@ -234,9 +237,12 @@ const removeWorkspaceMember = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Workspace not found");
   }
 
+  const reqUserId = (req.user._id || req.user.id).toString();
+  const rawOwnerId = workspace.owner ? workspace.owner.toString() : '';
+
   // Only owner or admin can remove members
-  const memberRoleObj = workspace.memberRoles?.find(mr => mr.user.toString() === req.user._id.toString());
-  const isOwner = workspace.owner.toString() === req.user._id.toString();
+  const memberRoleObj = workspace.memberRoles?.find(mr => mr && mr.user && mr.user.toString() === reqUserId);
+  const isOwner = rawOwnerId === reqUserId;
   const isAdmin = isOwner || (memberRoleObj && memberRoleObj.role === 'Admin');
 
   if (!isAdmin) {
@@ -244,7 +250,7 @@ const removeWorkspaceMember = asyncHandler(async (req, res) => {
   }
 
   // Don't allow removing the owner
-  if (workspace.owner.toString() === userId) {
+  if (rawOwnerId === userId) {
     throw new ApiError(400, "Owner cannot be removed");
   }
 
@@ -253,7 +259,7 @@ const removeWorkspaceMember = asyncHandler(async (req, res) => {
 
   // Remove the member role
   workspace.memberRoles = workspace.memberRoles.filter(
-    mr => mr.user.toString() !== userId
+    mr => mr && mr.user && mr.user.toString() !== userId
   );
 
   await workspace.save();
@@ -276,20 +282,23 @@ const updateMemberRole = asyncHandler(async (req, res) => {
     throw new ApiError(404, "Workspace not found");
   }
 
-  const isOwner = workspace.owner.toString() === req.user._id.toString();
-  const memberRoleObj = workspace.memberRoles?.find(mr => mr.user.toString() === req.user._id.toString());
+  const reqUserId = (req.user._id || req.user.id).toString();
+  const rawOwnerId = workspace.owner ? workspace.owner.toString() : '';
+
+  const isOwner = rawOwnerId === reqUserId;
+  const memberRoleObj = workspace.memberRoles?.find(mr => mr && mr.user && mr.user.toString() === reqUserId);
   const isAdmin = isOwner || (memberRoleObj && memberRoleObj.role === 'Admin');
 
   if (!isAdmin) {
     throw new ApiError(403, "Only workspace owner or admin can update member roles");
   }
 
-  if (workspace.owner.toString() === userId) {
+  if (rawOwnerId === userId) {
     throw new ApiError(400, "Owner role cannot be changed");
   }
 
   if (!workspace.memberRoles) workspace.memberRoles = [];
-  const targetRoleObj = workspace.memberRoles.find(mr => mr.user.toString() === userId);
+  const targetRoleObj = workspace.memberRoles.find(mr => mr && mr.user && mr.user.toString() === userId);
   if (targetRoleObj) {
     targetRoleObj.role = role;
   } else {
