@@ -7,6 +7,7 @@ const {
   acceptInvitationGet,
   getWorkspaceMembers,
   cancelInvitation,
+  getPendingWorkspaceInvitations,
   removeWorkspaceMember,
   updateMemberRole
 } = require('../controllers/invitationController');
@@ -19,6 +20,7 @@ router.get('/', verifyJWT, getInvitations);
 router.get('/accept/:token', acceptInvitationGet);
 router.post('/accept', verifyJWT, acceptInviteValidator, validate, acceptInvitationPost);
 router.get('/workspace/:workspaceId', verifyJWT, getWorkspaceMembers);
+router.get('/workspace/:workspaceId/pending', verifyJWT, getPendingWorkspaceInvitations);
 router.delete('/:id', verifyJWT, cancelInvitation);
 router.delete(
   '/workspace/:workspaceId/member/:userId',

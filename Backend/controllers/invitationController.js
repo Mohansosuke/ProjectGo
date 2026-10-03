@@ -327,6 +327,50 @@ const updateMemberRole = asyncHandler(async (req, res) => {
   return res.json(new ApiResponse(200, { userId, role }, "Member role updated successfully"));
 });
 
+/**
+ * GET /invitations/workspace/:workspaceId/pending
+ * Returns all pending invitations for a workspace.
+ * Available to any authenticated member/owner of the workspace.
+ */
+const getPendingWorkspaceInvitations = asyncHandler(async (req, res) => {
+  const { workspaceId } = req.params;
+  const mongoose = require('mongoose');
+
+  const reqUserId = (req.user._id || req.user.id || '').toString();
+  console.log('[getPendingWorkspaceInvitations] workspaceId:', workspaceId, '| reqUserId:', reqUserId);
+
+  // Validate workspaceId format
+  if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
+    throw new ApiError(400, 'Invalid workspace ID format');
+  }
+
+  const workspace = await Workspace.findById(workspaceId);
+  if (!workspace) {
+    throw new ApiError(404, 'Workspace not found');
+  }
+
+  const rawOwnerId = workspace.owner ? workspace.owner.toString() : '';
+  const memberIds = (workspace.members || []).map(m => m ? m.toString() : '').filter(Boolean);
+  const isMember = rawOwnerId === reqUserId || memberIds.includes(reqUserId);
+
+  console.log('[getPendingWorkspaceInvitations] rawOwnerId:', rawOwnerId, '| isMember:', isMember);
+
+  if (!isMember) {
+    throw new ApiError(403, 'Forbidden: You are not a member of this workspace');
+  }
+
+  const workspaceObjectId = new mongoose.Types.ObjectId(workspaceId);
+
+  const invitations = await Invitation.find({
+    workspaceId: workspaceObjectId,
+    status: 'pending'
+  }).select('_id email role status createdAt expiresAt');
+
+  console.log('[getPendingWorkspaceInvitations] found:', invitations.length);
+
+  return res.json(new ApiResponse(200, invitations));
+});
+
 module.exports = {
   sendInvitation,
   getInvitations,
@@ -335,6 +379,7 @@ module.exports = {
   getWorkspaceMembers,
   cancelInvitation,
   getWorkspaceInvitations,
+  getPendingWorkspaceInvitations,
   removeWorkspaceMember,
   updateMemberRole
 };
