@@ -2,7 +2,7 @@ const mongoose = require('mongoose');
 
 const invitationSchema = new mongoose.Schema({
   workspaceId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: mongoose.Schema.Types.Mixed,
     ref: 'Workspace',
     required: true
   },
@@ -13,7 +13,7 @@ const invitationSchema = new mongoose.Schema({
     trim: true
   },
   invitedBy: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: mongoose.Schema.Types.Mixed,
     ref: 'User',
     required: true
   },
