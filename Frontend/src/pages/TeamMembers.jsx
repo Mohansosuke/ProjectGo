@@ -420,23 +420,66 @@ const TeamMembers = () => {
       </div>
 
       {/* ── KPI Stats Strip ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
         {[
-          { label: 'Total Members', value: members.length, icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100' },
-          { label: 'Online Now', value: onlineCount, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100' },
-          { label: 'Admins & Owner', value: adminCount, icon: ShieldCheck, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100' },
-          { label: 'Pending Invites', value: pendingInvitations.length, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100' },
-        ].map((s, idx) => (
-          <div key={idx} className={`p-4 bg-white border ${s.border} rounded-2xl shadow-xs flex items-center justify-between`}>
-            <div>
-              <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">{s.label}</p>
-              <p className="text-xl font-black text-slate-900 mt-0.5">{s.value}</p>
+          { id: 'total', label: 'Total Members', value: members.length, icon: Users, color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100', filter: 'All Status' },
+          { id: 'online', label: 'Online Now', value: onlineCount, icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', filter: 'Active' },
+          { id: 'admins', label: 'Admins & Owner', value: adminCount, icon: ShieldCheck, color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-100', filter: 'All Status' },
+          { id: 'pending', label: 'Pending Invites', value: pendingInvitations.length, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', filter: 'Pending' },
+        ].map((s) => {
+          const isSelectedFilter = statusFilter === s.filter && s.id === 'pending';
+          return (
+            <div
+              key={s.id}
+              onClick={() => setStatusFilter(prev => prev === s.filter && s.id === 'pending' ? 'All Status' : s.filter)}
+              className={`p-4 bg-white border ${isSelectedFilter ? 'ring-2 ring-amber-500 border-amber-300 bg-amber-50/10' : s.border} rounded-2xl shadow-xs flex flex-col justify-between transition-all hover:shadow-md cursor-pointer`}
+            >
+              <div className="flex items-center justify-between w-full">
+                <div>
+                  <p className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">{s.label}</p>
+                  <p className="text-xl font-black text-slate-900 mt-0.5">{s.value}</p>
+                </div>
+                <div className={`w-10 h-10 rounded-xl ${s.bg} flex items-center justify-center ${s.color} shrink-0`}>
+                  <s.icon className="w-5 h-5" />
+                </div>
+              </div>
+
+              {/* Display pending invitation items under Pending Invites KPI card */}
+              {s.id === 'pending' && (
+                <div className="mt-3 pt-2.5 border-t border-amber-100">
+                  {pendingInvitations.length === 0 ? (
+                    <p className="text-[11px] font-medium text-slate-400 italic">No pending invitations</p>
+                  ) : (
+                    <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
+                      <p className="text-[10px] font-extrabold text-amber-700 uppercase tracking-wider">
+                        Pending Requests ({pendingInvitations.length}):
+                      </p>
+                      {pendingInvitations.map((inv) => {
+                        const invId = inv._id || inv.id;
+                        return (
+                          <div
+                            key={`kpi-pending-${invId}`}
+                            className="flex items-center justify-between gap-2 p-1.5 rounded-lg bg-amber-50/80 border border-amber-200/80 text-[11px]"
+                          >
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Mail className="w-3 h-3 text-amber-600 shrink-0" />
+                              <span className="font-semibold text-slate-800 truncate" title={inv.email}>
+                                {inv.email}
+                              </span>
+                            </div>
+                            <span className="text-[9px] font-extrabold px-1.5 py-0.2 bg-amber-200 text-amber-900 rounded shrink-0">
+                              {inv.role || 'Member'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            <div className={`w-10 h-10 rounded-xl ${s.bg} flex items-center justify-center ${s.color}`}>
-              <s.icon className="w-5 h-5" />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* ── Quick Invite Bar ── */}
