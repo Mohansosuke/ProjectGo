@@ -58,8 +58,9 @@ const TeamMembers = () => {
   const [roleFilter, setRoleFilter] = useState('All Roles');
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [showFilterPanel, setShowFilterPanel] = useState(false);
-  const [appliedFilter, setAppliedFilter] = useState(null); // { type: 'workspace'|'member', id, label }
+  const [appliedFilter, setAppliedFilter] = useState(null); // { type: 'member', id, label }
   const [filterSearchQuery, setFilterSearchQuery] = useState('');
+  const [selectedWorkspaceFilter, setSelectedWorkspaceFilter] = useState(null); // workspace id for filter
 
   const [pendingInvitations, setPendingInvitations] = useState([]);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -93,6 +94,27 @@ const TeamMembers = () => {
     } catch (err) {
       console.error("Error loading pending invitations:", err);
       setPendingInvitations([]);
+    }
+  };
+
+  // Handler: select a workspace in the filter panel -> refetch its members & pending invitations
+  const handleWorkspaceFilter = async (wsId, wsName) => {
+    setShowFilterPanel(false);
+    setAppliedFilter(null);
+    setSelectedWorkspaceFilter(wsId);
+    setLoading(true);
+    await Promise.all([fetchMembers(wsId), fetchPendingInvitations(wsId)]);
+    setLoading(false);
+  };
+
+  const handleClearFilters = () => {
+    setAppliedFilter(null);
+    setSelectedWorkspaceFilter(null);
+    setFilterSearchQuery('');
+    const targetWsId = currentWorkspaceId;
+    if (targetWsId) {
+      setLoading(true);
+      Promise.all([fetchMembers(targetWsId), fetchPendingInvitations(targetWsId)]).then(() => setLoading(false));
     }
   };
 
@@ -247,11 +269,9 @@ const TeamMembers = () => {
     });
   }, [members, searchQuery, roleFilter, statusFilter, appliedFilter]);
 
-  // Computed filtered pending invitations
+  // Computed filtered pending invitations — always shown in table even when member filter is active
   const filteredPendingInvitations = useMemo(() => {
     return pendingInvitations.filter(inv => {
-      if (appliedFilter?.type === 'member') return false;
-
       const q = searchQuery.toLowerCase();
       const matchesSearch = !q || (inv.email || '').toLowerCase().includes(q);
       const matchesRole = roleFilter === 'All Roles' || (inv.role || '').toLowerCase() === roleFilter.toLowerCase();
@@ -263,7 +283,7 @@ const TeamMembers = () => {
 
       return matchesSearch && matchesRole && matchesStatus;
     });
-  }, [pendingInvitations, searchQuery, roleFilter, statusFilter, appliedFilter]);
+  }, [pendingInvitations, searchQuery, roleFilter, statusFilter]);
 
   const onlineCount = useMemo(() => members.filter(m => m.isOnline || m.status === 'Online').length, [members]);
   const adminCount = useMemo(() => members.filter(m => m.role === 'Admin' || m.role === 'Owner').length, [members]);
@@ -333,21 +353,26 @@ const TeamMembers = () => {
                 className="absolute right-0 top-full mt-2 w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 p-4"
                 onClick={e => e.stopPropagation()}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Filter Members</p>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Filter</p>
                   <button onClick={() => setShowFilterPanel(false)} className="text-slate-400 hover:text-slate-600 text-xs p-1">×</button>
                 </div>
 
-                {appliedFilter && (
+                {/* Active Filter Badge */}
+                {(appliedFilter || selectedWorkspaceFilter) && (
                   <div className="mb-3 p-2.5 bg-indigo-50 border border-indigo-100 rounded-xl flex items-center justify-between">
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-500 bg-white px-1.5 py-0.5 rounded border border-indigo-100">
-                        {appliedFilter.type}
+                        {selectedWorkspaceFilter ? 'workspace' : appliedFilter?.type}
                       </span>
-                      <span className="text-xs font-bold text-indigo-900 truncate">{appliedFilter.label}</span>
+                      <span className="text-xs font-bold text-indigo-900 truncate">
+                        {selectedWorkspaceFilter
+                          ? workspaces.find(w => w.id === selectedWorkspaceFilter || w._id === selectedWorkspaceFilter)?.name || 'Selected Workspace'
+                          : appliedFilter?.label}
+                      </span>
                     </div>
                     <button
-                      onClick={() => { setAppliedFilter(null); setFilterSearchQuery(''); }}
+                      onClick={handleClearFilters}
                       className="text-xs font-bold text-rose-600 hover:underline cursor-pointer"
                     >
                       Remove ×
@@ -355,6 +380,32 @@ const TeamMembers = () => {
                   </div>
                 )}
 
+                {/* Workspace Filter Section */}
+                {workspaces.length > 1 && (
+                  <div className="mb-3">
+                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5">Filter by Workspace</p>
+                    <div className="max-h-28 overflow-y-auto space-y-1">
+                      {workspaces.map(w => {
+                        const wsId = w.id || w._id;
+                        const isActive = selectedWorkspaceFilter === wsId;
+                        return (
+                          <button
+                            key={wsId}
+                            onClick={() => handleWorkspaceFilter(wsId, w.name)}
+                            className={`w-full text-left flex items-center justify-between px-2 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${isActive ? 'bg-indigo-50 text-indigo-700 font-bold' : 'hover:bg-slate-100 text-slate-700'}`}
+                          >
+                            <span className="truncate">{w.name}</span>
+                            {isActive && <Check className="w-3.5 h-3.5 text-indigo-600" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="border-b border-slate-100 my-3" />
+                  </div>
+                )}
+
+                {/* Member Filter Section */}
+                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-1.5">Filter by Member</p>
                 <div className="relative mb-2.5">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
                   <input
@@ -393,10 +444,10 @@ const TeamMembers = () => {
 
                 <div className="border-t border-slate-100 mt-2.5 pt-2 flex justify-between items-center text-xs">
                   <button
-                    onClick={() => { setAppliedFilter(null); setFilterSearchQuery(''); }}
+                    onClick={handleClearFilters}
                     className="text-slate-400 hover:text-slate-600 font-semibold cursor-pointer"
                   >
-                    Clear
+                    Clear All
                   </button>
                   <button
                     onClick={() => setShowFilterPanel(false)}
