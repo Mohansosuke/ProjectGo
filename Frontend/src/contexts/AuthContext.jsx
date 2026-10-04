@@ -33,7 +33,7 @@ export const AuthProvider = ({ children }) => {
 
   // Send a lightweight presence ping
   const sendHeartbeat = () => {
-    apiClient.patch('/auth/heartbeat').catch(() => {/* silently ignore */});
+    apiClient.patch('/auth/heartbeat').catch(() => {/* silently ignore */ });
   };
 
   // Start/stop heartbeat whenever currentUser changes
@@ -66,13 +66,13 @@ export const AuthProvider = ({ children }) => {
         if (!isMounted) return;
         setCurrentUser(response.data);
         localStorage.setItem('projectgo_current_user', JSON.stringify(response.data));
-        
+
         // Fetch users list in background
         apiClient.get('/auth/users', { timeout: 5000 })
           .then(usersRes => {
             if (isMounted) setUsers(usersRes.data);
           })
-          .catch(() => {});
+          .catch(() => { });
       } catch (err) {
         if (!isMounted) return;
         // If 401 Unauthorized or 403 Forbidden, invalidate cached user
@@ -95,10 +95,10 @@ export const AuthProvider = ({ children }) => {
       const response = await apiClient.post('/auth/login', { email, password });
       setCurrentUser(response.data);
       localStorage.setItem('projectgo_current_user', JSON.stringify(response.data));
-      
+
       // Refresh user list in background
-      apiClient.get('/auth/users').then(usersRes => setUsers(usersRes.data)).catch(() => {});
-      
+      apiClient.get('/auth/users').then(usersRes => setUsers(usersRes.data)).catch(() => { });
+
       return response.data;
     } catch (err) {
       throw new Error(err?.response?.data?.message || err?.message || 'Login failed');
@@ -157,11 +157,11 @@ export const AuthProvider = ({ children }) => {
       const response = await apiClient.put('/auth/profile', updates);
       setCurrentUser(response.data);
       localStorage.setItem('projectgo_current_user', JSON.stringify(response.data));
-      
+
       // Refresh users list
       const usersRes = await apiClient.get('/auth/users');
       setUsers(usersRes.data);
-      
+
       return response.data;
     } catch (err) {
       throw new Error(err?.response?.data?.message || err?.message || 'Profile update failed');

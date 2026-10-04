@@ -38,9 +38,9 @@ const Sidebar = ({ isCollapsed, toggleCollapse }) => {
   const location = useLocation();
   const [showWorkspaceDropdown, setShowWorkspaceDropdown] = useState(false);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
   };
 
   const handleSelectWorkspace = (id) => {
@@ -261,8 +261,8 @@ const Sidebar = ({ isCollapsed, toggleCollapse }) => {
                 key={w.id}
                 onClick={() => handleSelectWorkspace(w.id)}
                 className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all ${activeWorkspace?.id === w.id
-                    ? 'bg-blue-50 text-blue-600 font-semibold'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
+                  ? 'bg-blue-50 text-blue-600 font-semibold'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'
                   }`}
               >
                 <FolderKanban className="w-4 h-4 shrink-0 opacity-70" />

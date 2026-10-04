@@ -287,23 +287,56 @@ const WorkspaceView = () => {
   const [editTodoPriority, setEditTodoPriority] = useState('MEDIUM');
   const [editTodoDescription, setEditTodoDescription] = useState('');
 
-  // Decoupled planner todos persisted in localStorage
+  const currentUserId = currentUser?.id || currentUser?._id || currentUser?.email || 'guest_user';
+
+  // Decoupled planner todos persisted in localStorage per user
   const [plannerTodos, setPlannerTodos] = useState(() => {
     try {
-      const stored = localStorage.getItem('projectgo_planner_todos');
-      return stored ? JSON.parse(stored) : [];
+      const userKey = `projectgo_planner_todos_${currentUserId}`;
+      const stored = localStorage.getItem(userKey);
+      if (stored) {
+        return JSON.parse(stored);
+      }
+      const oldStored = localStorage.getItem('projectgo_planner_todos');
+      if (oldStored) {
+        const parsed = JSON.parse(oldStored);
+        return parsed.filter(t => !t.userId || t.userId === currentUserId);
+      }
+      return [];
     } catch {
       return [];
     }
   });
 
+  // Re-sync plannerTodos whenever active logged-in user changes
   useEffect(() => {
     try {
-      localStorage.setItem('projectgo_planner_todos', JSON.stringify(plannerTodos));
+      const userKey = `projectgo_planner_todos_${currentUserId}`;
+      const stored = localStorage.getItem(userKey);
+      if (stored) {
+        setPlannerTodos(JSON.parse(stored));
+      } else {
+        const oldStored = localStorage.getItem('projectgo_planner_todos');
+        if (oldStored) {
+          const parsed = JSON.parse(oldStored);
+          setPlannerTodos(parsed.filter(t => !t.userId || t.userId === currentUserId));
+        } else {
+          setPlannerTodos([]);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load user planner todos:', e);
+    }
+  }, [currentUserId]);
+
+  useEffect(() => {
+    try {
+      const userKey = `projectgo_planner_todos_${currentUserId}`;
+      localStorage.setItem(userKey, JSON.stringify(plannerTodos));
     } catch (e) {
       console.error('Failed to save planner todos:', e);
     }
-  }, [plannerTodos]);
+  }, [plannerTodos, currentUserId]);
 
   useEffect(() => {
     if (location.state?.initialTab) setActiveTab(location.state.initialTab);
@@ -572,6 +605,7 @@ const WorkspaceView = () => {
 
     const newTodo = {
       id: 'todo_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8),
+      userId: currentUserId,
       title: todoTitle.trim(),
       description: todoDescription?.trim() || '',
       fromDate: from,

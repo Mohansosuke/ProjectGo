@@ -165,7 +165,7 @@ const DashboardLayout = () => {
   if (loading) return <div className="min-h-screen bg-gray-50" />;
   if (!currentUser) return <Navigate to="/login" replace />;
 
-  const handleLogout = () => { logout(); navigate('/login'); };
+  const handleLogout = async () => { await logout(); navigate('/login', { replace: true }); };
 
   const handleSelect = (id) => { selectWorkspace(id); navigate(`/workspace/${id}/kanban`); };
 
