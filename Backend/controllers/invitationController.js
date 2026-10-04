@@ -335,12 +335,14 @@ const getPendingWorkspaceInvitations = asyncHandler(async (req, res) => {
 
   const reqUserId = (req.user._id || req.user.id || '').toString();
 
-  // Validate workspaceId format
-  if (!mongoose.Types.ObjectId.isValid(workspaceId)) {
-    throw new ApiError(400, 'Invalid workspace ID format');
+  // Find workspace by ID (supporting both ObjectId and String _id)
+  let workspace = null;
+  if (mongoose.Types.ObjectId.isValid(workspaceId)) {
+    workspace = await Workspace.findById(workspaceId);
   }
-
-  const workspace = await Workspace.findById(workspaceId);
+  if (!workspace) {
+    workspace = await Workspace.findOne({ _id: workspaceId });
+  }
   if (!workspace) {
     throw new ApiError(404, 'Workspace not found');
   }
@@ -364,16 +366,23 @@ const getPendingWorkspaceInvitations = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Forbidden: You are not a member of this workspace');
   }
 
-  const workspaceObjectId = new mongoose.Types.ObjectId(workspaceId);
+  // Support matching workspaceId as ObjectId OR String in Invitation model
+  const queryConditions = [{ workspaceId: workspaceId }];
+  if (mongoose.Types.ObjectId.isValid(workspaceId)) {
+    queryConditions.push({ workspaceId: new mongoose.Types.ObjectId(workspaceId) });
+  }
+  const wsStrId = getObjIdStr(workspace);
+  if (wsStrId && wsStrId !== workspaceId) {
+    queryConditions.push({ workspaceId: wsStrId });
+    if (mongoose.Types.ObjectId.isValid(wsStrId)) {
+      queryConditions.push({ workspaceId: new mongoose.Types.ObjectId(wsStrId) });
+    }
+  }
 
-  // Match either ObjectId or String workspaceId, and case-insensitive pending status
   const invitations = await Invitation.find({
-    $or: [
-      { workspaceId: workspaceObjectId },
-      { workspaceId: workspaceId }
-    ],
+    $or: queryConditions,
     status: { $regex: /^pending$/i }
-  }).select('_id email role status createdAt expiresAt');
+  }).select('_id email role status createdAt expiresAt workspaceId');
 
   return res.json(new ApiResponse(200, invitations));
 });
