@@ -98,29 +98,53 @@ const acceptInvitationGet = asyncHandler(async (req, res) => {
 
 const getWorkspaceMembers = asyncHandler(async (req, res) => {
   const { workspaceId } = req.params;
+  const mongoose = require('mongoose');
   const ONLINE_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
   const now = Date.now();
 
-  // First check membership without populate (more reliable for large workspaces)
-  const rawWorkspace = await Workspace.findById(workspaceId);
+  const getObjIdStr = (val) => {
+    if (!val) return '';
+    if (typeof val === 'string') return val;
+    if (val._id) return val._id.toString();
+    if (val.id) return val.id.toString();
+    return val.toString();
+  };
+
+  // Find workspace supporting ObjectId and String _id
+  let rawWorkspace = null;
+  if (mongoose.Types.ObjectId.isValid(workspaceId)) {
+    rawWorkspace = await Workspace.findById(workspaceId);
+  }
+  if (!rawWorkspace) {
+    rawWorkspace = await Workspace.findOne({ _id: workspaceId });
+  }
   if (!rawWorkspace) {
     throw new ApiError(404, 'Workspace not found');
   }
 
-  const reqUserId = (req.user._id || req.user.id).toString();
-  const rawOwnerId = rawWorkspace.owner ? rawWorkspace.owner.toString() : '';
-  const isMember =
-    rawOwnerId === reqUserId ||
-    (rawWorkspace.members || []).some(m => m && m.toString() === reqUserId);
+  const reqUserId = (req.user._id || req.user.id || '').toString();
+  const rawOwnerId = getObjIdStr(rawWorkspace.owner);
+  const memberIds = (rawWorkspace.members || []).map(getObjIdStr).filter(Boolean);
+  const memberRoleUserIds = (rawWorkspace.memberRoles || []).map(mr => mr && mr.user ? getObjIdStr(mr.user) : '').filter(Boolean);
+
+  const isMember = rawOwnerId === reqUserId || memberIds.includes(reqUserId) || memberRoleUserIds.includes(reqUserId);
 
   if (!isMember) {
     throw new ApiError(403, 'Forbidden: You do not have access to this workspace member list');
   }
 
   // Now do the full populate
-  const workspace = await Workspace.findById(workspaceId)
-    .populate('owner', 'fullName nickname phone bio email photoURL lastSeen')
-    .populate('members', 'fullName nickname phone bio email photoURL lastSeen');
+  let workspace = null;
+  if (mongoose.Types.ObjectId.isValid(workspaceId)) {
+    workspace = await Workspace.findById(workspaceId)
+      .populate('owner', 'fullName nickname phone bio email photoURL lastSeen')
+      .populate('members', 'fullName nickname phone bio email photoURL lastSeen');
+  }
+  if (!workspace) {
+    workspace = await Workspace.findOne({ _id: workspaceId })
+      .populate('owner', 'fullName nickname phone bio email photoURL lastSeen')
+      .populate('members', 'fullName nickname phone bio email photoURL lastSeen');
+  }
 
   const computeOnline = (user) => {
     return !!(user && user.lastSeen && (now - new Date(user.lastSeen).getTime()) < ONLINE_THRESHOLD_MS);
@@ -152,7 +176,7 @@ const getWorkspaceMembers = asyncHandler(async (req, res) => {
     const ownerId = workspace.owner ? (workspace.owner._id || workspace.owner.id).toString() : '';
     if (ownerId && memberId === ownerId) return;
 
-    const memberRoleObj = workspace.memberRoles?.find(mr => mr.user && mr.user.toString() === memberId);
+    const memberRoleObj = workspace.memberRoles?.find(mr => mr && mr.user && getObjIdStr(mr.user) === memberId);
     const role = memberRoleObj ? memberRoleObj.role : 'Member';
     const memberOnline = computeOnline(member);
 
